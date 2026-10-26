@@ -1,0 +1,259 @@
+{
+  "label": "Sample person — fictional",
+  "person": {
+    "name": "Sam",
+    "gamerTag": "CalmLentil#3108",
+    "kind": "demo",
+    "fictional": true,
+    "targets": { "kcal": 2400, "protein": 130 }
+  },
+  "clock": { "start": "2026-10-22T01:30:00" },
+  "meals": [
+    {
+      "id": "thu-1",
+      "name": "Greek yogurt with granola",
+      "eatenAt": "2026-10-15T13:40:00",
+      "source": "label",
+      "kcal": 320, "protein": 18, "carbs": 40, "fat": 9,
+      "foods": [
+        { "name": "greek yogurt", "amount": 1, "unit": "serving" },
+        { "name": "granola", "amount": 1, "unit": "serving" }
+      ]
+    },
+    {
+      "id": "thu-2",
+      "name": "Turkey sandwich",
+      "eatenAt": "2026-10-15T18:00:00",
+      "source": "description",
+      "kcal": 520, "protein": 28, "carbs": 52, "fat": 20,
+      "foods": [
+        { "name": "turkey", "amount": 1, "unit": "serving" },
+        { "name": "whole wheat bread", "amount": 2, "unit": "serving" },
+        { "name": "lettuce", "amount": 1, "unit": "serving" }
+      ]
+    },
+    {
+      "id": "thu-3",
+      "name": "Tofu and noodle stir-fry",
+      "eatenAt": "2026-10-15T22:30:00",
+      "source": "photo",
+      "kcal": 640, "protein": 26, "carbs": 80, "fat": 22,
+      "foods": [
+        { "name": "tofu", "amount": 1, "unit": "serving" },
+        { "name": "noodles", "amount": 1, "unit": "serving" },
+        { "name": "bell pepper", "amount": 1, "unit": "serving" }
+      ]
+    },
+    {
+      "id": "fri-1",
+      "name": "Porridge with banana",
+      "eatenAt": "2026-10-16T13:45:00",
+      "source": "weighed",
+      "kcal": 380, "protein": 12, "carbs": 66, "fat": 7,
+      "foods": [
+        { "name": "rolled oats", "amount": 1, "unit": "serving" },
+        { "name": "banana", "amount": 1, "unit": "serving" },
+        { "name": "milk", "amount": 1, "unit": "serving" }
+      ]
+    },
+    {
+      "id": "fri-2",
+      "name": "Burrito bowl",
+      "eatenAt": "2026-10-16T19:15:00",
+      "source": "menu",
+      "kcal": 780, "protein": 38, "carbs": 88, "fat": 28,
+      "foods": [
+        { "name": "black beans", "amount": 1, "unit": "serving" },
+        { "name": "white rice", "amount": 1, "unit": "serving" },
+        { "name": "chicken breast", "amount": 1, "unit": "serving" },
+        { "name": "salsa", "amount": 1, "unit": "serving" }
+      ]
+    },
+    {
+      "id": "fri-3",
+      "name": "Leftover curry",
+      "eatenAt": "2026-10-16T23:40:00",
+      "source": "description",
+      "kcal": null, "protein": null, "carbs": null, "fat": null,
+      "note": "Didn't check the portion."
+    },
+    {
+      "id": "sun-1",
+      "name": "Scrambled eggs on toast",
+      "eatenAt": "2026-10-18T14:00:00",
+      "source": "weighed",
+      "kcal": 450, "protein": 26, "carbs": 34, "fat": 22,
+      "foods": [
+        { "name": "eggs", "amount": 1, "unit": "serving" },
+        { "name": "whole wheat bread", "amount": 2, "unit": "serving" }
+      ]
+    },
+    {
+      "id": "sun-2",
+      "name": "Homemade chili",
+      "eatenAt": "2026-10-18T20:30:00",
+      "source": "description",
+      "kcal": 620, "protein": 36, "carbs": 58, "fat": 24,
+      "foods": [
+        { "name": "kidney beans", "amount": 1, "unit": "serving" },
+        { "name": "beef mince", "amount": 1, "unit": "serving" },
+        { "name": "tomato", "amount": 1, "unit": "serving" },
+        { "name": "onion", "amount": 1, "unit": "serving" }
+      ]
+    },
+    {
+      "id": "mon-1",
+      "name": "Kefir smoothie",
+      "eatenAt": "2026-10-19T13:30:00",
+      "source": "label",
+      "kcal": 290, "protein": 14, "carbs": 42, "fat": 6,
+      "foods": [
+        { "name": "kefir", "amount": 6, "unit": "oz" },
+        { "name": "banana", "amount": 1, "unit": "serving" }
+      ]
+    },
+    {
+      "id": "mon-2",
+      "name": "Chicken wrap",
+      "eatenAt": "2026-10-19T17:00:00",
+      "source": "menu",
+      "kcal": 560, "protein": 34, "carbs": 52, "fat": 22,
+      "foods": [
+        { "name": "chicken breast", "amount": 1, "unit": "serving" },
+        { "name": "tortilla", "amount": 1, "unit": "serving" },
+        { "name": "lettuce", "amount": 1, "unit": "serving" }
+      ]
+    },
+    {
+      "id": "mon-3",
+      "name": "Salmon, potatoes and green beans",
+      "eatenAt": "2026-10-19T21:45:00",
+      "source": "weighed",
+      "kcal": 610, "protein": 40, "carbs": 54, "fat": 24,
+      "foods": [
+        { "name": "salmon", "amount": 1, "unit": "serving" },
+        { "name": "potatoes", "amount": 1, "unit": "serving" },
+        { "name": "green beans", "amount": 1, "unit": "serving" }
+      ]
+    },
+    {
+      "id": "tue-1",
+      "name": "Bagel with cream cheese",
+      "eatenAt": "2026-10-20T13:35:00",
+      "source": "photo",
+      "kcal": 430, "protein": 13, "carbs": 62, "fat": 14,
+      "foods": [
+        { "name": "bagel", "amount": 1, "unit": "serving" },
+        { "name": "cream cheese", "amount": 1, "unit": "serving" }
+      ]
+    },
+    {
+      "id": "tue-2",
+      "name": "Granola bar",
+      "eatenAt": "2026-10-20T16:00:00",
+      "source": "label_lookup",
+      "kcal": 190, "protein": 4, "carbs": 27, "fat": 8,
+      "note": "Saved barcode lookup; ate the whole package.",
+      "lookup": { "kind": "barcode", "saved": true, "amount": { "kind": "package" } }
+    },
+    {
+      "id": "tue-3",
+      "name": "Veggie pizza",
+      "eatenAt": "2026-10-20T20:45:00",
+      "source": "photo",
+      "kcal": 720, "protein": 28, "carbs": 84, "fat": 28,
+      "foods": [
+        { "name": "pizza crust", "amount": 1, "unit": "serving" },
+        { "name": "mozzarella", "amount": 1, "unit": "serving" },
+        { "name": "bell pepper", "amount": 1, "unit": "serving" },
+        { "name": "mushrooms", "amount": 1, "unit": "serving" }
+      ]
+    },
+    {
+      "id": "tue-4",
+      "name": "Hummus and crackers",
+      "eatenAt": "2026-10-20T23:30:00",
+      "source": "description",
+      "kcal": 280, "protein": 8, "carbs": 30, "fat": 14,
+      "foods": [
+        { "name": "hummus", "amount": 1, "unit": "serving" },
+        { "name": "crackers", "amount": 1, "unit": "serving" }
+      ]
+    },
+    {
+      "id": "wed-1",
+      "name": "Kefir with oats and blueberries",
+      "eatenAt": "2026-10-21T13:50:00",
+      "source": "label",
+      "kcal": 410, "protein": 20, "carbs": 62, "fat": 9,
+      "foods": [
+        { "name": "kefir", "amount": 6, "unit": "oz" },
+        { "name": "rolled oats", "amount": 1, "unit": "serving" },
+        { "name": "blueberries", "amount": 1, "unit": "serving" }
+      ]
+    },
+    {
+      "id": "wed-2",
+      "name": "Pasta bake (ready meal)",
+      "eatenAt": "2026-10-21T17:30:00",
+      "source": "photo",
+      "kcal": 760, "protein": 34, "carbs": 84, "fat": 30,
+      "note": "Label on the box (whole package): 860 kcal, protein 42 g, carbs 96 g, fat 33 g."
+    },
+    {
+      "id": "wed-3",
+      "name": "Chicken, rice and broccoli",
+      "eatenAt": "2026-10-21T21:10:00",
+      "source": "weighed",
+      "kcal": 480, "protein": 44, "carbs": 50, "fat": 10,
+      "foods": [
+        { "name": "chicken breast", "amount": 1, "unit": "serving" },
+        { "name": "white rice", "amount": 1, "unit": "serving" },
+        { "name": "broccoli", "amount": 1, "unit": "serving" }
+      ]
+    },
+    {
+      "id": "wed-4",
+      "name": "Lentil soup from the café",
+      "eatenAt": "2026-10-21T23:15:00",
+      "source": "menu",
+      "kcal": 330, "protein": 18, "carbs": 46, "fat": 8,
+      "foods": [
+        { "name": "lentils", "amount": 1, "unit": "serving" },
+        { "name": "onion", "amount": 1, "unit": "serving" },
+        { "name": "carrot", "amount": 1, "unit": "serving" }
+      ]
+    },
+    {
+      "id": "wed-5",
+      "name": "Apple and peanut butter",
+      "eatenAt": "2026-10-22T00:40:00",
+      "source": "description",
+      "kcal": 300, "protein": 8, "carbs": 30, "fat": 17,
+      "foods": [
+        { "name": "apple", "amount": 1, "unit": "serving" },
+        { "name": "peanut butter", "amount": 1, "unit": "serving" }
+      ]
+    }
+  ],
+  "sleeps": [
+    { "id": "sleep-1015", "sleepStart": "2026-10-15T04:20:00", "wake": "2026-10-15T13:10:00" },
+    { "id": "sleep-1016", "sleepStart": "2026-10-16T04:50:00", "wake": "2026-10-16T13:25:00" },
+    { "id": "sleep-1017", "sleepStart": "2026-10-17T04:10:00", "wake": "2026-10-17T13:00:00" },
+    { "id": "sleep-1018", "sleepStart": "2026-10-18T04:45:00", "wake": "2026-10-18T13:30:00" },
+    { "id": "sleep-1019", "sleepStart": "2026-10-19T04:05:00", "wake": "2026-10-19T13:15:00" },
+    { "id": "sleep-1020", "sleepStart": null, "wake": "2026-10-20T13:05:00" },
+    { "id": "sleep-1021", "sleepStart": "2026-10-21T04:35:00", "wake": "2026-10-21T13:20:00" }
+  ],
+  "workouts": [
+    {
+      "id": "workout-1019",
+      "name": "Brisk walk",
+      "startedAt": "2026-10-19T18:30:00",
+      "minutes": 45,
+      "kcal": 210,
+      "source": "burn_device"
+    }
+  ],
+  "plates": [{ "id": "plate-blue", "name": "Blue dinner plate", "grams": 212 }]
+}

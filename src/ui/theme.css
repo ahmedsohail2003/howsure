@@ -1,0 +1,1245 @@
+/* spec.md > Look and Feel. Calm, journal-like, light theme.
+   Teal = primary actions; amber = uncertainty and incomplete information.
+   Text in teal or amber always uses the -ink tokens, and every colour signal
+   carries a text label too. */
+
+:root {
+  --bg: #FAF7F2;
+  --surface: #FFFFFF;
+  --ink: #2B2B2B;
+  --ink-soft: #5E5A55;
+  --line: #E6E0D6;
+  --line-strong: #8F887F; /* input borders: 3.5:1 on white, 3.28:1 on --bg (WCAG 1.4.11 needs 3:1) */
+  --teal-bg: #F2F8F7; /* hover and selected fills; --teal-ink on it is 5.18:1 */
+  --teal: #2F7F7A;
+  --teal-ink: #2A736E;
+  --amber: #B7791F;
+  --amber-ink: #8A5A12;
+  --amber-bg: #FBF1E1;
+
+  --font: "Segoe UI", system-ui, -apple-system, sans-serif;
+  --s1: 8px;
+  --s2: 16px;
+  --s3: 24px;
+  --s4: 32px;
+  --s5: 40px;
+  --radius: 8px;
+  --shadow-sheet: 0 2px 12px rgba(0, 0, 0, .08);
+  --t: 150ms;
+  --col: 640px;
+
+  color-scheme: light;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+/* Keep focused or scrolled-to elements clear of the sticky fictional banner. */
+html {
+  scroll-padding-top: 48px;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-text-size-adjust: 100%;
+}
+
+h1,
+h2,
+h3,
+p,
+ul,
+ol {
+  margin: 0;
+}
+
+ul,
+ol {
+  padding: 0;
+  list-style: none;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---------- page column ---------- */
+
+.page {
+  max-width: var(--col);
+  margin: 0 auto;
+  padding: 0 var(--s2) var(--s5);
+}
+
+/* ---------- fictional banner ---------- */
+
+.fictional-banner {
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+  padding: 6px var(--s2);
+  letter-spacing: .01em;
+}
+
+/* On the page the banner sticks to the top of the window, so it is always visible in demo
+   mode (prd.md > Screens and Layout). Sticky, not fixed: it keeps its own place in the
+   layout, so nothing sits under it until the page scrolls. */
+.page-banner {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+.sheet .fictional-banner {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  margin-bottom: 12px;
+  padding: 4px var(--s2);
+}
+
+/* ---------- buttons ---------- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 10px var(--s2);
+  border-radius: var(--radius);
+  border: 1px solid var(--teal);
+  background: var(--surface);
+  color: var(--teal-ink);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color var(--t), border-color var(--t);
+}
+
+.btn:hover {
+  background: var(--teal-bg);
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+  border-color: var(--line);
+  background: var(--line);
+  color: var(--ink-soft);
+}
+
+.btn-primary {
+  background: var(--teal);
+  border-color: var(--teal);
+  color: #FFFFFF;
+}
+
+.btn-primary:hover {
+  background: var(--teal-ink);
+}
+
+.btn-quiet {
+  min-height: 36px;
+  padding: 6px 12px;
+  border-color: var(--line);
+  color: var(--teal-ink);
+  font-size: 14px;
+}
+
+.link-btn {
+  display: inline;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--teal-ink);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+/* ---------- first open ---------- */
+
+.first-open {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+}
+
+.first-open .page {
+  width: 100%;
+  padding-top: var(--s5);
+}
+
+.wordmark {
+  font-size: 32px;
+  font-weight: 600;
+  letter-spacing: -.01em;
+}
+
+.tagline {
+  color: var(--ink-soft);
+  margin-top: var(--s1);
+}
+
+.first-open-lede {
+  margin-top: var(--s3);
+  max-width: 34em;
+}
+
+.first-open-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  margin-top: var(--s4);
+}
+
+.first-open-choice small {
+  display: block;
+  color: var(--ink-soft);
+  font-size: 14px;
+  margin-top: 6px;
+}
+
+.first-open-choice .btn {
+  width: 100%;
+}
+
+@media (min-width: 640px) {
+  .first-open-actions {
+    flex-direction: row;
+  }
+
+  .first-open-choice {
+    flex: 1;
+  }
+}
+
+/* ---------- header ---------- */
+
+.app-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s2);
+  padding: var(--s2) 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.app-header .wordmark {
+  font-size: 22px;
+}
+
+.waking-day {
+  color: var(--ink-soft);
+  font-size: 14px;
+  margin-top: 2px;
+}
+
+.waking-day.unset {
+  color: var(--amber-ink);
+}
+
+/* ---------- headline estimate ---------- */
+
+.headline {
+  padding: var(--s3) 0 var(--s2);
+}
+
+.headline-label {
+  color: var(--ink-soft);
+  font-size: 14px;
+}
+
+.headline-number {
+  font-size: 44px;
+  font-weight: 600;
+  line-height: 1.1;
+  margin-top: 4px;
+}
+
+.headline-number .unit {
+  font-size: 20px;
+  font-weight: 400;
+  color: var(--ink-soft);
+  margin-left: 6px;
+}
+
+.headline-na {
+  font-size: 28px;
+  font-weight: 600;
+  margin-top: 4px;
+}
+
+.day-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px var(--s1);
+  margin-top: var(--s1);
+}
+
+.status-count {
+  color: var(--amber-ink);
+  font-size: 14px;
+}
+
+.status-pill {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--amber);
+  background: var(--amber-bg);
+  color: var(--amber-ink);
+  font-size: 14px;
+}
+
+.ranges {
+  margin-top: var(--s2);
+  display: grid;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.range-btn {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--s2);
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--t);
+}
+
+.range-btn + .range-btn {
+  border-top: 1px solid var(--line);
+}
+
+.range-btn:hover {
+  background: var(--teal-bg);
+}
+
+.range-btn:focus-visible {
+  outline-offset: -2px;
+}
+
+.range-btn .range-name,
+.range-row .range-name {
+  color: var(--ink-soft);
+  font-size: 14px;
+}
+
+.range-btn .range-value {
+  font-size: 16px;
+}
+
+.range-btn.very-likely .range-value {
+  color: var(--ink-soft);
+}
+
+/* No known calories yet: the same rows, not tappable, saying "Not available yet". */
+.range-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--s2);
+  min-height: 44px;
+  padding: 10px 12px;
+}
+
+.range-row + .range-row {
+  border-top: 1px solid var(--line);
+}
+
+.range-row .range-value {
+  color: var(--ink-soft);
+}
+
+.score-na {
+  margin-top: var(--s2);
+  color: var(--ink-soft);
+  font-size: 14px;
+}
+
+/* Third in emphasis after the number and the ranges (prd.md > Dashboard): a quiet,
+   still-tappable chip rather than a full teal button. */
+.score-btn {
+  margin-top: var(--s2);
+  padding: 6px 12px;
+  border-color: var(--line);
+  font-size: 14px;
+  font-weight: 400;
+}
+
+/* ---------- macro row ---------- */
+
+.macro-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--s1);
+  padding: var(--s2) 0;
+  border-top: 1px solid var(--line);
+}
+
+.macro-name {
+  color: var(--ink-soft);
+  font-size: 14px;
+}
+
+.macro-value {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.macro-note {
+  color: var(--amber-ink);
+  font-size: 14px;
+}
+
+/* ---------- sections ---------- */
+
+.section {
+  padding: var(--s2) 0;
+  border-top: 1px solid var(--line);
+}
+
+.section-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  margin-bottom: var(--s1);
+}
+
+.uncertainty-line {
+  padding: 12px var(--s2);
+  border-left: 3px solid var(--amber);
+  background: var(--amber-bg);
+  border-radius: 0 var(--radius) var(--radius) 0;
+}
+
+.uncertainty-line .hint {
+  display: block;
+  color: var(--amber-ink);
+  font-size: 14px;
+  margin-top: 4px;
+}
+
+.missing-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s2);
+  padding: 6px 0;
+}
+
+.missing-list .unknown {
+  color: var(--amber-ink);
+  white-space: nowrap;
+}
+
+.missing-list .link-btn {
+  text-align: left;
+}
+
+/* A day with no meals: one line and one action (prd.md > States and Boundaries). */
+.empty-day {
+  padding: var(--s4) 0;
+  text-align: center;
+}
+
+.empty-title {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.empty-day .log-btn {
+  margin-top: var(--s2);
+}
+
+/* ---------- log a meal ---------- */
+
+.log-row {
+  padding: var(--s2) 0;
+  border-top: 1px solid var(--line);
+}
+
+.log-btn {
+  width: 100%;
+}
+
+@media (min-width: 640px) {
+  .log-btn {
+    width: auto;
+    min-width: 220px;
+  }
+}
+
+/* ---------- meal list ---------- */
+
+.meal-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px var(--s2);
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.meal-row:last-child {
+  border-bottom: 0;
+}
+
+/* The name and meta open the meal's details; the score opens its explanation. */
+.meal-open {
+  display: block;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.meal-open .meal-name,
+.meal-open .meal-meta {
+  display: block;
+}
+
+.meal-open:hover .meal-name {
+  color: var(--teal-ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.meal-name {
+  font-weight: 600;
+}
+
+.meal-meta {
+  color: var(--ink-soft);
+  font-size: 14px;
+}
+
+.meal-right {
+  text-align: right;
+}
+
+.meal-kcal {
+  font-weight: 600;
+}
+
+.meal-kcal.unknown {
+  color: var(--amber-ink);
+  font-weight: 400;
+}
+
+.meal-score {
+  margin-top: 4px;
+  font-size: 14px;
+}
+
+.meal-score .link-btn {
+  font-weight: 400;
+}
+
+/* ---------- sheet ---------- */
+
+.sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(43, 43, 43, .32);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 10;
+  animation: fade-in var(--t) ease-out;
+}
+
+.sheet {
+  --sheet-pad: var(--s2);
+  width: 100%;
+  max-width: var(--col);
+  max-height: 92vh;
+  overflow-y: auto;
+  background: var(--surface);
+  border-radius: 12px 12px 0 0;
+  box-shadow: var(--shadow-sheet);
+  padding: 0 var(--sheet-pad) var(--s4);
+  animation: rise var(--t) ease-out;
+}
+
+@media (min-width: 720px) {
+  .sheet-backdrop {
+    align-items: center;
+  }
+
+  .sheet {
+    --sheet-pad: var(--s3);
+    border-radius: 12px;
+    max-height: 86vh;
+  }
+}
+
+/* The banner, title and Close stay in view while a long explanation scrolls. */
+.sheet > header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  margin: 0 calc(-1 * var(--sheet-pad)) var(--s2);
+  padding: var(--sheet-pad) var(--sheet-pad) var(--s1);
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+
+.sheet-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s2);
+}
+
+.sheet-title {
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.sheet-sub {
+  color: var(--ink-soft);
+  font-size: 14px;
+  margin-top: 2px;
+}
+
+.sheet-body > * + * {
+  margin-top: var(--s2);
+}
+
+.big-figure {
+  font-size: 28px;
+  font-weight: 600;
+}
+
+.fact-list {
+  display: grid;
+  gap: 4px;
+}
+
+.fact-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s2);
+  border-bottom: 1px solid var(--line);
+  padding: 6px 0;
+}
+
+.fact-list .k {
+  color: var(--ink-soft);
+}
+
+.basis-tag {
+  display: inline-block;
+  padding: 0 8px;
+  border-radius: 999px;
+  border: 1px solid var(--amber);
+  background: var(--amber-bg);
+  color: var(--amber-ink);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.basis-tag.study {
+  border-color: var(--teal);
+  background: var(--surface);
+  color: var(--teal-ink);
+}
+
+.contrib-list li {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.contrib-head {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s2);
+}
+
+.contrib-bar {
+  height: 6px;
+  margin-top: 6px;
+  background: var(--line);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.contrib-bar span {
+  display: block;
+  height: 100%;
+  background: var(--amber);
+}
+
+.contrib-meta {
+  color: var(--ink-soft);
+  font-size: 14px;
+  margin-top: 2px;
+}
+
+.callout {
+  padding: 12px var(--s2);
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: var(--bg);
+}
+
+.callout.amber {
+  border-color: var(--amber);
+  background: var(--amber-bg);
+}
+
+details.more {
+  border-top: 1px solid var(--line);
+  padding-top: var(--s2);
+}
+
+details.more > summary {
+  cursor: pointer;
+  color: var(--teal-ink);
+  font-weight: 600;
+  min-height: 32px;
+}
+
+.more-body > * + * {
+  margin-top: var(--s2);
+}
+
+.more-body h3 {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.detail-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.detail-table th,
+.detail-table td {
+  text-align: left;
+  padding: 6px 4px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+
+.detail-table th {
+  color: var(--ink-soft);
+  font-weight: 600;
+}
+
+.detail-table td.r,
+.detail-table th.r {
+  text-align: right;
+}
+
+.source-basis li {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.source-basis .context {
+  color: var(--ink-soft);
+  font-size: 14px;
+  margin-top: 2px;
+}
+
+.small {
+  font-size: 14px;
+  color: var(--ink-soft);
+}
+
+/* ---------- storage notice ---------- */
+
+.storage-notice {
+  background: var(--amber-bg);
+  border-bottom: 1px solid var(--amber);
+  color: var(--ink);
+  font-size: 14px;
+}
+
+.storage-notice-inner {
+  max-width: var(--col);
+  margin: 0 auto;
+  padding: var(--s1) var(--s2);
+}
+
+.storage-notice-inner p + p {
+  margin-top: 4px;
+}
+
+/* ---------- meal details ---------- */
+
+.details-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s1) var(--s2);
+}
+
+.details-head .score-btn {
+  margin-top: 0;
+}
+
+.details-unknown-title {
+  font-weight: 600;
+  color: var(--amber-ink);
+}
+
+.details-callout > * + * {
+  margin-top: 4px;
+}
+
+.details-callout .section-title {
+  margin-bottom: 0;
+}
+
+.fact-list .unknown {
+  color: var(--amber-ink);
+}
+
+.details-source {
+  text-align: right;
+}
+
+.details-facts .k {
+  white-space: nowrap;
+}
+
+.sheet-actions.split {
+  justify-content: space-between;
+}
+
+.btn-plain {
+  border-color: var(--line-strong);
+  color: var(--ink);
+}
+
+.btn-plain:hover {
+  background: var(--bg);
+}
+
+.btn-ink {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: #FFFFFF;
+}
+
+.btn-ink:hover {
+  background: #000000;
+}
+
+.delete-confirm-text {
+  font-size: 14px;
+  margin-bottom: var(--s1);
+}
+
+/* ---------- improve that entry ---------- */
+
+.improve-btn {
+  margin-top: 12px;
+}
+
+/* ---------- sheet footer ---------- */
+
+.sheet.has-footer {
+  padding-bottom: 0;
+  /* A focused field never ends up under the sticky header or the Save bar. */
+  scroll-padding: 150px 0 96px;
+}
+
+/* Save and Cancel stay in view while the form scrolls. */
+.sheet-footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  margin: var(--s3) calc(-1 * var(--sheet-pad)) 0;
+  padding: 12px var(--sheet-pad);
+  background: var(--surface);
+  border-top: 1px solid var(--line);
+}
+
+.sheet-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--s1);
+}
+
+.sheet-actions .btn {
+  min-width: 112px;
+}
+
+/* ---------- log a meal sheet ---------- */
+
+.improve-callout > * + * {
+  margin-top: 6px;
+}
+
+.improve-callout .section-title {
+  color: var(--amber-ink);
+  margin-bottom: 0;
+}
+
+.improve-note .k {
+  font-weight: 600;
+}
+
+.meal-form > * + * {
+  margin-top: var(--s2);
+}
+
+.field {
+  display: block;
+  min-width: 0;
+}
+
+.field > label,
+.source-field > legend {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.meal-form input[type="text"],
+.meal-form input[type="datetime-local"],
+.meal-form textarea {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+}
+
+.meal-form textarea {
+  resize: vertical;
+}
+
+.meal-form [aria-invalid="true"] {
+  border-color: var(--amber);
+  box-shadow: inset 0 0 0 1px var(--amber);
+}
+
+.field-hint {
+  color: var(--ink-soft);
+  font-size: 14px;
+  margin-top: 4px;
+}
+
+.field-error {
+  color: var(--amber-ink);
+  font-size: 14px;
+  font-weight: 600;
+  margin-top: 4px;
+}
+
+.source-field {
+  /* Inline and bottom only, so .meal-form's top spacing still applies to this fieldset. */
+  margin-inline: 0;
+  margin-bottom: 0;
+  padding: 0;
+  border: 0;
+}
+
+.source-field > legend {
+  padding: 0;
+}
+
+/* Improve mode: the evidence source is the thing to change, so it is outlined. */
+.source-field.highlight {
+  padding: 12px;
+  border: 1px solid var(--amber);
+  border-radius: var(--radius);
+}
+
+.source-field.highlight > legend {
+  padding: 0 4px;
+  margin-left: -4px;
+}
+
+.source-options {
+  display: grid;
+  gap: 4px;
+}
+
+.source-option {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px var(--s1);
+  min-height: 44px;
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  cursor: pointer;
+}
+
+.source-option.checked {
+  border-color: var(--teal);
+  background: var(--teal-bg);
+}
+
+.source-option input {
+  margin: 0;
+  width: 18px;
+  height: 18px;
+  accent-color: var(--teal);
+}
+
+.source-label {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.source-label .suggested-tag {
+  margin-left: 2px;
+}
+
+.source-error {
+  color: var(--ink-soft);
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.suggested-tag {
+  display: inline-block;
+  padding: 0 8px;
+  border-radius: 999px;
+  border: 1px solid var(--teal);
+  background: var(--surface);
+  color: var(--teal-ink);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.optional-details > summary {
+  cursor: pointer;
+  color: var(--teal-ink);
+  font-weight: 600;
+  min-height: 32px;
+}
+
+.optional-details > * + * {
+  margin-top: 12px;
+}
+
+.macro-inputs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--s1);
+}
+
+/* ---------- before/after preview ---------- */
+
+.edit-preview {
+  margin-top: var(--s3);
+  padding-top: var(--s2);
+  border-top: 1px solid var(--line);
+}
+
+.preview-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.preview-table th,
+.preview-table td {
+  padding: 6px 4px;
+  border-bottom: 1px solid var(--line);
+  text-align: right;
+  vertical-align: top;
+}
+
+.preview-table th[scope="row"],
+.preview-table tr.group th {
+  text-align: left;
+  font-weight: 400;
+  color: var(--ink-soft);
+}
+
+.preview-table thead th {
+  color: var(--ink-soft);
+  font-weight: 600;
+}
+
+.preview-table tr.group th {
+  padding-top: 12px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.preview-table td.after {
+  font-weight: 600;
+}
+
+.preview-table td.after.changed {
+  color: var(--teal-ink);
+}
+
+.preview-biggest {
+  margin-top: 12px;
+  font-size: 14px;
+}
+
+/* ---------- sleep section (prd.md > Screens and Layout, item 9) ---------- */
+
+.sleep-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--s2);
+  margin-bottom: var(--s1);
+}
+
+.sleep-head .section-title {
+  margin-bottom: 2px;
+}
+
+.sleep-status {
+  color: var(--ink-soft);
+  font-size: 14px;
+}
+
+.sleep-btn {
+  flex: none;
+}
+
+.sleep-facts li:last-child {
+  border-bottom: 0;
+}
+
+.sleep-avg {
+  text-align: right;
+}
+
+.sleep-count {
+  color: var(--ink-soft);
+  font-size: 14px;
+}
+
+/* "not logged" is incomplete information: amber text, never 0 h. */
+.not-logged {
+  color: var(--amber-ink);
+}
+
+.sleep-nights {
+  margin-top: var(--s1);
+}
+
+/* ---------- previous / next (prd.md > Screens and Layout, item 10) ---------- */
+
+.day-nav {
+  padding: var(--s2) 0 var(--s4);
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+
+.day-nav-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--s1);
+}
+
+.day-date {
+  min-height: 44px;
+  min-width: 0;
+  padding: 6px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+}
+
+.day-today {
+  margin-top: var(--s1);
+}
+
+@keyframes rise {
+  from {
+    transform: translateY(12px);
+    opacity: 0;
+  }
+
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HowSure app map</title>
+<style>
+  :root { --bg:#FAF7F2; --surface:#FFFFFF; --ink:#2B2B2B; --ink-soft:#5E5A55; --line:#E6E0D6; --teal:#2F7F7A; --amber:#B7791F; --amber-bg:#FBF1E1; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.55 "Segoe UI", system-ui, -apple-system, sans-serif; }
+  main { max-width: 880px; margin: 0 auto; padding: 32px 20px 64px; }
+  h1 { font-size: 30px; margin: 0 0 4px; }
+  h2 { font-size: 21px; margin: 32px 0 8px; }
+  p.lead { color: var(--ink-soft); margin: 0 0 20px; }
+  code { font-family: Consolas, "Cascadia Mono", monospace; font-size: 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px 20px; margin: 12px 0; }
+  ol.route > li { margin: 0 0 14px; }
+  .tag { display:inline-block; font-size:13px; color: var(--amber); background: var(--amber-bg); border-radius: 999px; padding: 1px 10px; }
+  details { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 16px; margin: 10px 0; }
+  summary { cursor: pointer; font-weight: 600; }
+  summary:focus-visible, a:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+  svg text { font-family: "Segoe UI", system-ui, sans-serif; }
+  table { border-collapse: collapse; width: 100%; }
+  td, th { text-align: left; vertical-align: top; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --bg:#1E1D1B; --surface:#272623; --ink:#EDEAE4; --ink-soft:#B9B3AA; --line:#3A3833; --amber-bg:#3A2F1C; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>HowSure app map</h1>
+  <p class="lead">A take-home guide to where things live in HowSure. It is a snapshot of the code at the final review and can drift as the code changes.</p>
+
+  <h2>What the app is</h2>
+  <div class="card">
+    <p>HowSure is a food log where every number says how much to trust it. It has three main pieces:</p>
+    <ul>
+      <li><strong>The maths core</strong> (<code>src/kernel/</code>): pure functions that turn meals into a total, an estimate score and two ranges, and sleep times into waking days. There's no screen code here, so every rule is tested on its own.</li>
+      <li><strong>The screens</strong> (<code>src/ui/</code>): React components that draw the dashboard and the sheets, with all wording kept in <code>src/ui/copy.ts</code>.</li>
+      <li><strong>The store</strong> (<code>src/store/</code>): reads and writes the log in the browser's <code>localStorage</code>, with the demo and your own log kept separate. Nothing leaves the device.</li>
+    </ul>
+  </div>
+
+  <h2>One action, end to end: "Improve that entry"</h2>
+  <svg viewBox="0 0 840 220" role="img" aria-labelledby="flowTitle" width="100%" style="max-width:840px;display:block;margin:8px 0">
+    <title id="flowTitle">Tap Improve that entry, the edit sheet previews the day with the same maths, Save writes to localStorage, and the dashboard redraws</title>
+    <defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#2F7F7A"/></marker></defs>
+    <g fill="none" stroke="#2F7F7A" stroke-width="2">
+      <rect x="10" y="20" width="180" height="70" rx="10" fill="#FFFFFF"/>
+      <rect x="230" y="20" width="180" height="70" rx="10" fill="#FFFFFF"/>
+      <rect x="450" y="20" width="180" height="70" rx="10" fill="#FFFFFF"/>
+      <rect x="660" y="20" width="170" height="70" rx="10" fill="#FFFFFF"/>
+      <rect x="230" y="130" width="400" height="70" rx="10" fill="#FBF1E1" stroke="#B7791F"/>
+      <path d="M190 55 H228" marker-end="url(#arrow)"/>
+      <path d="M410 55 H448" marker-end="url(#arrow)"/>
+      <path d="M630 55 H658" marker-end="url(#arrow)"/>
+      <path d="M320 90 V128" marker-end="url(#arrow)"/>
+      <path d="M540 128 V92" marker-end="url(#arrow)"/>
+    </g>
+    <g fill="#2B2B2B" font-size="14" text-anchor="middle">
+      <text x="100" y="50">Dashboard.tsx</text><text x="100" y="70" fill="#5E5A55" font-size="12">Improve that entry</text>
+      <text x="320" y="50">LogMealSheet.tsx</text><text x="320" y="70" fill="#5E5A55" font-size="12">edit + preview</text>
+      <text x="540" y="50">storage.ts</text><text x="540" y="70" fill="#5E5A55" font-size="12">saveLog()</text>
+      <text x="745" y="50">HeadlineEstimate</text><text x="745" y="70" fill="#5E5A55" font-size="12">2,380 · score 92</text>
+      <text x="430" y="160">kernel/estimate.ts — combineDay(), improve()</text>
+      <text x="430" y="180" fill="#5E5A55" font-size="12">same maths for the preview and the dashboard</text>
+    </g>
+  </svg>
+
+  <h2>Reference route <span class="tag">reference route; not a completed tour</span></h2>
+  <ol class="route">
+    <li><strong>The button.</strong> <code>src/ui/Dashboard.tsx</code>, search for <code>data-testid="improve-entry"</code>. It calls <code>onImprove(biggest.id)</code> for the meal the maths says adds the most uncertainty. The button is hidden when <code>improve()</code> returns <code>null</code>, meaning the meal already uses the most reliable source.</li>
+    <li><strong>The preview.</strong> <code>src/ui/editMeal.ts</code>, <code>previewEdit()</code>. It runs <code>buildDayView()</code>, the dashboard's own function, on a copy of the log with the edited meal, so the before/after preview and the dashboard after <strong>Save</strong> always match. The sheet itself is <code>src/ui/LogMealSheet.tsx</code> (search <code>edit-preview</code>).</li>
+    <li><strong>The maths.</strong> <code>src/kernel/estimate.ts</code>: <code>combineDay()</code> groups meals by source, adds each group's spread, combines the groups by the root of the sum of squares, and turns that into the score (<code>scoreFromE()</code>) and the ranges (<code>rangeFromE()</code>). <code>improve()</code> picks the better source to suggest. Saving goes through <code>saveLog()</code> in <code>src/store/storage.ts</code>.</li>
+  </ol>
+
+  <h2>To change this, start here</h2>
+  <table>
+    <tr><th>If you want to change…</th><th>Start in</th></tr>
+    <tr><td>Any wording on screen</td><td><code>src/ui/copy.ts</code> (its word rules are tested in <code>src/ui/__tests__/copy.test.ts</code>)</td></tr>
+    <tr><td>A source's typical error or its study</td><td><code>src/kernel/sources.ts</code>, then recompute <code>scripts/golden.py</code> and update <code>src/kernel/__tests__/golden.test.ts</code></td></tr>
+    <tr><td>How the day's ranges or score are worked out</td><td><code>src/kernel/estimate.ts</code>, <code>combineDay()</code></td></tr>
+    <tr><td>Which waking day a meal belongs to</td><td><code>src/kernel/sleepday.ts</code>, <code>wakingDayStart()</code> and <code>mealsForDay()</code></td></tr>
+    <tr><td>Sam's demo week</td><td><code>fixtures/demo-week.json</code> (fictional only), then re-run <code>python scripts/golden.py</code></td></tr>
+    <tr><td>Colours, type and spacing</td><td><code>src/ui/theme.css</code> (the tokens at the top)</td></tr>
+  </table>
+
+  <h2>A practice to reuse</h2>
+  <div class="card">
+    <p><strong>Illustrations are not acceptance targets; compute expected results independently.</strong> During the PRD review, an example ("one 1,000 kcal meal at score 70 plus three 100 kcal meals at score 95 gives about 77") was kept as an illustration only. Instead, the spec required "independently calculated expected results" for the tests.</p>
+    <p>The build followed that: <code>scripts/golden.py</code> (Python, standard library only, never imported by the app) recomputes every case, and <code>src/kernel/__tests__/golden.test.ts</code> asserts the same numbers against the TypeScript code. The demo's headline moment, 2,280 → 2,380 kcal and score 83 → 92 (cases G11 and G11b), is checked both ways.</p>
+    <p><strong>On another project:</strong> whenever an agent writes both the code and its tests, have the expected values come from a second, independent calculation (a script, a spreadsheet or a hand calculation), so the tests can't just echo the code's own mistakes.</p>
+  </div>
+
+  <details>
+    <summary>How to run it again</summary>
+    <ol>
+      <li><code>npm install</code></li>
+      <li><code>npm run dev:app</code></li>
+      <li>Open <code>http://127.0.0.1:5273</code> and choose <strong>Try the fictional demo</strong>.</li>
+      <li>Checks: <code>npx vitest run</code>, <code>npx tsc --noEmit</code>, <code>npx playwright test</code>.</li>
+    </ol>
+  </details>
+  <details>
+    <summary>Snapshot</summary>
+    <p>Generated 2026-10-26 from the code as frozen for the submission: checklist slices 1–4 and 7, plus the pre-ship fixes. It can drift as the code changes. Re-check the paths above against the source.</p>
+  </details>
+</main>
+</body>
+</html>

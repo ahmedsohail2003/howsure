@@ -1,0 +1,22 @@
+# skill-pack installer output (junctions hold absolute paths) and local agent settings
+/.claude/
+/.agents/
+/agent/
+# private learner profile written by 1-start
+/devpost/learner-profile.md
+# private verbatim brain-dump ideas
+/devpost/ideas-verbatim.md
+# secrets
+.env
+.env.*
+!.env.example
+# dependencies and build output
+node_modules/
+dist/
+# local Claude connector state (token and proposals)
+connector/.token
+connector/data.json
+# test and demo-capture output
+test-results/
+playwright-report/
+demo/out/
