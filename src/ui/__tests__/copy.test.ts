@@ -24,6 +24,13 @@ const countBranches = [
   copy.headline.unknownCount(1),
   copy.macros.missing(1),
   copy.explainDay.unknownNote(1),
+  copy.privacy.meals(1),
+  copy.privacy.nights(1),
+  copy.privacy.workouts(1),
+  copy.privacy.plates(1),
+  copy.privacy.olderCopiesButton(1),
+  copy.privacy.confirmOlderCopies(1),
+  copy.privacy.span('X', 'X'),
 ].map((text, i) => ({ path: `count branch ${i}`, text }))
 
 const everything = [...strings, ...countBranches]
@@ -126,6 +133,10 @@ describe('required wording', () => {
     expect(copy.storage.blocked).toBe(
       "Can't save on this device right now; your changes will be lost on reload.",
     )
+    // In your own log, where Export exists (item 1.2), the notice ends as spec.md has it.
+    expect(`${copy.storage.blocked} ${copy.storage.exportToKeep}`).toBe(
+      "Can't save on this device right now; your changes will be lost on reload. Export to keep them.",
+    )
     // spec.md > Store: "a failed parse shows "Couldn't read saved data"".
     expect(copy.storage.unreadable.startsWith("Couldn't read saved data")).toBe(true)
     // Build-out item 1.1: a log from a newer version says so and that it is left as it was.
@@ -150,5 +161,28 @@ describe('required wording', () => {
 
   it('formats the waking-day header like "Wed · awake since 1:20 PM"', () => {
     expect(copy.header.awakeSince('Wed', '1:20 PM')).toBe('Wed · awake since 1:20 PM')
+  })
+})
+
+describe('Profile and privacy wording (prd.md > Privacy Panel, build-out item 1.2)', () => {
+  it('uses the names prd.md gives', () => {
+    expect(copy.privacy.savedHere).toBe('Saved on this device only')
+    expect(copy.privacy.exportButton).toBe('Export my data')
+    expect(copy.privacy.deleteButton).toBe('Delete my data')
+    expect(copy.header.profileAndPrivacy).toBe('Profile and privacy')
+  })
+
+  it('every Import refusal says nothing changed, offers a next step, and never blames the person', () => {
+    for (const [name, text] of Object.entries(copy.privacy.importErrors)) {
+      expect(text, name).toContain('Nothing was changed.')
+      expect(text, name).toMatch(/Choose|Try|try again|update HowSure/)
+      expect(text, name).not.toMatch(/\b(invalid|wrong|mistake|you (did|made|chose))\b/i)
+    }
+  })
+
+  it('Delete says what stays and that it cannot be undone', () => {
+    expect(copy.privacy.confirmKeeps).toContain('The fictional demo is not affected.')
+    expect(copy.privacy.confirmKeeps).toContain('can’t be undone')
+    expect(copy.privacy.confirmButton).toBe('Delete my log')
   })
 })

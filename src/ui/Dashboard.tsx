@@ -2,7 +2,8 @@
 // information, the biggest-uncertainty line with Improve that entry, Log a meal, and the meal
 // list. A day with no meals says "No meals logged yet" with Log your first meal (prd.md > States
 // and Boundaries). The sleep section (item 9) and previous/next with a date picker (item 10)
-// sit at the bottom (slice 4). The header shows the viewed waking day and its wake time.
+// sit at the bottom (slice 4). The header shows the viewed waking day and its wake time. In your
+// own log, the guest name opens Profile and privacy (spec.md > Screens > Dashboard; item 1.2).
 
 import type { LogKind } from '../clock'
 import { copy } from './copy'
@@ -34,6 +35,10 @@ interface DashboardProps {
   onNext: () => void
   onPickDate: (date: string) => void
   onToday: () => void
+  /** The guest name in your own log ('' until item 2.10 gives one). */
+  ownName: string
+  /** Opens Profile and privacy (build-out item 1.2). Your own log only. */
+  onOpenProfile: () => void
 }
 
 export function Dashboard(props: DashboardProps) {
@@ -47,7 +52,12 @@ export function Dashboard(props: DashboardProps) {
       <header className="app-header">
         <div>
           <h1 className="wordmark">{copy.appName}</h1>
-          {kind === 'mine' && <p className="waking-day">{copy.header.yourLog}</p>}
+          {kind === 'mine' && (
+            <button type="button" className="profile-btn" onClick={props.onOpenProfile} data-testid="open-profile">
+              <span className="profile-name">{props.ownName || copy.header.yourLog}</span>
+              <span className="profile-link">{copy.header.profileAndPrivacy}</span>
+            </button>
+          )}
           {dayStart ? (
             <p className="waking-day num" data-testid="waking-day">
               {copy.header.awakeSince(fmtWeekday(dayStart), fmtTime(dayStart))}

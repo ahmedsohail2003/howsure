@@ -7,9 +7,19 @@ import { useEffect, useMemo, useState } from 'react'
 import { nowIso, reanchorDemoClock, type LogKind } from '../clock'
 import { wakingDayStart } from '../kernel/sleepday'
 import type { Meal, SleepRecord } from '../kernel/types'
-import { startDemo, type LogDoc } from '../store/log'
-import { loadSession, type Logs } from '../store/session'
-import { saveActive, saveLog } from '../store/storage'
+import { emptyLog, startDemo, type LogDoc } from '../store/log'
+import { loadSession, type LogProblem, type Logs } from '../store/session'
+import { browserStore, KEYS, readRaw, saveActive, saveLog, storageWorks } from '../store/storage'
+import {
+  backupsFileName,
+  countOlderCopies,
+  deleteOwnLog,
+  exportBackups,
+  exportFileName,
+  exportOwnLog,
+  olderCopies,
+  replaceOwnLog,
+} from '../store/transfer'
 import { Dashboard } from './Dashboard'
 import { buildDayViewFor } from './dayView'
 import { anchorFor, dateOfDay, dayForDate, dayNav } from './days'
@@ -19,7 +29,9 @@ import { ExplainSheet, type ExplainMode } from './ExplainSheet'
 import { FictionalBanner } from './FictionalBanner'
 import { FirstOpen } from './FirstOpen'
 import { LogMealSheet } from './LogMealSheet'
+import { downloadText } from './download'
 import { MealDetails } from './MealDetails'
+import { ProfilePrivacy, type DeleteOutcome, type ImportOutcome } from './ProfilePrivacy'
 import { SleepTimeSheet } from './SleepTimeSheet'
 import { buildSleepView, type SleepAction } from './sleepView'
 import { StorageNotice } from './StorageNotice'
@@ -33,6 +45,8 @@ type SheetState =
   | { mode: 'new'; meal: Meal }
   // I'm going to sleep / I woke up, with the date and time (prd.md > Sleep and Waking Days).
   | { mode: 'sleepTime'; action: SleepAction }
+  // Profile and privacy: Export, Import and Delete for your own log (build-out item 1.2).
+  | { mode: 'profile' }
 
 /** Re-render once a minute so "now" (and with it the current waking day) stays fresh. */
 function useMinuteTick(): number {
@@ -54,7 +68,8 @@ export function App() {
   // after I woke up it moves to the new day). prd.md > Previous Days.
   const [viewed, setViewed] = useState<{ dayStart: string | null } | null>(null)
   const tick = useMinuteTick()
-  const { problems } = initial
+  // Per log, why its saved copy is left as it is. Delete and Import clear your own log's problem.
+  const [problems, setProblems] = useState<Record<LogKind, LogProblem | null>>(initial.problems)
 
   /**
    * Write the whole document, synchronously. A log whose saved copy couldn't be read, came from
@@ -91,6 +106,13 @@ export function App() {
   const viewedStart = nav ? (nav.days[nav.index] ?? null) : null
   // `tick` is read so the current day is recomputed as time passes.
   const view = useMemo(() => (doc && nav ? buildDayViewFor(doc, viewedStart) : null), [doc, nav !== null, viewedStart, tick])
+  // The older copies the panel offers, counted when it opens and after Delete or Import change
+  // your own log (not on every render: it scans the device's keys).
+  const profileOpen = sheet?.mode === 'profile'
+  const olderCount = useMemo(
+    () => (profileOpen ? countOlderCopies(problems.mine, browserStore()) : { backups: 0, original: false }),
+    [profileOpen, problems.mine, logs.mine],
+  )
 
   /** Put the changed log in place and write it to the device, then close the sheet. */
   function commit(next: LogDoc) {
@@ -128,13 +150,74 @@ export function App() {
     commit(next)
   }
 
+  /** Export: download your own log (the stored text as it is when this version can't read it). */
+  function exportMine(): string {
+    const file = exportFileName(new Date())
+    downloadText(file, exportOwnLog(logs.mine, problems.mine, browserStore()))
+    return file
+  }
+
+  /**
+   * Export the older copies of your log, offered only when there are some: the backups kept by
+   * format upgrades, and the original older-format text when it was never backed up.
+   */
+  function exportOlderCopies(): string {
+    const file = backupsFileName(new Date())
+    downloadText(file, exportBackups(olderCopies(problems.mine, browserStore())))
+    return file
+  }
+
+  /**
+   * Import, after the person confirmed the preview: replace your own log. A saved copy this
+   * version can't read, or couldn't back up, is never replaced (the panel says to Export and
+   * Delete it first). Nothing changes on screen unless the device saved the import.
+   */
+  function importMine(next: LogDoc): ImportOutcome {
+    if (problems.mine === 'notBackedUp') return 'storedNotBackedUp'
+    if (problems.mine) return 'storedUnreadable'
+    const res = replaceOwnLog(next, browserStore())
+    if (!res.ok) return res.reason
+    setLogs((l) => ({ ...l, mine: next }))
+    setStorageOk(true)
+    if (active === 'mine') setViewed(null)
+    return 'ok'
+  }
+
+  /**
+   * Delete your own log from the device; afterwards your own log is empty. The demo is untouched.
+   * When the browser won't let HowSure reach its storage at all, there is no saved copy it can
+   * reach: the log on screen is cleared and the panel says so ('noStorage'), instead of asking
+   * the person to try again.
+   */
+  function deleteMine(): DeleteOutcome {
+    const store = browserStore()
+    const clear = () => {
+      setLogs((l) => ({ ...l, mine: emptyLog() }))
+      setProblems((p) => ({ ...p, mine: null }))
+      if (active === 'mine') setViewed(null)
+    }
+    if (!store) {
+      clear()
+      return 'noStorage'
+    }
+    const res = deleteOwnLog(store)
+    if (readRaw(store, KEYS.mine) === null) {
+      clear()
+      // A save that failed earlier no longer matters for this log; say so only if saving works now.
+      setStorageOk(storageWorks(store))
+    }
+    return res.ok ? 'ok' : 'failed'
+  }
+
   /** Log a meal: a blank meal dated now, or on the viewed waking day when that isn't today's. */
   function openLogMeal() {
     if (!doc || !view || !at) return
     setSheet({ mode: 'new', meal: blankMeal(newMealId(), defaultMealTime(doc.sleeps, view.dayStart, at)) })
   }
 
-  const notice = <StorageNotice blocked={!storageOk} problem={active !== null ? problems[active] : null} />
+  const notice = (
+    <StorageNotice blocked={!storageOk} problem={active !== null ? problems[active] : null} canExport={active === 'mine'} />
+  )
 
   if (!active || !doc || !view || !at || !nav) {
     return (
@@ -184,6 +267,8 @@ export function App() {
         onNext={() => showDay(nav.days[nav.index + 1] ?? null)}
         onPickDate={(date) => showDay(dayForDate(doc, date, at))}
         onToday={() => setViewed(null)}
+        ownName={logs.mine.profile.name}
+        onOpenProfile={() => setSheet({ mode: 'profile' })}
       />
       {explain && <ExplainSheet mode={explain} view={view} demo={demo} onClose={() => setSheet(null)} />}
       {details && (
@@ -207,6 +292,18 @@ export function App() {
           viewDayStart={view.dayStart}
           demo={demo}
           onSave={saveMeal}
+          onClose={() => setSheet(null)}
+        />
+      )}
+      {sheet?.mode === 'profile' && !demo && (
+        <ProfilePrivacy
+          doc={logs.mine}
+          problem={problems.mine}
+          olderCopies={olderCount}
+          onExport={exportMine}
+          onExportOlderCopies={exportOlderCopies}
+          onImport={importMine}
+          onDelete={deleteMine}
           onClose={() => setSheet(null)}
         />
       )}

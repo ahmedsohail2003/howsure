@@ -54,6 +54,14 @@ Every typical error is currently marked **assumption**. On 2026-10-26 each was r
 
 Nothing. The app makes no network requests beyond its own page (the browser tests check this), uses no account and no API key, and keeps your log in this browser's `localStorage`. The demo and your own log are stored separately.
 
+### Your data: export, import, delete
+
+In your own log, tap your name at the top (or "Your log") to open **Profile and privacy**:
+
+- **Export my data** downloads your log as one JSON file, `howsure-log-YYYY-MM-DD.json`: the saved document with its format version. If this version can't read your saved log, the file holds the saved text unchanged, so you can always take your data out.
+- **Import a log** reads a file made by Export, shows what it holds and what it replaces, and changes nothing until you confirm. Files from an older format are updated as they are imported. A file from a newer version, a file that isn't a HowSure log, and a file holding the fictional demo are refused, and nothing changes.
+- **Delete my data** lists what it removes, asks first, and then removes your own log from this browser, including older copies kept by format updates. The fictional demo is not affected.
+
 ## Run the checks
 
 ```bash
@@ -95,7 +103,7 @@ These are designed in `devpost/prd.md` but not built for this submission:
 - workouts and net calories;
 - plates (weigh minus the plate);
 - barcode lookup;
-- a privacy panel with export and delete;
+- the rest of the privacy panel (the sent-off-device count and the connector switch; export, import and delete are built);
 - a Claude connector for photo and voice logging;
 - a gut-friendly diet score;
 - food research via Claude;

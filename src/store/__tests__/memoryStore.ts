@@ -1,7 +1,7 @@
 // In-memory stand-ins for window.localStorage, shared by the store tests.
-import type { KeyValueStore } from '../storage'
+import type { ListableStore } from '../storage'
 
-export class MemoryStore implements KeyValueStore {
+export class MemoryStore implements ListableStore {
   data = new Map<string, string>()
   /** Every setItem and removeItem, in order, so a test can check what was written first. */
   writes: string[] = []
@@ -15,6 +15,12 @@ export class MemoryStore implements KeyValueStore {
   removeItem(k: string) {
     this.writes.push(`remove ${k}`)
     this.data.delete(k)
+  }
+  get length() {
+    return this.data.size
+  }
+  key(i: number) {
+    return [...this.data.keys()][i] ?? null
   }
   /** A copy of everything stored, for before/after comparisons. */
   snapshot(): Record<string, string> {

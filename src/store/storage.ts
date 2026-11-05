@@ -39,6 +39,9 @@ export const ACTIVE_KEY = KEYS.active
 /** The minimal Storage surface used here (window.localStorage in the app). */
 export type KeyValueStore = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>
 
+/** A store whose keys can be listed, for Export and Delete to find a log's backups. */
+export type ListableStore = KeyValueStore & Pick<Storage, 'key' | 'length'>
+
 export type LoadResult =
   | { status: 'missing' }
   /**
@@ -58,7 +61,7 @@ export interface LoadOptions {
 }
 
 /** window.localStorage, or null when the browser blocks it (reading the property can throw). */
-export function browserStore(): KeyValueStore | null {
+export function browserStore(): ListableStore | null {
   try {
     return globalThis.localStorage ?? null
   } catch {
@@ -78,7 +81,7 @@ export function storageWorks(store: KeyValueStore | null = browserStore(), keys:
   }
 }
 
-function readRaw(store: KeyValueStore | null, key: string): string | null {
+export function readRaw(store: KeyValueStore | null, key: string): string | null {
   if (!store) return null
   try {
     return store.getItem(key)
@@ -108,16 +111,18 @@ export function writeBackup(store: KeyValueStore, docKey: string, fromVersion: n
   }
 }
 
+export type ParseResult =
+  /** `upgradedFrom`: the format version the text was in, when it was upgraded on the way in. */
+  | { status: 'ok'; doc: LogDoc; upgradedFrom?: number }
+  | { status: 'newer'; version: number }
+  | { status: 'unreadable'; reason: string }
+
 /**
- * Read one log. A missing key is 'missing'; a newer format version is 'newer'; bad JSON, no
- * usable version, a failed upgrade or a schema failure is 'unreadable'. In each of those the
- * stored text is left exactly as it was.
+ * Turn saved text into a log: JSON, then the upgrade steps up to SCHEMA_VERSION, then the zod
+ * check. Pure: nothing is read or written. The loader uses it for stored logs and Import
+ * (src/store/transfer.ts) for files, so both go through the same pipeline.
  */
-export function loadLog(kind: LogKind, store: KeyValueStore | null = browserStore(), opts: LoadOptions = {}): LoadResult {
-  const keys = opts.keys ?? KEYS
-  const key = keys[kind]
-  const raw = readRaw(store, key)
-  if (raw === null) return { status: 'missing' }
+export function parseLogText(raw: string, migrations: Migrations = MIGRATIONS): ParseResult {
   let json: unknown
   try {
     json = JSON.parse(raw)
@@ -125,7 +130,7 @@ export function loadLog(kind: LogKind, store: KeyValueStore | null = browserStor
     return { status: 'unreadable', reason: 'not JSON' }
   }
 
-  const up = upgradeDoc(json, SCHEMA_VERSION, opts.migrations ?? MIGRATIONS)
+  const up = upgradeDoc(json, SCHEMA_VERSION, migrations)
   if (up.status === 'newer') return { status: 'newer', version: up.version }
   if (up.status === 'noVersion') return { status: 'unreadable', reason: 'no format version' }
   if (up.status === 'noStep') return { status: 'unreadable', reason: `no upgrade from version ${up.at}` }
@@ -136,23 +141,38 @@ export function loadLog(kind: LogKind, store: KeyValueStore | null = browserStor
     const first = parsed.error.issues[0]
     return { status: 'unreadable', reason: first ? `${first.path.join('.')}: ${first.message}` : 'invalid' }
   }
-  if (parsed.data.kind !== kind) return { status: 'unreadable', reason: `kind ${parsed.data.kind} under the ${kind} key` }
   const { version: _version, ...rest } = parsed.data
   const doc: LogDoc = {
     ...rest,
-    kind,
     meals: rest.meals as Meal[],
     sleeps: rest.sleeps as SleepRecord[],
   }
-  if (up.status === 'current') return { status: 'ok', doc }
+  return up.status === 'current' ? { status: 'ok', doc } : { status: 'ok', doc, upgradedFrom: up.from }
+}
+
+/**
+ * Read one log. A missing key is 'missing'; a newer format version is 'newer'; bad JSON, no
+ * usable version, a failed upgrade or a schema failure is 'unreadable'. In each of those the
+ * stored text is left exactly as it was.
+ */
+export function loadLog(kind: LogKind, store: KeyValueStore | null = browserStore(), opts: LoadOptions = {}): LoadResult {
+  const keys = opts.keys ?? KEYS
+  const key = keys[kind]
+  const raw = readRaw(store, key)
+  if (raw === null) return { status: 'missing' }
+  const res = parseLogText(raw, opts.migrations ?? MIGRATIONS)
+  if (res.status !== 'ok') return res
+  const { doc, upgradedFrom } = res
+  if (doc.kind !== kind) return { status: 'unreadable', reason: `kind ${doc.kind} under the ${kind} key` }
+  if (upgradedFrom === undefined) return { status: 'ok', doc }
 
   // Upgraded: keep the original text first, then write the upgraded document over it. If the
   // backup can't be written, the original stays as the only stored copy and nothing replaces it.
-  if (!store || !writeBackup(store, key, up.from, raw)) {
-    return { status: 'ok', doc, upgradedFrom: up.from, saveBlocked: true }
+  if (!store || !writeBackup(store, key, upgradedFrom, raw)) {
+    return { status: 'ok', doc, upgradedFrom, saveBlocked: true }
   }
   saveLog(doc, store, keys)
-  return { status: 'ok', doc, upgradedFrom: up.from }
+  return { status: 'ok', doc, upgradedFrom }
 }
 
 /** The document as stored: the log plus its schema version. */

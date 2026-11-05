@@ -13,7 +13,7 @@ interface SheetProps {
   footer?: ReactNode
 }
 
-const FOCUSABLE = 'a[href], button:not([disabled]), input, select, textarea, summary, [tabindex]:not([tabindex="-1"])'
+const FOCUSABLE = 'a[href], button:not([disabled]), input:not([hidden]):not([type="hidden"]), select, textarea, summary, [tabindex]:not([tabindex="-1"])'
 
 /** A sheet over the dashboard: a bottom sheet on phones, a centred panel on desktop. */
 export function Sheet({ title, sub, demo, onClose, children, testId, footer }: SheetProps) {

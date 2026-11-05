@@ -28,6 +28,8 @@ export const copy = {
     switchToMine: 'Start empty',
     switchToDemo: 'Try the fictional demo',
     yourLog: 'Your log',
+    // spec.md > Screens > Dashboard: the guest name opens Profile and privacy.
+    profileAndPrivacy: 'Profile and privacy',
   },
 
   weekdays: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const,
@@ -163,6 +165,87 @@ export const copy = {
     // Build-out item 1.1: a log saved by a newer version of HowSure is never written over.
     newer:
       "This log was saved by a newer version of HowSure, so this version can't open it. It has been left as it was, and changes made now won't be saved over it.",
+    // Shown after `blocked` in your own log: spec.md > Important Failure Modes ends with it.
+    exportToKeep: 'Export to keep them.',
+    // Shown after `unreadable` or `newer` in your own log (spec.md > Store: "Export still works").
+    exportStillWorks: 'You can still export it from Profile and privacy.',
+  },
+
+  // prd.md > Privacy Panel and build-out item 1.2: Export, Import and Delete for your own log.
+  privacy: {
+    title: 'Profile and privacy',
+    savedHere: 'Saved on this device only',
+    savedHereDetail: 'Your log is kept in this browser on this device.',
+    and: 'and',
+    meals: (n: number) => (n === 1 ? '1 meal' : `${n} meals`),
+    nights: (n: number) => (n === 1 ? '1 night of sleep' : `${n} nights of sleep`),
+    workouts: (n: number) => (n === 1 ? '1 workout' : `${n} workouts`),
+    plates: (n: number) => (n === 1 ? '1 saved plate' : `${n} saved plates`),
+    span: (from: string, to: string) => (from === to ? `On ${from}` : `From ${from} to ${to}`),
+    noTimes: 'No meals or sleep logged yet.',
+
+    exportTitle: 'Export my data',
+    exportHint: 'Downloads your log as one JSON file, so you can keep a copy or move it to another device.',
+    exportButton: 'Export my data',
+    exportUnreadable:
+      "Your saved log can't be read by this version of HowSure, so the file holds the saved text as it is, unchanged.",
+    exportReady: (file: string) => `Export ready: ${file}`,
+    olderCopiesHint:
+      'HowSure kept older copies of your log when it updated the saved format. They are deleted with your data.',
+    olderCopiesOriginalHint:
+      "Your saved log is still in its older format, because HowSure couldn't back it up when it updated it. This file holds that copy, unchanged. It is deleted with your data.",
+    olderCopiesButton: (n: number) => (n === 1 ? 'Export 1 older copy' : `Export ${n} older copies`),
+
+    importTitle: 'Import a log',
+    importHint:
+      'Replaces your log on this device with one from a HowSure export file. You see what the file holds before anything changes.',
+    importButton: 'Choose a file to import',
+    importBlockedUnreadable:
+      "Your saved log can't be read by this version of HowSure, so importing would replace it. Export it first to keep a copy, then delete it, then import.",
+    importBlockedNotBackedUp:
+      "Your saved log couldn't be backed up when HowSure updated it, so importing would replace the only copy of it in its older format. Export your log and the older copy first, then delete it, then import.",
+    previewTitle: 'Check before importing',
+    previewFile: (file: string) => `File: ${file}`,
+    previewHolds: 'The file holds',
+    previewName: (name: string) => `Guest name: ${name}`,
+    previewUpgraded: (v: string) => `Saved in format version ${v}. It is updated to this version as it is imported.`,
+    previewReplaces: (what: string) =>
+      `Importing replaces your log on this device, which holds ${what}, and your guest name, targets and settings. Export it first if you want to keep it.`,
+    previewReplacesEmpty:
+      'Importing replaces your guest name, targets and settings on this device. Your log has no meals or sleep yet.',
+    importConfirm: 'Replace my log',
+    importCancel: 'Cancel',
+    imported: (what: string) => `Imported. Your log now holds ${what}.`,
+    importErrors: {
+      notRead: "The file couldn't be opened. Nothing was changed. Try choosing it again.",
+      tooLarge:
+        'This file is too large to be a HowSure log. Nothing was changed. Choose the file Export made, named like howsure-log-2026-11-05.json.',
+      unreadable:
+        "HowSure couldn't read this file as a log. Nothing was changed. Choose the file Export made, named like howsure-log-2026-11-05.json.",
+      newer:
+        "This file was saved by a newer version of HowSure, so this version can't read it. Nothing was changed. Open it in the newer version, or update HowSure and try again.",
+      demo: "This file holds the fictional demo, not your own log, so it wasn't imported. Nothing was changed. Choose an export of your own log.",
+      notSaved: "Couldn't save the imported log on this device right now. Nothing was changed. Free some space in this browser, then try again.",
+    },
+
+    deleteTitle: 'Delete my data',
+    deleteHint: 'Removes your log from this device. The fictional demo is not affected.',
+    deleteButton: 'Delete my data',
+    confirmTitle: 'Delete your log from this device?',
+    confirmDeletes: 'This deletes',
+    confirmProfile: 'your guest name, targets and settings',
+    confirmUnreadable: "your saved log, which this version of HowSure can't read",
+    confirmUnsaved: (what: string) => `${what} on screen, which were never saved`,
+    confirmOriginal: 'the older-format copy of your saved log, which was never backed up',
+    confirmOlderCopies: (n: number) =>
+      n === 1 ? '1 older copy kept when the saved format was updated' : `${n} older copies kept when the saved format was updated`,
+    confirmKeeps: 'The fictional demo is not affected. This can’t be undone, so export first if you want a copy.',
+    confirmButton: 'Delete my log',
+    keep: 'Keep my log',
+    deleted: 'Deleted. Your log on this device is now empty.',
+    deletedNoStorage:
+      "Cleared. Your log on screen is now empty. This browser isn't letting HowSure use its storage right now, so there was no saved copy it could reach.",
+    deleteFailed: "Couldn't delete everything on this device right now. Try again. The fictional demo is not affected.",
   },
 
   logMeal: {
