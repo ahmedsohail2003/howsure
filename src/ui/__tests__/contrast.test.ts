@@ -214,6 +214,10 @@ const NO_TEXT: Record<string, string> = {
     'the track of the aria-hidden range bar (Journal look) holds no text; every number is in the legend beside it',
   '.range-summary .likely-band': 'the likely band of that bar and its legend key, no text (the legend names it)',
   '.range-summary .range-best': 'the best-estimate marker of that bar and its legend key, no text (the legend names it)',
+  '.score-bar .score-fill':
+    'the teal fill of the aria-hidden score bar on a meal row (Panel look) holds no text; the score is written beside it',
+  '.score-bar .score-fill.biggest':
+    'the amber fill of that bar for the meal with the biggest uncertainty, no text; "biggest uncertainty" is written beside it',
 }
 /** Selector starts whose rules hold no text, with why. Each must still match a rule. */
 const NO_TEXT_PREFIXES: Record<string, string> = {
@@ -603,8 +607,10 @@ describe('reading theme.css', () => {
   })
 
   it('every exception still exists in theme.css', () => {
+    // In Journal's rules or in a look's own (scope taken off), as the checks above read them.
+    const inSomeLook = (sel: string) => analyses.some((a) => a.rules.some((r) => r.selector === sel))
     for (const sel of [...Object.keys(NO_TEXT), ...Object.keys(ONLY_OWN_TEXT), ...Object.keys(OVERLAYS)]) {
-      expect(rules.some((r) => r.selector === sel), sel).toBe(true)
+      expect(inSomeLook(sel), sel).toBe(true)
     }
     for (const prefix of Object.keys(NO_TEXT_PREFIXES)) {
       expect(rules.some((r) => r.selector.startsWith(prefix)), prefix).toBe(true)

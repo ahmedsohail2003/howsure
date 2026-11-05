@@ -337,6 +337,7 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
         ownName={logs.mine.profile.name}
         onOpenProfile={() => setSheet({ mode: 'profile' })}
         targets={doc.profile.targets}
+        onOpenTargets={() => setSheet({ mode: 'targets' })}
         onOpenMore={() => setSheet({ mode: 'more' })}
         moreOpen={sheet?.mode === 'more'}
         fullScreenOn={fullScreen.mode !== 'off'}

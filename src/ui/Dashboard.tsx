@@ -11,6 +11,12 @@
 // Log a meal and the sleep button sit together in one action bar: pinned to the bottom of the
 // window on a phone (theme.css > action bar), in the layout on a wider screen. On a wide screen
 // the day sits on the left and the meals, sleep and day controls on the right.
+//
+// Build-out item 1.5.2b, Panel look: the same pieces as tiles (theme.css > Panel). The headline,
+// macros and meal list draw their own Panel variants; here the biggest uncertainty becomes a tile
+// with its share of the day's uncertainty (the share the kernel already works out for the
+// explanation, day.contributions) and an Improve button. On a wide screen the tiles flow into two
+// columns, and three on the widest.
 
 import { useLayoutEffect, useRef } from 'react'
 import type { LogKind } from '../clock'
@@ -20,7 +26,9 @@ import { DashboardHeader } from './DashboardHeader'
 import type { DayView } from './dayView'
 import { DayNav, type DayNavState } from './DayNav'
 import type { ExplainMode } from './ExplainSheet'
+import { fmtSharePct } from './format'
 import { HeadlineEstimate } from './HeadlineEstimate'
+import { useLook } from './lookContext'
 import { MacroRow } from './MacroRow'
 import { MealList } from './MealList'
 import { SleepSection } from './SleepSection'
@@ -50,6 +58,8 @@ interface DashboardProps {
   onOpenProfile: () => void
   /** The open log's targets (build-out item 1.3), shown beside the score and under the macros. */
   targets: Profile['targets']
+  /** Opens the targets editor (the Panel ring offers it when no calorie target is set). */
+  onOpenTargets: () => void
   /** Opens the More menu (build-out item 1.3). */
   onOpenMore: () => void
   moreOpen: boolean
@@ -63,8 +73,12 @@ export function Dashboard(props: DashboardProps) {
   const { dayStart, meals, day, biggest, improvement } = view
   const unknownMeals = meals.filter((m) => day.unknownMealIds.includes(m.id))
   const knownOnly = day.status === 'partial'
+  // The biggest meal's share of the day's uncertainty, as the explanation lists it.
+  const biggestShare = biggest ? day.contributions.find((c) => c.mealId === biggest.id)?.share : undefined
   const asleep = sleep.status.kind === 'asleep'
   const actionBarRef = useActionBarHeight()
+  const { look } = useLook()
+  const panel = look === 'panel'
 
   return (
     <main className="page dash-page" data-testid="dashboard">
@@ -84,7 +98,14 @@ export function Dashboard(props: DashboardProps) {
           the normal column; the full-screen view puts them side by side on a wide screen. */}
       <div className="dash-body">
         <div className="dash-col" data-testid="dash-col-day">
-          <HeadlineEstimate day={day} onOpen={onOpen} today={nav.today} targetKcal={targets?.kcal} />
+          <HeadlineEstimate
+            day={day}
+            onOpen={onOpen}
+            today={nav.today}
+            targetKcal={targets?.kcal}
+            onSetTarget={props.onOpenTargets}
+            dayKey={dayStart ?? 'provisional'}
+          />
 
           {day.status !== 'empty' && <MacroRow macros={view.macros} targets={targets} />}
 
@@ -107,7 +128,46 @@ export function Dashboard(props: DashboardProps) {
             </section>
           )}
 
-          {biggest && (
+          {biggest && panel && (
+            <section className="section uncertainty panel-uncertainty" aria-labelledby="uncertainty-title">
+              <div className="uncertainty-text">
+                <h2 className="section-title uncertainty-title" id="uncertainty-title">
+                  {copy.uncertainty.sectionTitle}
+                </h2>
+                {biggestShare !== undefined && (
+                  <p className="uncertainty-share num" data-testid="biggest-share">
+                    {knownOnly
+                      ? copy.panel.biggestShareKnownOnly(fmtSharePct(biggestShare))
+                      : copy.panel.biggestShare(fmtSharePct(biggestShare))}
+                  </p>
+                )}
+                <p className="uncertainty-line">
+                  <span data-testid="biggest-line">
+                    {knownOnly ? copy.uncertainty.mostFromKnownOnly(biggest.name) : copy.uncertainty.mostFrom(biggest.name)}
+                    {improvement === null && (
+                      <>
+                        {' '}
+                        <span className="hint">{copy.uncertainty.alreadyBest}</span>
+                      </>
+                    )}
+                  </span>
+                </p>
+              </div>
+              {improvement !== null && (
+                <button
+                  type="button"
+                  className="btn btn-primary improve-btn"
+                  onClick={() => onImprove(biggest.id)}
+                  aria-label={copy.uncertainty.improveEntry}
+                  data-testid="improve-entry"
+                >
+                  {copy.uncertainty.improveShort}
+                </button>
+              )}
+            </section>
+          )}
+
+          {biggest && !panel && (
             <section className="section uncertainty" aria-labelledby="uncertainty-title">
               <h2 className="section-title uncertainty-title" id="uncertainty-title">
                 {copy.uncertainty.sectionTitle}
@@ -165,7 +225,7 @@ export function Dashboard(props: DashboardProps) {
               <p className="empty-title">{copy.emptyDay.noMeals}</p>
             </section>
           ) : (
-            <MealList meals={meals} dayStart={dayStart} onOpenMeal={onOpenMeal} />
+            <MealList meals={meals} dayStart={dayStart} onOpenMeal={onOpenMeal} biggestId={biggest?.id ?? null} />
           )}
 
           <SleepSection sleep={sleep} today={nav.today} />

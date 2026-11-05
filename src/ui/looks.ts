@@ -20,6 +20,7 @@ export interface LookDef {
 
 export const LOOKS: readonly LookDef[] = [
   { id: 'journal', name: copy.looks.journal.name, description: copy.looks.journal.description },
+  { id: 'panel', name: copy.looks.panel.name, description: copy.looks.panel.description },
 ]
 
 /** The ids of the looks this build offers. */

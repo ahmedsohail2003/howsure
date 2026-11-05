@@ -289,6 +289,29 @@ export const copy = {
       name: 'Journal',
       description: 'Light and warm, with the day’s ranges on one labelled bar.',
     },
+    panel: {
+      name: 'Panel',
+      description: 'Tiles and rings: the day against your target at a glance, with the ranges beside it.',
+    },
+  },
+
+  // Build-out item 1.5.2b: words only the Panel look draws. The ring shows the best estimate only,
+  // as a share of a target the person set; with no target it is not filled and says so.
+  panel: {
+    ringNote: 'The ring shows the best estimate only.',
+    ringShare: (pct: string, target: string) => `${pct}% of ${target}`,
+    // Read after ringShare by screen readers, so "95% of 2,400" is heard as a share of the target.
+    ringShareHidden: ' kcal daily target',
+    ringTarget: (target: string) => `Target ${target}`,
+    noTarget: 'No target',
+    setTarget: 'Set a calorie target',
+    // An incomplete day: the known meals are only part of it, so the ring is not filled.
+    ringKnownOnly: 'The ring is not filled until every meal has calories.',
+    rangesKnownOnly: 'These ranges cover the known meals only.',
+    macroNoTarget: 'no target',
+    biggestShare: (pct: string) => `${pct}% of the day’s uncertainty`,
+    biggestShareKnownOnly: (pct: string) => `${pct}% of the known meals’ uncertainty`,
+    rowScoreBiggest: (score: string) => `Estimate score ${score} · biggest uncertainty`,
   },
 
   // Build-out item 1.3: the full-screen view switch. Its label names the view it goes to.

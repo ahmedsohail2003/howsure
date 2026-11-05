@@ -148,6 +148,95 @@ for (const { id: look, name } of LOOKS) {
       expect(await lookOnPage(page)).toBe(look)
     })
 
+    test('Log a meal and the sleep button: pinned to the bottom on a phone, in the layout on a wider screen', async ({
+      page,
+    }) => {
+      await openDemo(page)
+      const bar = page.getByTestId('action-bar')
+      const width = page.viewportSize()!.width
+      const position = await bar.evaluate((e) => getComputedStyle(e).position)
+      if (width < 640) {
+        expect(position).toBe('fixed')
+        const box = (await bar.boundingBox())!
+        expect(Math.round(box.y + box.height)).toBe(page.viewportSize()!.height)
+        // Scrolled to the end, the last of the page sits above the bar, never under it.
+        await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
+        const nav = (await page.getByTestId('day-nav').boundingBox())!
+        const barNow = (await bar.boundingBox())!
+        expect(nav.y + nav.height).toBeLessThanOrEqual(barNow.y + 0.5)
+        // No sideways scrolling.
+        expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width)
+      } else {
+        expect(position).toBe('static')
+      }
+      // Reachable from the keyboard like any button.
+      await page.getByTestId('log-meal').focus()
+      await page.keyboard.press('Enter')
+      await opened(page, 'log-meal-sheet')
+    })
+
+    test('on a phone, a control reached with Tab is never left under the pinned bar', async ({ page }) => {
+      test.skip(page.viewportSize()!.width >= 640, 'the bar is pinned on a phone only')
+      // Sam's own log with 14 more snacks, so the meal list runs well past the bottom of the screen.
+      const log = JSON.parse(V1_MINE)
+      for (let i = 1; i <= 14; i += 1) {
+        log.meals.push({
+          id: `snack-${i}`,
+          name: i === 7 ? 'Snack with a long name that wraps onto a second line on a phone' : `Snack ${i}`,
+          eatenAt: `2026-10-28T18:${String(i * 2).padStart(2, '0')}:00-04:00`,
+          source: 'label',
+          kcal: 100 + i,
+          protein: 2,
+          carbs: 15,
+          fat: 3,
+        })
+      }
+      await page.clock.setFixedTime(MINE_NOW)
+      await page.goto('/')
+      await page.evaluate(
+        ([mineKey, mine, activeKey]) => {
+          localStorage.setItem(mineKey, mine)
+          localStorage.setItem(activeKey, 'mine')
+        },
+        [E2E_KEYS.mine, JSON.stringify(log), E2E_KEYS.active] as const,
+      )
+      await page.reload()
+      await expect(page.getByTestId('dashboard')).toBeVisible()
+      const rows = page.getByTestId('meal-open')
+      await expect(rows).toHaveCount(18)
+
+      // Tab from the top of the page to the last meal row; every control that takes focus outside
+      // the bar must sit wholly above the bar's top edge.
+      const bar = page.getByTestId('action-bar')
+      await page.locator('body').focus()
+      let reachedLast = false
+      for (let i = 0; i < 80 && !reachedLast; i += 1) {
+        await page.keyboard.press('Tab')
+        const focus = await page.evaluate(() => {
+          const el = document.activeElement as HTMLElement | null
+          if (!el || el === document.body) return null
+          const r = el.getBoundingClientRect()
+          const barTop = document.querySelector('[data-testid="action-bar"]')!.getBoundingClientRect().top
+          return {
+            label: el.getAttribute('aria-label') ?? el.textContent ?? '',
+            inBar: !!el.closest('[data-testid="action-bar"]'),
+            top: r.top,
+            bottom: r.bottom,
+            barTop,
+            isLastRow: el === [...document.querySelectorAll('[data-testid="meal-open"]')].pop(),
+          }
+        })
+        if (!focus || focus.inBar) continue
+        expect(focus.top, focus.label).toBeGreaterThanOrEqual(0)
+        expect(focus.bottom, focus.label).toBeLessThanOrEqual(focus.barTop + 0.5)
+        reachedLast = focus.isLastRow
+      }
+      expect(reachedLast).toBe(true)
+      await expect(rows.last()).toBeFocused()
+      const last = (await rows.last().boundingBox())!
+      expect(last.y + last.height).toBeLessThanOrEqual((await bar.boundingBox())!.y + 0.5)
+    })
+
     test('choosing a look in the Look sheet applies it at once and survives a reload', async ({ page }) => {
       await openDemo(page)
       const sheet = await openLookSheet(page)
@@ -332,95 +421,6 @@ test.describe('the Journal look in detail', () => {
     await expect(line).toHaveCSS('border-left-width', '0px')
   })
 
-  test('Log a meal and the sleep button: pinned to the bottom on a phone, in the layout on a wider screen', async ({
-    page,
-  }) => {
-    await openDemo(page)
-    const bar = page.getByTestId('action-bar')
-    const width = page.viewportSize()!.width
-    const position = await bar.evaluate((e) => getComputedStyle(e).position)
-    if (width < 640) {
-      expect(position).toBe('fixed')
-      const box = (await bar.boundingBox())!
-      expect(Math.round(box.y + box.height)).toBe(page.viewportSize()!.height)
-      // Scrolled to the end, the last of the page sits above the bar, never under it.
-      await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
-      const nav = (await page.getByTestId('day-nav').boundingBox())!
-      const barNow = (await bar.boundingBox())!
-      expect(nav.y + nav.height).toBeLessThanOrEqual(barNow.y + 0.5)
-      // No sideways scrolling.
-      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width)
-    } else {
-      expect(position).toBe('static')
-    }
-    // Reachable from the keyboard like any button.
-    await page.getByTestId('log-meal').focus()
-    await page.keyboard.press('Enter')
-    await opened(page, 'log-meal-sheet')
-  })
-
-  test('on a phone, a control reached with Tab is never left under the pinned bar', async ({ page }) => {
-    test.skip(page.viewportSize()!.width >= 640, 'the bar is pinned on a phone only')
-    // Sam's own log with 14 more snacks, so the meal list runs well past the bottom of the screen.
-    const log = JSON.parse(V1_MINE)
-    for (let i = 1; i <= 14; i += 1) {
-      log.meals.push({
-        id: `snack-${i}`,
-        name: i === 7 ? 'Snack with a long name that wraps onto a second line on a phone' : `Snack ${i}`,
-        eatenAt: `2026-10-28T18:${String(i * 2).padStart(2, '0')}:00-04:00`,
-        source: 'label',
-        kcal: 100 + i,
-        protein: 2,
-        carbs: 15,
-        fat: 3,
-      })
-    }
-    await page.clock.setFixedTime(MINE_NOW)
-    await page.goto('/')
-    await page.evaluate(
-      ([mineKey, mine, activeKey]) => {
-        localStorage.setItem(mineKey, mine)
-        localStorage.setItem(activeKey, 'mine')
-      },
-      [E2E_KEYS.mine, JSON.stringify(log), E2E_KEYS.active] as const,
-    )
-    await page.reload()
-    await expect(page.getByTestId('dashboard')).toBeVisible()
-    const rows = page.getByTestId('meal-open')
-    await expect(rows).toHaveCount(18)
-
-    // Tab from the top of the page to the last meal row; every control that takes focus outside
-    // the bar must sit wholly above the bar's top edge.
-    const bar = page.getByTestId('action-bar')
-    await page.locator('body').focus()
-    let reachedLast = false
-    for (let i = 0; i < 80 && !reachedLast; i += 1) {
-      await page.keyboard.press('Tab')
-      const focus = await page.evaluate(() => {
-        const el = document.activeElement as HTMLElement | null
-        if (!el || el === document.body) return null
-        const r = el.getBoundingClientRect()
-        const barTop = document.querySelector('[data-testid="action-bar"]')!.getBoundingClientRect().top
-        return {
-          label: el.getAttribute('aria-label') ?? el.textContent ?? '',
-          inBar: !!el.closest('[data-testid="action-bar"]'),
-          top: r.top,
-          bottom: r.bottom,
-          barTop,
-          isLastRow: el === [...document.querySelectorAll('[data-testid="meal-open"]')].pop(),
-        }
-      })
-      if (!focus || focus.inBar) continue
-      expect(focus.top, focus.label).toBeGreaterThanOrEqual(0)
-      expect(focus.bottom, focus.label).toBeLessThanOrEqual(focus.barTop + 0.5)
-      reachedLast = focus.isLastRow
-    }
-    expect(reachedLast).toBe(true)
-    await expect(rows.last()).toBeFocused()
-    const last = (await rows.last().boundingBox())!
-    expect(last.y + last.height).toBeLessThanOrEqual((await bar.boundingBox())!.y + 0.5)
-  })
-
   test('a wide screen puts the day on the left and the meals and sleep on the right', async ({ page }) => {
     await openDemo(page)
     const day = (await page.getByTestId('dash-col-day').boundingBox())!
@@ -448,5 +448,235 @@ test.describe('the Journal look in detail', () => {
     await page.emulateMedia({ reducedMotion: 'reduce' })
     await page.getByTestId('day-score').click()
     expect(await (await opened(page, 'explain-day')).evaluate((e) => getComputedStyle(e).animationName)).toBe('none')
+  })
+})
+
+// Build-out item 1.5.2b: the Panel look (direction B, instrument panel). The same numbers as
+// Journal, as tiles and rings. The ring shows the best estimate only, as a share of a target the
+// person set, and never looks surer than the day is.
+test.describe('the Panel look in detail', () => {
+  test.beforeEach(async ({ page }) => {
+    await startInLook(page, 'panel')
+  })
+
+  async function setKcalTarget(page: Page, value: string) {
+    await page.getByTestId('open-more').click()
+    await (await opened(page, 'more-menu')).getByTestId('more-targets').click()
+    const sheet = await opened(page, 'targets-sheet')
+    await sheet.getByTestId('target-kcal-input').fill(value)
+    await sheet.getByTestId('save-targets').click()
+    await expect(sheet).toBeHidden()
+  }
+
+  async function toIncompleteDay(page: Page) {
+    for (let i = 0; i < 7 && (await page.getByTestId('day-status').count()) === 0; i += 1) {
+      await page.getByTestId('day-prev').click()
+    }
+    await expect(page.getByTestId('day-status')).toContainText('Known meals only — incomplete day')
+  }
+
+  test('the headline sits in a target ring showing the best estimate as a share of the target, with ranges and score beside it', async ({
+    page,
+  }) => {
+    await openDemo(page)
+    const ring = page.getByTestId('target-ring')
+    // 2,280 of Sam's 2,400 kcal target is 95%: the ring is filled that far, and says so in words.
+    await expect(ring).toHaveAttribute('data-fill', '95')
+    await expect(ring.locator('svg')).toHaveAttribute('aria-hidden', 'true')
+    await expect(page.getByTestId('ring-words')).toHaveText('95% of 2,400 kcal daily target')
+    await expect(page.getByTestId('ring-note')).toHaveText('The ring shows the best estimate only.')
+    expect(await digits(ring.getByTestId('headline-kcal'))).toBe(G11.kcal)
+
+    // Both ranges and the score sit beside the ring, each one tap from its explanation.
+    const ringBox = (await ring.boundingBox())!
+    for (const id of ['likely-range', 'very-likely-range', 'day-score']) {
+      expect((await page.getByTestId(id).boundingBox())!.x, id).toBeGreaterThan(ringBox.x + ringBox.width - 1)
+    }
+    await expect(page.getByTestId('ranges')).toHaveAccessibleName(/Likely 1,870–2,780 kcal Very likely 1,684–3,087 kcal/)
+    await page.getByTestId('very-likely-range').click()
+    expect(await digits((await opened(page, 'explain-ranges')).getByTestId('explain-very-likely'))).toContain(G11.veryLikely)
+    await closeWithEsc(page, 'explain-ranges')
+
+    // The headline is still the largest number on the screen.
+    const size = (sel: string) => page.locator(sel).first().evaluate((e) => parseFloat(getComputedStyle(e).fontSize))
+    const headline = await size('.headline-number')
+    for (const sel of ['.range-value', '.macro-value', '.meal-kcal', '.score-btn']) expect(headline, sel).toBeGreaterThan(await size(sel))
+  })
+
+  test('with no calorie target the ring is not filled, says "No target" and opens the targets editor; over the target it says the real share', async ({
+    page,
+  }) => {
+    await openDemo(page)
+    await setKcalTarget(page, '')
+    const ring = page.getByTestId('target-ring')
+    await expect(ring).toHaveAttribute('data-fill', 'none')
+    await expect(ring.locator('.ring-fill')).toHaveCount(0)
+    await expect(page.getByTestId('ring-words')).toHaveText('No target')
+    await expect(page.getByTestId('ring-note')).toHaveCount(0)
+    // The numbers are all still there.
+    expect(await digits(page.getByTestId('headline-kcal'))).toBe(G11.kcal)
+    expect(await digits(page.getByTestId('likely-range'))).toContain(G11.likely)
+
+    await page.getByTestId('ring-set-target').click()
+    const sheet = await opened(page, 'targets-sheet')
+    await expect(sheet.getByTestId('target-kcal-input')).toHaveValue('')
+    await sheet.getByTestId('target-kcal-input').fill('2000')
+    await sheet.getByTestId('save-targets').click()
+    await expect(sheet).toBeHidden()
+
+    // 2,280 of 2,000 is 114%: the ring is full, and the words never hide going over.
+    await expect(ring).toHaveAttribute('data-fill', '100')
+    await expect(page.getByTestId('ring-words')).toHaveText('114% of 2,000 kcal daily target')
+    await expect(page.getByTestId('ring-set-target')).toHaveCount(0)
+  })
+
+  test('an incomplete day and a day with no known calories never fill the ring, and say why in words', async ({ page }) => {
+    await openDemo(page)
+    await toIncompleteDay(page)
+    const ring = page.getByTestId('target-ring')
+    await expect(ring).toHaveAttribute('data-fill', 'none')
+    await expect(ring.locator('.ring-fill')).toHaveCount(0)
+    await expect(page.locator('.headline-label')).toHaveText('Calories, known meals only')
+    await expect(page.getByTestId('ring-words')).toHaveText('Target 2,400')
+    await expect(page.getByTestId('ring-known-only')).toHaveText('The ring is not filled until every meal has calories.')
+    await expect(page.getByTestId('ranges-known-only')).toHaveText('These ranges cover the known meals only.')
+    await expect(page.getByTestId('unknown-count')).toHaveText('1 meal with unknown calories')
+    expect(await digits(page.getByTestId('likely-range'))).toMatch(/\d+–\d+ kcal/)
+
+    await page.getByTestId('day-today').click()
+    await page.getByTestId('log-switch').click()
+    await expect(page.getByTestId('empty-day')).toBeVisible()
+    await expect(page.getByTestId('headline-kcal')).toHaveText('Not available yet')
+    await expect(ring).toHaveAttribute('data-fill', 'none')
+    await expect(page.getByTestId('ring-words')).toHaveText('No target')
+    await expect(page.getByTestId('likely-range')).toContainText('Not available yet')
+    await expect(page.getByTestId('day-score-na')).toHaveText('Estimate score: Not available yet')
+    await expect(page.getByTestId('ring-set-target')).toBeVisible()
+  })
+
+  test('macros are mini rings, filled only when that macro has a target and no entry is missing', async ({ page }) => {
+    await openDemo(page)
+    // Protein 124 g of a 130 g target.
+    const protein = page.getByTestId('macro-protein')
+    expect(Number(await protein.getAttribute('data-fill'))).toBeCloseTo((124 * 100) / 130, 1)
+    await expect(protein.getByTestId('macro-protein-target')).toHaveText('Target 130 g')
+    for (const k of ['carbs', 'fat']) {
+      await expect(page.getByTestId(`macro-${k}`)).toHaveAttribute('data-fill', 'none')
+      await expect(page.getByTestId(`macro-${k}`).locator('.ring-fill')).toHaveCount(0)
+      await expect(page.getByTestId(`macro-${k}-no-target`)).toHaveText('no target')
+    }
+
+    // An entry is missing its protein: the known total is only part of the day, so no fill.
+    await toIncompleteDay(page)
+    await expect(protein).toHaveAttribute('data-fill', 'none')
+    await expect(protein).toContainText('1 entry missing')
+    await expect(protein.getByTestId('macro-protein-target')).toHaveText('Target 130 g')
+  })
+
+  test('meal rows get a thin score bar and the score in words; amber marks only the biggest uncertainty, with its share', async ({
+    page,
+  }) => {
+    await openDemo(page)
+    const kefir = row(page, 'Kefir with oats and blueberries')
+    await expect(kefir.getByRole('button')).toHaveCount(1)
+    await expect(kefir.getByTestId('meal-score')).toHaveText('Estimate score 90')
+    await expect(kefir.getByTestId('score-bar')).toHaveAttribute('aria-hidden', 'true')
+    const bar = (await kefir.getByTestId('score-bar').boundingBox())!
+    const fill = (await kefir.locator('.score-fill').boundingBox())!
+    expect(fill.width / bar.width).toBeCloseTo(0.9, 2)
+    await expect(kefir.locator('.score-fill')).toHaveCSS('background-color', 'rgb(47, 127, 122)')
+
+    const pasta = row(page, 'Pasta bake (ready meal)')
+    await expect(pasta.getByTestId('meal-score')).toHaveText('Estimate score 54 · biggest uncertainty')
+    await expect(pasta.locator('.score-fill')).toHaveCSS('background-color', 'rgb(183, 121, 31)')
+    await expect(pasta.getByRole('button')).toHaveAccessibleName(
+      'Pasta bake (ready meal), 5:30 PM · Photo estimate, 760 kcal, Estimate score 54 · biggest uncertainty. Opens the meal details.',
+    )
+    // Amber on one row only.
+    await expect(page.locator('.score-fill.biggest')).toHaveCount(1)
+    await expect(page.locator('.meal-score.biggest')).toHaveCount(1)
+
+    // The biggest-uncertainty tile: its share is the one the explanation already lists.
+    await expect(page.getByTestId('biggest-line')).toHaveText('Most uncertainty comes from Pasta bake (ready meal).')
+    const share = await page.getByTestId('biggest-share').innerText()
+    expect(share).toMatch(/^\d+% of the day’s uncertainty$/)
+    await expect(page.getByTestId('improve-entry')).toHaveAccessibleName('Improve that entry')
+    const pastaId = await pasta.getAttribute('data-meal-id')
+    await page.getByTestId('day-score').click()
+    const explain = await opened(page, 'explain-day')
+    const listed = await explain.locator(`[data-testid="contribution"][data-meal-id="${pastaId}"] .contrib-head .num`).innerText()
+    expect(share.startsWith(`${listed} `)).toBe(true)
+    await closeWithEsc(page, 'explain-day')
+
+    // Tapping a row still opens the meal's details.
+    await pasta.getByTestId('meal-score').click()
+    await expect(page.getByTestId('meal-details').getByTestId('details-score')).toHaveText('Estimate score 54')
+  })
+
+  test('tiles are rounded with a light shadow; rings fill in and rows tilt when pressed, within 300 ms, and not under reduced motion', async ({
+    page,
+  }) => {
+    await openDemo(page)
+    const hero = page.locator('.panel-hero')
+    await expect(hero).toHaveCSS('border-top-left-radius', '16px')
+    expect(await hero.evaluate((e) => getComputedStyle(e).boxShadow)).not.toBe('none')
+
+    const ringFill = page.getByTestId('target-ring').locator('.ring-fill')
+    const anim = await ringFill.evaluate((e) => {
+      const s = getComputedStyle(e)
+      return { name: s.animationName, duration: parseFloat(s.animationDuration), transition: parseFloat(s.transitionDuration) }
+    })
+    expect(anim.name).toBe('ring-in')
+    expect(anim.duration).toBeGreaterThan(0)
+    expect(anim.duration).toBeLessThanOrEqual(0.3)
+    expect(anim.transition).toBeLessThanOrEqual(0.3)
+
+    const kefir = row(page, 'Kefir with oats and blueberries').getByTestId('meal-open')
+    expect(await kefir.evaluate((e) => parseFloat(getComputedStyle(e).transitionDuration))).toBeLessThanOrEqual(0.3)
+    const pressed = async () => {
+      await kefir.scrollIntoViewIfNeeded()
+      const box = (await kefir.boundingBox())!
+      await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+      await page.mouse.down()
+      const transform = await kefir.evaluate((e) => getComputedStyle(e).transform)
+      await page.mouse.up()
+      await closeWithEsc(page, 'meal-details')
+      return transform
+    }
+    expect(await pressed()).not.toBe('none')
+
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await page.reload()
+    await expect(page.getByTestId('dashboard')).toBeVisible()
+    expect(await ringFill.evaluate((e) => getComputedStyle(e).animationName)).toBe('none')
+    expect(await ringFill.evaluate((e) => parseFloat(getComputedStyle(e).transitionDuration))).toBe(0)
+    expect(await pressed()).toBe('none')
+  })
+
+  test('a wide screen flows the tiles into two columns, and three on the widest; a phone never scrolls sideways', async ({ page }) => {
+    await openDemo(page)
+    const box = async (id: string) => (await page.getByTestId(id).boundingBox())!
+
+    await page.setViewportSize({ width: 390, height: 844 })
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390)
+    expect((await box('meal-list')).y).toBeGreaterThan((await box('target-ring')).y)
+
+    // Two columns: the day on the left, the action bar, meals and sleep on the right.
+    await page.setViewportSize({ width: 1100, height: 900 })
+    const day2 = await box('dash-col-day')
+    const list2 = await box('dash-col-list')
+    expect(list2.x).toBeGreaterThan(day2.x + day2.width - 1)
+    expect((await box('sleep-section')).y).toBeGreaterThan((await box('meal-list')).y)
+
+    // Three columns: the day; the meals; sleep and the day controls.
+    await page.setViewportSize({ width: 1440, height: 900 })
+    const ring = await box('target-ring')
+    const meals = await box('meal-list')
+    const sleep = await box('sleep-section')
+    expect(meals.x).toBeGreaterThan(ring.x + ring.width)
+    expect(sleep.x).toBeGreaterThan(meals.x + meals.width)
+    expect(Math.abs(sleep.y - meals.y)).toBeLessThan(80)
+    expect((await box('day-nav')).y).toBeGreaterThan(sleep.y + sleep.height - 1)
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(1440)
   })
 })
