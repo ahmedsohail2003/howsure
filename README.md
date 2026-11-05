@@ -35,6 +35,7 @@ The demo person, Sam, is fictional, and so is every meal, sleep time and target 
 - **Ranges.** Ranges are lognormal and never go below zero. They are meant to catch about 8 in 10 (likely) and 19 in 20 (very likely) meals like this. These are **design targets**: HowSure has not measured its own hit rate.
 - **Unknown is never zero.** A meal with no calories is listed under Missing information. The day says "Known meals only — incomplete day", and nothing is invented.
 - **Golden tests.** The maths rules above (typical errors, combining, the score and the ranges) are checked by golden values computed separately in Python (`scripts/golden.py`) and asserted in `src/kernel/__tests__/golden.test.ts`. The unknown-calories rule is checked in `src/kernel/__tests__/estimate.test.ts`.
+- **Golden values for maths still to come.** `python3 scripts/golden.py` also works out the golden values for net calories (G6), weigh-minus-the-plate (G7), run pace and distance (G9) and the week average (G10) from the spec's formulas, and keeps them in `fixtures/golden.json`. Their kernels aren't built yet, so `src/kernel/__tests__/golden-later.test.ts` checks the stored values against the spec and lists each kernel's own test as pending until it lands.
 
 ## Sources
 
@@ -75,9 +76,10 @@ In your own log, tap your name at the top (or "Your log") to open **Profile and 
 npx vitest run
 npx tsc --noEmit
 npx playwright test
+python3 scripts/golden.py
 ```
 
-The browser tests use your installed Chrome (`channel: 'chrome'`) at 390×844 and 1920×1080.
+The browser tests use your installed Chrome (`channel: 'chrome'`) at 390×844 and 1920×1080. Besides the maths, the checks cover the colour contrast of every text and background pair in `src/ui/theme.css`, in every state such as hover and disabled (`src/ui/__tests__/contrast.test.ts`), the copy word rules on `src/ui/copy.ts` and on every view and sheet in the browser (`tests/e2e/copy-sweep.spec.ts`), and that no user-visible text is written straight into a component instead of `copy.ts`.
 
 ### Test storage
 

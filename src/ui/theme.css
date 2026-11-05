@@ -152,7 +152,10 @@ button {
   transition: background-color var(--t), border-color var(--t);
 }
 
-.btn:hover {
+/* Hover rules skip disabled buttons: a variant's hover (same or higher specificity, later in the
+   file) would otherwise paint its dark fill under the disabled grey text (1.23:1). The cascade
+   check in contrast.test.ts resolves every button state, hover and disabled together. */
+.btn:hover:not(:disabled) {
   background: var(--teal-bg);
 }
 
@@ -169,7 +172,7 @@ button {
   color: #FFFFFF;
 }
 
-.btn-primary:hover {
+.btn-primary:hover:not(:disabled) {
   background: var(--teal-ink);
 }
 
@@ -763,11 +766,14 @@ button {
   gap: var(--s2);
 }
 
+/* The track is --amber-bg, not --line: the --amber fill needs 3:1 against it (3.25:1 here;
+   on --line it was 2.77:1). The --line border keeps the track's full length visible. */
 .contrib-bar {
-  height: 6px;
+  height: 8px;
   margin-top: 6px;
-  background: var(--line);
-  border-radius: 3px;
+  background: var(--amber-bg);
+  border: 1px solid var(--line);
+  border-radius: 4px;
   overflow: hidden;
 }
 
@@ -923,7 +929,7 @@ details.more > summary {
   color: var(--ink);
 }
 
-.btn-plain:hover {
+.btn-plain:hover:not(:disabled) {
   background: var(--bg);
 }
 
@@ -933,7 +939,7 @@ details.more > summary {
   color: #FFFFFF;
 }
 
-.btn-ink:hover {
+.btn-ink:hover:not(:disabled) {
   background: #000000;
 }
 

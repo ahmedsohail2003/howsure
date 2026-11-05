@@ -1,13 +1,23 @@
-"""Independent generator for HowSure's golden values (spec.md > Maths Core:
-Estimates, Ranges and the Day). Standard library only. Never imported by the app.
+"""Independent generator for HowSure's golden values (spec.md > Maths Core).
+Standard library only. Never imported by the app.
 
-It re-implements the day maths from the spec's words, not from the TypeScript:
+It re-implements the maths from the spec's words, not from the TypeScript:
   sd_i = x_i * e_i; within a source sd_g = sum(sd_i); sd_day = sqrt(sum(sd_g^2));
   e_day = sd_day / X; score = clamp(floor(100 * (1 - e) + 0.5), 0, 100);
   ranges are lognormal [X / (1+e)^z, X * (1+e)^z] with z80 = 1.2816, z95 = 1.96.
 
-Run from the repo root:  python scripts/golden.py
-Exit code 0 when every case matches the spec table within its tolerance
+Cases G1-G5, G11 and G12 (Estimates, Ranges and the Day) are asserted by
+src/kernel/__tests__/golden.test.ts. Cases G6 (Net Calories), G7 (Plates),
+G9 (runs, Other Tier 3 Pieces) and G10 (Week Summary) belong to kernels that are
+not built yet; this script computes them from the spec's formulas and writes
+them to fixtures/golden.json, which the future tests read
+(src/kernel/__tests__/golden-later.test.ts lists them as pending until then).
+
+Run from the repo root:
+  python3 scripts/golden.py          check every case against the spec, and check
+                                     that fixtures/golden.json is up to date
+  python3 scripts/golden.py --write  the same, then rewrite fixtures/golden.json
+Exit code 0 when every case matches the spec within its tolerance
 (+-1 kcal on rounded range ends, +-0.01 percentage points on e).
 """
 
@@ -31,9 +41,20 @@ ERR = {
     "photo": 0.46,
     "description": 0.41,
     "food_db": 0.15,
+    # Burn sources (spec.md > Maths Core: Sources Table, Tier 2 rows).
+    "burn_device": 0.40,
+    "burn_machine": 0.30,
+    "burn_guess": 0.50,
 }
 
-FIXTURE = Path(__file__).resolve().parent.parent / "fixtures" / "demo-week.json"
+ROOT = Path(__file__).resolve().parent.parent
+FIXTURE = ROOT / "fixtures" / "demo-week.json"
+GOLDEN_JSON = ROOT / "fixtures" / "golden.json"
+
+# Mean Earth radius for the haversine distance golden (G9b). The spec names haversine
+# but no radius; 6371 km is the usual mean radius, recorded in golden.json so the
+# future runs.ts uses the same one.
+EARTH_RADIUS_KM = 6371.0
 
 
 def half_up(x):
@@ -123,6 +144,256 @@ def wednesday_from_fixture():
     return start, meals
 
 
+# ---------- G6, G7, G9, G10: kernels still to be built ----------
+
+def grouped_sd(items):
+    """Same-source spreads added straight, sources combined by root sum of squares."""
+    sd_g = {}
+    for it in items:
+        if it["kcal"] is None or it["source"] is None:
+            continue
+        sd_g[it["source"]] = sd_g.get(it["source"], 0.0) + it["kcal"] * ERR[it["source"]]
+    return math.sqrt(sum(v * v for v in sd_g.values()))
+
+
+def r4(x):
+    return round(x, 4)
+
+
+def g6_net():
+    """spec.md > Maths Core: Net Calories. N = X - B; sd_N = sqrt(sd_eaten^2 + sd_burned^2);
+    normal ranges N +- z * sd_N. Burned keeps its own score and lognormal ranges."""
+    eaten = [
+        {"id": "g6-breakfast", "name": "Breakfast", "source": "photo", "kcal": 600,
+         "eatenAt": "2026-10-21T08:00:00-04:00"},
+        {"id": "g6-lunch", "name": "Lunch", "source": "photo", "kcal": 600,
+         "eatenAt": "2026-10-21T12:00:00-04:00"},
+        {"id": "g6-dinner", "name": "Dinner", "source": "photo", "kcal": 600,
+         "eatenAt": "2026-10-21T18:00:00-04:00"},
+    ]
+    burned = [
+        {"id": "g6-walk", "name": "Walk", "source": "burn_device", "kcal": 300,
+         "at": "2026-10-21T17:00:00-04:00"},
+    ]
+    x = sum(m["kcal"] for m in eaten)
+    b = sum(w["kcal"] for w in burned)
+    sd_x = grouped_sd(eaten)
+    sd_b = grouped_sd(burned)
+    n = x - b
+    sd_n = math.sqrt(sd_x ** 2 + sd_b ** 2)
+    e_b = sd_b / b
+    return {
+        "input": {"eaten": eaten, "burned": burned},
+        "expected": {
+            "eaten": {"total": x, "sd": r4(sd_x)},
+            "burned": {
+                "total": b, "sd": r4(sd_b), "ePercent": r4(e_b * 100), "score": score_of(e_b),
+                "likely": [half_up(v) for v in lognormal(b, e_b, Z80)],
+                "veryLikely": [half_up(v) for v in lognormal(b, e_b, Z95)],
+            },
+            "net": {
+                "total": n, "sd": r4(sd_n),
+                "likely": [half_up(n - Z80 * sd_n), half_up(n + Z80 * sd_n)],
+                "veryLikely": [half_up(n - Z95 * sd_n), half_up(n + Z95 * sd_n)],
+                "score": None,
+            },
+        },
+    }
+
+
+def g7_plates():
+    """spec.md > Maths Core: Plates. foodGrams = reading - plate (an error at or below the
+    plate); kcal = foodGrams * kcalPer100 / 100."""
+    def weigh(reading, plate, per100):
+        if reading <= plate:
+            return {"error": "reading at or below the plate"}
+        grams = reading - plate
+        kcal = grams * per100 / 100
+        return {"foodGrams": grams, "kcal": int(kcal) if kcal == int(kcal) else kcal}
+
+    main = {"readingG": 612, "plateG": 212, "kcalPer100": 165, "plateName": "Blue dinner plate"}
+    got = weigh(main["readingG"], main["plateG"], main["kcalPer100"])
+    errors = [{"readingG": 212, "plateG": 212, "kcalPer100": 165},
+              {"readingG": 150, "plateG": 212, "kcalPer100": 165}]
+    for case in errors:
+        case["expected"] = weigh(case["readingG"], case["plateG"], case["kcalPer100"])
+    return {"input": main, "expected": got, "errorCases": errors}
+
+
+def haversine_km(a, b):
+    lat1, lon1, lat2, lon2 = (math.radians(v) for v in (a["lat"], a["lon"], b["lat"], b["lon"]))
+    h = (math.sin((lat2 - lat1) / 2) ** 2
+         + math.cos(lat1) * math.cos(lat2) * math.sin((lon2 - lon1) / 2) ** 2)
+    return 2 * EARTH_RADIUS_KM * math.asin(math.sqrt(h))
+
+
+def pace_text(seconds_per_km):
+    s = half_up(seconds_per_km)
+    return f"{s // 60}:{s % 60:02d}/km"
+
+
+def g9_runs():
+    """spec.md > Other Tier 3 Pieces (Runs): pace = min/km; haversine distance from trackpoints.
+    The route is made up: points on the equator, in open sea, never a real run."""
+    paces = []
+    for km, minutes in ((5, 30), (10, 52.5)):
+        spk = minutes * 60 / km
+        paces.append({"distanceKm": km, "durationMin": minutes,
+                      "secondsPerKm": spk, "text": pace_text(spk)})
+    track = [
+        {"lat": 0.0, "lon": 0.0, "time": "2026-10-20T07:00:00Z"},
+        {"lat": 0.0, "lon": 0.01, "time": "2026-10-20T07:06:00Z"},
+        {"lat": 0.01, "lon": 0.01, "time": "2026-10-20T07:12:00Z"},
+        {"lat": 0.02, "lon": 0.02, "time": "2026-10-20T07:21:00Z"},
+    ]
+    legs = [haversine_km(track[i], track[i + 1]) for i in range(len(track) - 1)]
+    return {
+        "pace": paces,
+        "distance": {
+            "earthRadiusKm": EARTH_RADIUS_KM,
+            "trackpoints": track,
+            "expected": {"legsKm": [round(v, 6) for v in legs], "totalKm": round(sum(legs), 6)},
+            "toleranceKm": 0.001,
+        },
+    }
+
+
+def g10_week():
+    """spec.md > Maths Core: Week Summary. Complete days only; every meal of those days grouped
+    by source across the week; avg = X_total / N, sd_avg = sd_total / N, e = sd_avg / avg;
+    lognormal ranges like a day."""
+    g4 = [{"source": "photo", "kcal": 1000}, {"source": "label", "kcal": 100},
+          {"source": "label", "kcal": 100}, {"source": "label", "kcal": 100}]
+    g3 = [{"source": "photo", "kcal": 600}, {"source": "description", "kcal": 600},
+          {"source": "menu", "kcal": 600}]
+    incomplete = [{"source": "label", "kcal": 400}, {"source": "photo", "kcal": None}]
+    days = [
+        {"name": "Mon", "meals": g4},
+        {"name": "Tue", "meals": g3},
+        {"name": "Wed", "meals": incomplete},
+    ]
+    complete = [d for d in days if all(m["kcal"] is not None for m in d["meals"])]
+    left_out = [d for d in days if d not in complete]
+    nd = len(complete)
+    all_meals = [m for d in complete for m in d["meals"]]
+    x_total = sum(m["kcal"] for m in all_meals)
+    sd_total = grouped_sd(all_meals)
+    avg = x_total / nd
+    sd_avg = sd_total / nd
+    e = sd_avg / avg
+    # The method the spec rejects: each day's own sd, days treated as independent.
+    sd_ind = math.sqrt(sum(grouped_sd(d["meals"]) ** 2 for d in complete)) / nd
+    per_day = []
+    for d in days:
+        known = [m for m in d["meals"] if m["kcal"] is not None]
+        status = "logged" if d in complete else "incomplete"
+        row = {"name": d["name"], "status": status, "knownTotal": sum(m["kcal"] for m in known)}
+        if status == "logged":
+            de = day([meal(f"{d['name']}{i}", m["source"], m["kcal"]) for i, m in enumerate(known)])
+            row.update({"ePercent": r4(de["e"] * 100), "score": de["score"],
+                        "likely": [half_up(v) for v in de["likely"]],
+                        "veryLikely": [half_up(v) for v in de["very"]]})
+        per_day.append(row)
+    return {
+        "input": {"days": days, "notLoggedDays": 7 - len(days)},
+        "expected": {
+            "days": per_day,
+            "completeDays": nd,
+            "incompleteLeftOut": len(left_out),
+            "label": f"average of {nd} complete days ({len(left_out)} incomplete left out)",
+            "average": avg, "sd": r4(sd_avg), "ePercent": r4(e * 100), "score": score_of(e),
+            "likely": [half_up(v) for v in lognormal(avg, e, Z80)],
+            "veryLikely": [half_up(v) for v in lognormal(avg, e, Z95)],
+            "daysIndependentEPercent": r4(sd_ind / avg * 100),
+        },
+    }
+
+
+def later_cases():
+    return {
+        "_about": ("Golden values for kernels not built yet, written by scripts/golden.py "
+                   "--write from spec.md > Maths Core. Fictional inputs only. "
+                   "src/kernel/__tests__/golden-later.test.ts checks them against the spec "
+                   "and lists the kernel tests as pending until each kernel lands."),
+        "tolerance": {"rangeEndKcal": 1, "ePercentagePoints": 0.01},
+        "G6": g6_net(),
+        "G7": g7_plates(),
+        "G9": g9_runs(),
+        "G10": g10_week(),
+    }
+
+
+def near(a, b, tol):
+    return abs(a - b) <= tol + 1e-9
+
+
+def check_later(cases):
+    """Compare the new cases with the numbers printed in spec.md (2026-10-26)."""
+    bad = []
+    n6 = cases["G6"]["expected"]
+    if n6["eaten"]["total"] != 1800 or not near(n6["eaten"]["sd"], 828, 0.05):
+        bad.append(("G6", "eaten should be 1800, sd 828"))
+    if n6["burned"]["total"] != 300 or not near(n6["burned"]["sd"], 120, 0.05):
+        bad.append(("G6", "burned should be 300, sd 120"))
+    net = n6["net"]
+    if net["total"] != 1500 or not near(net["sd"], 836.7, 0.05):
+        bad.append(("G6", f"net {net['total']} sd {net['sd']} != 1500 sd 836.7"))
+    for key, (lo, hi) in (("likely", (428, 2572)), ("veryLikely", (-140, 3140))):
+        if not (near(net[key][0], lo, 1) and near(net[key][1], hi, 1)):
+            bad.append(("G6", f"net {key} {net[key]} != {lo}-{hi}"))
+
+    g7 = cases["G7"]["expected"]
+    if g7 != {"foodGrams": 400, "kcal": 660}:
+        bad.append(("G7", f"{g7} != 400 g, 660 kcal"))
+    if any("error" not in c["expected"] for c in cases["G7"]["errorCases"]):
+        bad.append(("G7", "a reading at or below the plate should be an error"))
+
+    p = cases["G9"]["pace"][0]
+    if p["text"] != "6:00/km":
+        bad.append(("G9", f"5 km in 30 min gives {p['text']}, spec says 6:00/km"))
+
+    w = cases["G10"]["expected"]
+    if w["average"] != 1550 or not near(w["sd"], 393.4, 0.05):
+        bad.append(("G10", f"average {w['average']} sd {w['sd']} != 1550 sd 393.4"))
+    if not near(w["ePercent"], 25.38, 0.01):
+        bad.append(("G10", f"e {w['ePercent']} != 25.38"))
+    for key, (lo, hi) in (("likely", (1160, 2071)), ("veryLikely", (995, 2415))):
+        if not (near(w[key][0], lo, 1) and near(w[key][1], hi, 1)):
+            bad.append(("G10", f"{key} {w[key]} != {lo}-{hi}"))
+    if w["label"] != "average of 2 complete days (1 incomplete left out)":
+        bad.append(("G10", f"label {w['label']!r}"))
+    if not near(w["daysIndependentEPercent"], 19.49, 0.01):
+        bad.append(("G10", f"days-independent e {w['daysIndependentEPercent']} != 19.49"))
+    FAILS.extend((case, [msg]) for case, msg in bad)
+    return bad
+
+
+def show_later(cases):
+    n6 = cases["G6"]["expected"]
+    print("G6    net calories: eaten 1800 (three photo meals) - burned 300 (device)")
+    print(f"      net {n6['net']['total']}, sd {n6['net']['sd']}, likely {n6['net']['likely']}, "
+          f"very likely {n6['net']['veryLikely']}; burned score {n6['burned']['score']}, "
+          f"likely {n6['burned']['likely']}, very likely {n6['burned']['veryLikely']}")
+    g7 = cases["G7"]
+    print(f"G7    plate: {g7['input']['readingG']} g reading - {g7['input']['plateG']} g plate "
+          f"= {g7['expected']['foodGrams']} g x {g7['input']['kcalPer100']} kcal/100 g "
+          f"= {g7['expected']['kcal']:g} kcal")
+    g9 = cases["G9"]
+    print("G9    pace: " + "; ".join(f"{p['distanceKm']} km in {p['durationMin']:g} min = {p['text']}"
+                                     for p in g9["pace"]))
+    d = g9["distance"]["expected"]
+    print(f"G9b   haversine route: legs {d['legsKm']} km, total {d['totalKm']} km "
+          f"(R = {EARTH_RADIUS_KM:g} km)")
+    w = cases["G10"]["expected"]
+    print(f"G10   week: {w['label']}: average {w['average']:g}, sd {w['sd']}, e {w['ePercent']}%, "
+          f"score {w['score']}, likely {w['likely']}, very likely {w['veryLikely']}; "
+          f"days-independent e {w['daysIndependentEPercent']}%")
+
+
+def later_json_text(cases):
+    return json.dumps(cases, indent=2, ensure_ascii=False) + "\n"
+
+
 FAILS = []
 
 
@@ -162,7 +433,7 @@ def show(case, label, got, extra="", expected=None):
         print(f"      vs spec table: {status}")
 
 
-def main():
+def main(write=False):
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(errors="replace")  # meal names like "café" on any console
     # G1: one label meal, 500 kcal; improve suggests weighed.
@@ -246,15 +517,34 @@ def main():
     if sug12 is not None:
         FAILS.append(("G12", [f"improve suggested {sug12}, expected None"]))
 
+    # G6, G7, G9, G10: kernels still to be built; values go to fixtures/golden.json.
+    cases = later_cases()
+    show_later(cases)
+    bad_later = check_later(cases)
+    print(f"      vs spec: {'OK' if not bad_later else 'MISMATCH'}")
+    text = later_json_text(cases)
+    if write:
+        if not FAILS:
+            GOLDEN_JSON.write_text(text, encoding="utf-8")
+            print(f"Wrote {GOLDEN_JSON.relative_to(ROOT)}")
+        else:
+            print(f"Not writing {GOLDEN_JSON.relative_to(ROOT)}: cases differ from the spec")
+    else:
+        current = GOLDEN_JSON.read_text(encoding="utf-8") if GOLDEN_JSON.exists() else None
+        if current != text:
+            FAILS.append(("golden.json", [
+                f"{GOLDEN_JSON.relative_to(ROOT)} is missing or out of date; run with --write"]))
+
     print()
     if FAILS:
         print(f"{len(FAILS)} case(s) differ from the spec table:")
         for case, bad in FAILS:
             print(f"  {case}: {'; '.join(bad)}")
         return 1
-    print("All golden cases match the spec table (G1, G1 improve, G2, G3, G4, G4b, G5, G11, G11b, G12).")
+    print("All golden cases match the spec (G1, G1 improve, G2, G3, G4, G4b, G5, G11, G11b, G12,"
+          " and G6, G7, G9, G10 for kernels still to be built), and fixtures/golden.json is current.")
     return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(main(write="--write" in sys.argv[1:]))

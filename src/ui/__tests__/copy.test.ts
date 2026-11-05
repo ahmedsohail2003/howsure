@@ -1,6 +1,7 @@
 // Word rules for every user-visible string (spec.md > Screens > Copy checks) and the
 // required wording from prd.md > Estimate Score and Explanations and spec.md > Maths Core.
 import { describe, expect, it } from 'vitest'
+import { wordRuleHits } from '../../../tests/wordRules'
 import { copy } from '../copy'
 
 /** Every string in copy.ts. Templates are called with placeholder text so their fixed words are checked. */
@@ -66,6 +67,13 @@ describe('copy.ts word rules', () => {
 
   it('never says "gut health"', () => {
     expect(everything.filter((s) => /gut health/i.test(s.text))).toEqual([])
+  })
+
+  // The per-rule tests above came first and stay as they are; this one applies the shared list in
+  // tests/wordRules.ts, which the browser sweep and sources.test.ts use too.
+  it('passes the shared word rules, the same ones the browser copy sweep applies', () => {
+    const hits = everything.flatMap((s) => wordRuleHits(s.text).map((h) => `${s.path}: ${h.rule}: ${h.match}`))
+    expect(hits).toEqual([])
   })
 
   it('calls the score "Estimate score"', () => {

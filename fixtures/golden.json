@@ -1,0 +1,269 @@
+{
+  "_about": "Golden values for kernels not built yet, written by scripts/golden.py --write from spec.md > Maths Core. Fictional inputs only. src/kernel/__tests__/golden-later.test.ts checks them against the spec and lists the kernel tests as pending until each kernel lands.",
+  "tolerance": {
+    "rangeEndKcal": 1,
+    "ePercentagePoints": 0.01
+  },
+  "G6": {
+    "input": {
+      "eaten": [
+        {
+          "id": "g6-breakfast",
+          "name": "Breakfast",
+          "source": "photo",
+          "kcal": 600,
+          "eatenAt": "2026-10-21T08:00:00-04:00"
+        },
+        {
+          "id": "g6-lunch",
+          "name": "Lunch",
+          "source": "photo",
+          "kcal": 600,
+          "eatenAt": "2026-10-21T12:00:00-04:00"
+        },
+        {
+          "id": "g6-dinner",
+          "name": "Dinner",
+          "source": "photo",
+          "kcal": 600,
+          "eatenAt": "2026-10-21T18:00:00-04:00"
+        }
+      ],
+      "burned": [
+        {
+          "id": "g6-walk",
+          "name": "Walk",
+          "source": "burn_device",
+          "kcal": 300,
+          "at": "2026-10-21T17:00:00-04:00"
+        }
+      ]
+    },
+    "expected": {
+      "eaten": {
+        "total": 1800,
+        "sd": 828.0
+      },
+      "burned": {
+        "total": 300,
+        "sd": 120.0,
+        "ePercent": 40.0,
+        "score": 60,
+        "likely": [
+          195,
+          462
+        ],
+        "veryLikely": [
+          155,
+          580
+        ]
+      },
+      "net": {
+        "total": 1500,
+        "sd": 836.6505,
+        "likely": [
+          428,
+          2572
+        ],
+        "veryLikely": [
+          -140,
+          3140
+        ],
+        "score": null
+      }
+    }
+  },
+  "G7": {
+    "input": {
+      "readingG": 612,
+      "plateG": 212,
+      "kcalPer100": 165,
+      "plateName": "Blue dinner plate"
+    },
+    "expected": {
+      "foodGrams": 400,
+      "kcal": 660
+    },
+    "errorCases": [
+      {
+        "readingG": 212,
+        "plateG": 212,
+        "kcalPer100": 165,
+        "expected": {
+          "error": "reading at or below the plate"
+        }
+      },
+      {
+        "readingG": 150,
+        "plateG": 212,
+        "kcalPer100": 165,
+        "expected": {
+          "error": "reading at or below the plate"
+        }
+      }
+    ]
+  },
+  "G9": {
+    "pace": [
+      {
+        "distanceKm": 5,
+        "durationMin": 30,
+        "secondsPerKm": 360.0,
+        "text": "6:00/km"
+      },
+      {
+        "distanceKm": 10,
+        "durationMin": 52.5,
+        "secondsPerKm": 315.0,
+        "text": "5:15/km"
+      }
+    ],
+    "distance": {
+      "earthRadiusKm": 6371.0,
+      "trackpoints": [
+        {
+          "lat": 0.0,
+          "lon": 0.0,
+          "time": "2026-10-20T07:00:00Z"
+        },
+        {
+          "lat": 0.0,
+          "lon": 0.01,
+          "time": "2026-10-20T07:06:00Z"
+        },
+        {
+          "lat": 0.01,
+          "lon": 0.01,
+          "time": "2026-10-20T07:12:00Z"
+        },
+        {
+          "lat": 0.02,
+          "lon": 0.02,
+          "time": "2026-10-20T07:21:00Z"
+        }
+      ],
+      "expected": {
+        "legsKm": [
+          1.111949,
+          1.111949,
+          1.572534
+        ],
+        "totalKm": 3.796432
+      },
+      "toleranceKm": 0.001
+    }
+  },
+  "G10": {
+    "input": {
+      "days": [
+        {
+          "name": "Mon",
+          "meals": [
+            {
+              "source": "photo",
+              "kcal": 1000
+            },
+            {
+              "source": "label",
+              "kcal": 100
+            },
+            {
+              "source": "label",
+              "kcal": 100
+            },
+            {
+              "source": "label",
+              "kcal": 100
+            }
+          ]
+        },
+        {
+          "name": "Tue",
+          "meals": [
+            {
+              "source": "photo",
+              "kcal": 600
+            },
+            {
+              "source": "description",
+              "kcal": 600
+            },
+            {
+              "source": "menu",
+              "kcal": 600
+            }
+          ]
+        },
+        {
+          "name": "Wed",
+          "meals": [
+            {
+              "source": "label",
+              "kcal": 400
+            },
+            {
+              "source": "photo",
+              "kcal": null
+            }
+          ]
+        }
+      ],
+      "notLoggedDays": 4
+    },
+    "expected": {
+      "days": [
+        {
+          "name": "Mon",
+          "status": "logged",
+          "knownTotal": 1300,
+          "ePercent": 35.4598,
+          "score": 65,
+          "likely": [
+            881,
+            1918
+          ],
+          "veryLikely": [
+            717,
+            2357
+          ]
+        },
+        {
+          "name": "Tue",
+          "status": "logged",
+          "knownTotal": 1800,
+          "ePercent": 21.7,
+          "score": 78,
+          "likely": [
+            1399,
+            2315
+          ],
+          "veryLikely": [
+            1225,
+            2645
+          ]
+        },
+        {
+          "name": "Wed",
+          "status": "incomplete",
+          "knownTotal": 400
+        }
+      ],
+      "completeDays": 2,
+      "incompleteLeftOut": 1,
+      "label": "average of 2 complete days (1 incomplete left out)",
+      "average": 1550.0,
+      "sd": 393.379,
+      "ePercent": 25.3793,
+      "score": 75,
+      "likely": [
+        1160,
+        2071
+      ],
+      "veryLikely": [
+        995,
+        2415
+      ],
+      "daysIndependentEPercent": 19.4906
+    }
+  }
+}

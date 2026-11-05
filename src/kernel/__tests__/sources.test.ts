@@ -1,5 +1,6 @@
 // spec.md > Maths Core: Sources Table.
 import { describe, expect, it } from 'vitest'
+import { wordRuleHits } from '../../../tests/wordRules'
 import { LOG_SOURCE_IDS, MEAL_SOURCE_IDS, SOURCES, bestMealSource, getSource } from '../sources'
 import type { SourceId } from '../types'
 
@@ -66,6 +67,18 @@ describe('SOURCES', () => {
     for (const w of ['accuracy', 'for sure', 'guaranteed', 'exactly', 'precise']) {
       expect(text).not.toContain(w)
     }
+  })
+
+  it('labels, hints and context pass the shared word rules (tests/wordRules.ts) that copy.ts and the browser sweep use', () => {
+    // Study titles (basis.cite) may say "accuracy" (spec.md > Screens > Copy checks); context
+    // text quotes them, so they are let through there and nowhere else.
+    const titles = Object.values(SOURCES).flatMap((s) => (s.basis.cite ? [s.basis.cite] : []))
+    const hits = Object.values(SOURCES).flatMap((s) =>
+      (['label', 'hint', 'context'] as const).flatMap((field) =>
+        wordRuleHits(s[field] ?? '', titles).map((h) => `${s.id}.${field}: ${h.rule}: ${h.match}`),
+      ),
+    )
+    expect(hits).toEqual([])
   })
 
   it('getSource throws on an unknown id', () => {
