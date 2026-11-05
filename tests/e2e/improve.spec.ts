@@ -3,10 +3,11 @@
 // a meal and switching logs; logging, deleting and sleep arrive in slices 3-4), and the
 // storage failure modes in spec.md > Important Failure Modes and > Store.
 import { expect, test, type Locator, type Page } from '@playwright/test'
+import { E2E_KEYS } from './storage-keys'
 
 const FICTIONAL = 'Sample person — fictional'
-const DEMO_KEY = 'howsure.demo.v1'
-const ACTIVE_KEY = 'howsure.active.v1'
+const DEMO_KEY = E2E_KEYS.demo
+const ACTIVE_KEY = E2E_KEYS.active
 
 // The demo clock starts at the fixture's wall-clock moment, Thu 2026-10-22 01:30 local
 // (spec.md > Clock). This pins the page's real clock, so every run is identical.

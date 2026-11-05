@@ -54,11 +54,14 @@ export function App() {
   // after I woke up it moves to the new day). prd.md > Previous Days.
   const [viewed, setViewed] = useState<{ dayStart: string | null } | null>(null)
   const tick = useMinuteTick()
-  const { unreadable } = initial
+  const { problems } = initial
 
-  /** Write the whole document, synchronously. A log that couldn't be read is never written over. */
+  /**
+   * Write the whole document, synchronously. A log whose saved copy couldn't be read, came from
+   * a newer version, or couldn't be backed up before an upgrade is never written over.
+   */
   function persist(doc: LogDoc) {
-    if (unreadable[doc.kind]) return
+    if (problems[doc.kind]) return
     setStorageOk(saveLog(doc))
   }
 
@@ -131,7 +134,7 @@ export function App() {
     setSheet({ mode: 'new', meal: blankMeal(newMealId(), defaultMealTime(doc.sleeps, view.dayStart, at)) })
   }
 
-  const notice = <StorageNotice blocked={!storageOk} unreadable={active !== null && unreadable[active]} />
+  const notice = <StorageNotice blocked={!storageOk} problem={active !== null ? problems[active] : null} />
 
   if (!active || !doc || !view || !at || !nav) {
     return (

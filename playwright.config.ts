@@ -1,6 +1,7 @@
 import os from 'node:os'
 import path from 'node:path'
 import { defineConfig } from '@playwright/test'
+import { E2E_NAMESPACE } from './tests/e2e/storage-keys'
 
 // spec.md > Where It Runs and How Someone Tries It.
 // One Playwright job at a time on this machine, so one worker and no retries.
@@ -19,6 +20,8 @@ export default defineConfig({
     url: 'http://127.0.0.1:5273',
     reuseExistingServer: false,
     env: {
+      // Own localStorage keys (howsure.e2e.*), never the default ones (src/store/keys.ts).
+      VITE_HOWSURE_STORAGE_NS: E2E_NAMESPACE,
       HOWSURE_BRIDGE_PORT: '5284',
       HOWSURE_DATA_DIR: path.join(os.tmpdir(), 'howsure-e2e-data'),
     },

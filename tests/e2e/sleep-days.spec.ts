@@ -10,6 +10,7 @@
 //   complete nights (530, 515, 530, 525, 550, 525 min) average 529.17 min, shown as 8 h 49 min;
 //   after a new 04:40 to 13:10 night (510 min) the window is 515, 530, 525, 550, 525, 510: 525.83, 8 h 46 min.
 import { expect, test, type Locator, type Page } from '@playwright/test'
+import { E2E_KEYS } from './storage-keys'
 
 const FICTIONAL = 'Sample person — fictional'
 // The demo clock starts at Thu 2026-10-22 01:30 local (spec.md > Clock): still Wednesday's waking day.
@@ -160,7 +161,7 @@ test.describe('slice 4: Sleep and Waking Days', () => {
     await expect(sheet.getByTestId('sleep-when-input')).toHaveValue('2026-10-26T23:00')
     await page.keyboard.press('Escape')
     await expect(page.getByTestId('sleep-status')).toHaveText('Awake')
-    const mine = await page.evaluate(() => JSON.parse(localStorage.getItem('howsure.mine.v1') ?? 'null'))
+    const mine = await page.evaluate((k) => JSON.parse(localStorage.getItem(k) ?? 'null'), E2E_KEYS.mine)
     expect(mine?.sleeps ?? []).toEqual([])
   })
 })

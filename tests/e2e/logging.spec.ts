@@ -9,10 +9,11 @@
 // here the default is checked as now, and tests/e2e/sleep-days.spec.ts (slice 4, with
 // previous/next) checks it on an earlier day.
 import { expect, test, type Locator, type Page } from '@playwright/test'
+import { E2E_KEYS } from './storage-keys'
 
 const FICTIONAL = 'Sample person — fictional'
-const DEMO_KEY = 'howsure.demo.v1'
-const MINE_KEY = 'howsure.mine.v1'
+const DEMO_KEY = E2E_KEYS.demo
+const MINE_KEY = E2E_KEYS.mine
 const SOURCE_HINT = 'Pick how you know, so HowSure can say how sure.'
 const PARSE_ERROR = 'Use digits, e.g. 1501 or 13.9'
 

@@ -6,6 +6,7 @@ import { demoNowMs, nowIso, parseWallClock, toLocalIso } from '../../clock'
 import type { Meal } from '../../kernel/types'
 import { emptyLog, startDemo, type LogDoc } from '../log'
 import { loadSession } from '../session'
+import { MemoryStore } from './memoryStore'
 import {
   ACTIVE_KEY,
   loadActive,
@@ -17,19 +18,6 @@ import {
   storageWorks,
   type KeyValueStore,
 } from '../storage'
-
-class MemoryStore implements KeyValueStore {
-  data = new Map<string, string>()
-  getItem(k: string) {
-    return this.data.has(k) ? (this.data.get(k) as string) : null
-  }
-  setItem(k: string, v: string) {
-    this.data.set(k, String(v))
-  }
-  removeItem(k: string) {
-    this.data.delete(k)
-  }
-}
 
 /** Storage the browser refuses entirely (e.g. site data blocked). */
 class BlockedStore implements KeyValueStore {
@@ -70,8 +58,9 @@ const unknownSnack: Meal = {
 }
 
 describe('two keys, kept apart', () => {
-  it('uses howsure.demo.v1 and howsure.mine.v1', () => {
+  it('uses howsure.demo.v1 and howsure.mine.v1 (no namespace is set in unit tests)', () => {
     expect(STORAGE_KEYS).toEqual({ demo: 'howsure.demo.v1', mine: 'howsure.mine.v1' })
+    expect(ACTIVE_KEY).toBe('howsure.active.v1')
   })
 
   it('round-trips the demo document, clock included', () => {
@@ -146,7 +135,8 @@ describe('a document that fails to parse is reported and never wiped', () => {
     ['a time with no offset', (d) => ((d.meals as Record<string, unknown>[])[0].eatenAt = '2026-10-21T17:30:00')],
     ['an unknown source', (d) => ((d.meals as Record<string, unknown>[])[0].source = 'vibes')],
     ['a mine document under the demo key', (d) => (d.kind = 'mine')],
-    ['another schema version', (d) => (d.version = 2)],
+    ['no format version', (d) => delete d.version],
+    ['a format version that is not a whole number', (d) => (d.version = '1')],
   ]
 
   it('says "unreadable" for text that is not JSON', () => {
@@ -172,7 +162,7 @@ describe('a document that fails to parse is reported and never wiped', () => {
     store.setItem(ACTIVE_KEY, 'demo')
     const s = loadSession(store, R0)
     expect(s.active).toBe('demo')
-    expect(s.unreadable).toEqual({ demo: true, mine: false })
+    expect(s.problems).toEqual({ demo: 'unreadable', mine: null })
     expect(s.logs.demo?.meals.length).toBeGreaterThan(0)
     expect(store.getItem(STORAGE_KEYS.demo)).toBe('{not json')
   })

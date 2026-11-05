@@ -1,0 +1,102 @@
+{
+  "version": 1,
+  "kind": "mine",
+  "profile": {
+    "name": "Sam",
+    "kind": "guest",
+    "targets": { "kcal": 2200, "protein": 120, "carbs": 250, "fat": 70 },
+    "usualMealsPerDay": 3
+  },
+  "meals": [
+    {
+      "id": "mine-weighed",
+      "name": "Oats with blueberries",
+      "eatenAt": "2026-10-28T08:10:00-04:00",
+      "source": "weighed",
+      "kcal": 410,
+      "protein": 14,
+      "carbs": 68,
+      "fat": 9,
+      "foods": [
+        { "name": "rolled oats", "amount": 80, "unit": "g", "fiberPer100": 10.1 },
+        { "name": "blueberries", "amount": 3.5, "unit": "oz", "tagOverrides": { "add": ["berries"], "remove": [] } },
+        { "name": "oat milk", "amount": 1, "unit": "serving", "tagOverrides": { "remove": ["dairy"] } }
+      ],
+      "fiberG": 9.4
+    },
+    {
+      "id": "mine-unknown-no-source",
+      "name": "Leftover soup",
+      "eatenAt": "2026-10-28T13:05:00-04:00",
+      "source": null,
+      "kcal": null,
+      "protein": null,
+      "carbs": null,
+      "fat": null
+    },
+    {
+      "id": "mine-unknown-with-source",
+      "name": "Samosa from the office",
+      "eatenAt": "2026-10-28T15:30:00-04:00",
+      "source": "description",
+      "kcal": null,
+      "protein": null,
+      "carbs": 0,
+      "fat": null,
+      "note": "Didn't see how big it was."
+    },
+    {
+      "id": "mine-typed-zero",
+      "name": "Black coffee",
+      "eatenAt": "2026-10-28T16:00:00-04:00",
+      "source": "label",
+      "kcal": 0,
+      "protein": 0,
+      "carbs": 0,
+      "fat": 0
+    },
+    {
+      "id": "mine-barcode",
+      "name": "Protein bar",
+      "eatenAt": "2026-11-02T10:20:00-05:00",
+      "source": "label_lookup",
+      "kcal": 210,
+      "protein": 20,
+      "carbs": 22,
+      "fat": null,
+      "lookup": {
+        "kind": "barcode",
+        "id": "0000000000000",
+        "credit": "Open Food Facts",
+        "fetchedAt": "2026-11-02T10:19:00-05:00",
+        "saved": true,
+        "amount": { "kind": "package", "grams": null }
+      },
+      "nutrients": { "sugarG": 6, "sodiumMg": null }
+    },
+    {
+      "id": "mine-away",
+      "name": "Fish and chips",
+      "eatenAt": "2026-11-03T19:45:00+00:00",
+      "source": "menu",
+      "kcal": 980,
+      "protein": 38,
+      "carbs": 95,
+      "fat": 48,
+      "proposedBy": "claude",
+      "link": "https://example.com/menu"
+    }
+  ],
+  "sleeps": [
+    { "id": "sleep-mine-1", "sleepStart": null, "wake": "2026-10-28T07:40:00-04:00" },
+    { "id": "sleep-mine-2", "sleepStart": "2026-10-28T23:50:00-04:00", "wake": "2026-10-29T07:15:00-04:00", "tags": ["late coffee"] },
+    { "id": "sleep-mine-3", "sleepStart": "2026-11-03T23:30:00+00:00", "wake": null }
+  ],
+  "workouts": [
+    { "id": "workout-mine-1", "name": "Cycling", "startedAt": "2026-10-29T18:00:00-04:00", "minutes": 30, "kcal": null, "source": "burn_device" }
+  ],
+  "plates": [{ "id": "plate-mine-1", "name": "Small bowl", "grams": 180 }],
+  "settings": { "weightUnit": "kg", "connectorOn": false },
+  "weighIns": [{ "id": "weigh-mine-1", "at": "2026-10-29T07:30:00-04:00", "kg": 72.4 }],
+  "sentCount": { "barcode": 1, "foodSearch": 0 }
+}

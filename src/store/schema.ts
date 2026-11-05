@@ -10,6 +10,11 @@ import { z } from 'zod'
 import { hasOffset } from '../clock'
 import type { MealSourceId } from '../kernel/types'
 
+/**
+ * The format version this build writes. Saved logs in an older version are upgraded on load
+ * (src/store/migrations.ts); bumping this needs an upgrade step and frozen fixtures, and
+ * src/store/__tests__/migrations.test.ts fails until both exist.
+ */
 export const SCHEMA_VERSION = 1
 
 /** Meal sources, in the sources table's order (spec.md > Maths Core: Sources Table). */
@@ -89,12 +94,14 @@ export const profileSchema = z.looseObject({
     .optional(),
 })
 
-/** spec.md > Clock: demo now = demoEpochFixture + (Date.now() - demoEpochReal). Demo document only. */
-export const clockSchema = z.object({
+/** spec.md > Clock: demo now = demoEpochFixture + (Date.now() - demoEpochReal). Demo document only.
+ * Loose like the rest, so a key a later version adds here survives a load and save (item 1.1). */
+export const clockSchema = z.looseObject({
   demoEpochFixture: z.number(),
   demoEpochReal: z.number(),
 })
 
+/** The current format only: older documents are upgraded before they reach this schema. */
 export const logDocSchema = z.looseObject({
   version: z.literal(SCHEMA_VERSION),
   kind: z.enum(['demo', 'mine']),

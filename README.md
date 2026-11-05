@@ -64,6 +64,10 @@ npx playwright test
 
 The browser tests use your installed Chrome (`channel: 'chrome'`) at 390×844 and 1920×1080.
 
+### Test storage
+
+Logs are kept per browser origin, so a test run on http://127.0.0.1:5273 would share storage with a log you use there. To keep them apart, set a storage namespace when you start the server: `VITE_HOWSURE_STORAGE_NS=dev npm run dev:app` keeps that session's logs under `howsure.dev.*` keys and never reads or writes the normal `howsure.demo.v1`, `howsure.mine.v1` and `howsure.active.v1`. The browser tests do this for you (namespace `e2e`). The namespace uses lower-case letters, digits and dashes. Saved logs from an older format are upgraded when they load, and the original text is kept under a `….backup-vN` key first.
+
 ## Honest limitations
 
 - **Every typical error is an assumption,** checked against its nearest study but not backed by it (see Sources).

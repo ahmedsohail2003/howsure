@@ -23,5 +23,7 @@ export default defineConfig({
     command: 'npm run dev:app',
     url: 'http://127.0.0.1:5273',
     reuseExistingServer: false,
+    // Own localStorage keys, never the default ones (src/store/keys.ts).
+    env: { VITE_HOWSURE_STORAGE_NS: 'demo-record' },
   },
 })

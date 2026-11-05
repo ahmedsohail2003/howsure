@@ -160,6 +160,9 @@ export const copy = {
     blocked: "Can't save on this device right now; your changes will be lost on reload.",
     // spec.md > Store: a failed parse says so and never silently wipes.
     unreadable: "Couldn't read saved data. It has been left as it was, and changes made now won't be saved over it.",
+    // Build-out item 1.1: a log saved by a newer version of HowSure is never written over.
+    newer:
+      "This log was saved by a newer version of HowSure, so this version can't open it. It has been left as it was, and changes made now won't be saved over it.",
   },
 
   logMeal: {

@@ -128,6 +128,9 @@ describe('required wording', () => {
     )
     // spec.md > Store: "a failed parse shows "Couldn't read saved data"".
     expect(copy.storage.unreadable.startsWith("Couldn't read saved data")).toBe(true)
+    // Build-out item 1.1: a log from a newer version says so and that it is left as it was.
+    expect(copy.storage.newer).toContain('saved by a newer version of HowSure')
+    expect(copy.storage.newer).toContain("It has been left as it was, and changes made now won't be saved over it.")
     // prd.md > Logging a Meal.
     expect(copy.logMeal.pickSourceHint).toBe('Pick how you know, so HowSure can say how sure.')
     expect(copy.logMeal.howKnow).toBe('How do you know?')
