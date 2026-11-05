@@ -48,7 +48,7 @@ test.describe('item 1.1: saved logs upgrade safely', () => {
     // Nothing under the e2e keys yet, so the first-open screen shows, with no storage notice.
     await expect(page.getByTestId('first-open')).toBeVisible()
     await expect(page.locator('.storage-notice')).toHaveCount(0)
-    await page.getByRole('button', { name: 'Start empty' }).click()
+    await page.getByRole('button', { name: 'Start my log' }).click()
     await logMeal(page, 'Rice cakes', '70')
 
     expect(await read(page, E2E_KEYS.active)).toBe('mine')

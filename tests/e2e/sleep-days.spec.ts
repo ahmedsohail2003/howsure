@@ -152,7 +152,7 @@ test.describe('slice 4: Sleep and Waking Days', () => {
   test('your own log rejects a sleep time later than now, keeps it, and saves nothing', async ({ page }) => {
     await page.clock.setFixedTime(MINE_NOW)
     await page.goto('/')
-    await page.getByRole('button', { name: 'Start empty' }).click()
+    await page.getByRole('button', { name: 'Start my log' }).click()
     await page.getByTestId('sleep-action').click()
     const sheet = page.getByTestId('sleep-sheet')
     await expect(sheet.getByTestId('sleep-when-input')).toHaveValue('2026-10-26T12:15')

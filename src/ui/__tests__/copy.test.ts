@@ -118,7 +118,12 @@ describe('required wording', () => {
   it('has the fictional banner and the first-open choices', () => {
     expect(copy.fictionalBanner).toBe('Sample person — fictional')
     expect(copy.firstOpen.tryDemo).toBe('Try the fictional demo')
-    expect(copy.firstOpen.startEmpty).toBe('Start empty')
+    // Build-out item 2.1: your own log is the main path, and the switch labels follow it.
+    expect(copy.firstOpen.startMine).toBe('Start my log')
+    expect(copy.header.switchToMine).toBe('Open my log')
+    expect(copy.header.switchToDemo).toBe('See the demo')
+    expect(copy.header.setWake).toBe('Set wake time')
+    expect(copy.moreMenu.resetDemo).toBe('Reset demo')
   })
 
   it('has the partial-day and empty-day wording from prd.md', () => {

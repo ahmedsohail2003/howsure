@@ -17,7 +17,7 @@ npm install
 npm run dev:app
 ```
 
-Open http://127.0.0.1:5273 and choose **Try the fictional demo**.
+Open http://127.0.0.1:5273. **Start my log** opens your own empty log; for this walk-through choose **Try the fictional demo** below it. The header switch moves between the two (**Open my log** in the demo, **See the demo** in your log), and a reload opens the log you used last. In the demo, **More** › **Reset demo** puts back Sam's week as it started, asking first only if you changed it.
 
 1. Sam's Wednesday reads **2,280 kcal** with **Estimate score 83**, likely 1,870–2,780 and very likely 1,684–3,087. "Most uncertainty comes from Pasta bake (ready meal)."
 2. Tap **Estimate score 83**. The sheet explains what the score means and lists each meal's share of the uncertainty. **More detail** shows the calculation and the source behind every typical error.
@@ -103,8 +103,6 @@ Logs are kept per browser origin, so a test run on http://127.0.0.1:5273 would s
 ## Roadmap
 
 Planned for this submission but not finished in time, to be built next:
-- **Reset demo** and the **Open my log** label;
-- a regroup preview when your first wake time is set;
 - the sleep/wake editor, with its warning before meals move to another day.
 
 These are designed in `devpost/prd.md` but not built for this submission:

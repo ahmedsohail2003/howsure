@@ -1,6 +1,9 @@
 // The dashboard header (prd.md > Screens and Layout > Dashboard, item 1): HowSure, the guest
 // name that opens Profile and privacy (your own log), the viewed waking day with its wake time,
-// the switch between the demo and your own log, and the More menu (build-out item 1.3). While
+// the switch between the demo and your own log, and the More menu (build-out item 1.3). Build-out
+// item 2.1: your own log is the main path, so the switch reads "Open my log" in the demo and
+// offers the demo as a side door ("See the demo") in your own log; a log with no wake time offers
+// Set wake time beside "Wake time not set". While
 // the full-screen view is on, its way back sits here too, so it is one tap away.
 
 import type { LogKind } from '../clock'
@@ -14,6 +17,8 @@ interface DashboardHeaderProps {
   ownName: string
   onOpenProfile: () => void
   onSwitch: () => void
+  /** Set wake time (build-out item 2.1): given only while the log has no wake time and nobody is asleep. */
+  onSetWake?: () => void
   onOpenMore: () => void
   moreOpen: boolean
   fullScreenOn: boolean
@@ -33,13 +38,22 @@ export function DashboardHeader(props: DashboardHeaderProps) {
           </button>
         )}
         {dayStart ? (
-          <p className="waking-day num" data-testid="waking-day">
+          // data-focus-return (Sheet.tsx FOCUS_RETURN): where focus lands when a sheet closes and its
+          // opener has gone, as Set wake time's button does once the wake time is saved.
+          <p className="waking-day num" data-testid="waking-day" tabIndex={-1} data-focus-return="">
             {copy.header.awakeSince(fmtWeekday(dayStart), fmtTime(dayStart))}
           </p>
         ) : (
-          <p className="waking-day unset" data-testid="waking-day">
-            {copy.header.wakeTimeNotSet}
-          </p>
+          <div className="waking-day-unset">
+            <p className="waking-day unset" data-testid="waking-day" tabIndex={-1} data-focus-return="">
+              {copy.header.wakeTimeNotSet}
+            </p>
+            {props.onSetWake && (
+              <button type="button" className="btn btn-quiet set-wake-btn" onClick={props.onSetWake} data-testid="set-wake">
+                {copy.header.setWake}
+              </button>
+            )}
+          </div>
         )}
       </div>
       <div className="header-actions">
@@ -58,7 +72,12 @@ export function DashboardHeader(props: DashboardHeaderProps) {
         >
           {copy.moreMenu.button}
         </button>
-        <button type="button" className="btn btn-quiet" onClick={props.onSwitch} data-testid="log-switch">
+        <button
+          type="button"
+          className={kind === 'demo' ? 'btn btn-quiet switch-main' : 'btn btn-quiet'}
+          onClick={props.onSwitch}
+          data-testid="log-switch"
+        >
           {kind === 'demo' ? copy.header.switchToMine : copy.header.switchToDemo}
         </button>
       </div>

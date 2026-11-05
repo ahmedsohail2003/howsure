@@ -234,7 +234,7 @@ test.describe('item 1.2: export, import and delete your own log', () => {
     })
     await page.clock.setFixedTime(MINE_NOW)
     await page.goto('/')
-    await page.getByRole('button', { name: 'Start empty' }).click()
+    await page.getByRole('button', { name: 'Start my log' }).click()
     await expect(page.getByTestId('dashboard')).toBeVisible()
 
     const panel = await openPanel(page)

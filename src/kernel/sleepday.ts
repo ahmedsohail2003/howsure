@@ -11,7 +11,7 @@ function ms(iso: string): number {
 }
 
 /** Every recorded wake, sorted by time. */
-function wakesOf(sleeps: SleepRecord[]): string[] {
+export function wakesOf(sleeps: SleepRecord[]): string[] {
   return sleeps
     .map((s) => s.wake)
     .filter((w): w is string => typeof w === 'string' && !Number.isNaN(ms(w)))

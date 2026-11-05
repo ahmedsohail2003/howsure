@@ -13,6 +13,9 @@ interface SheetProps {
   footer?: ReactNode
 }
 
+/** Marks the element focus goes back to when a sheet closes and its opener has left the page. */
+export const FOCUS_RETURN = 'data-focus-return'
+
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([hidden]):not([type="hidden"]), select, textarea, summary, [tabindex]:not([tabindex="-1"])'
 
 /** A sheet over the dashboard: a bottom sheet on phones, a centred panel on desktop. */
@@ -28,7 +31,11 @@ export function Sheet({ title, sub, demo, onClose, children, testId, footer }: S
     document.body.style.overflow = 'hidden'
     return () => {
       document.body.style.overflow = prevOverflow
-      opener?.focus?.()
+      // Back to the control that opened the sheet. When saving removed it (Set wake time goes
+      // once a wake time exists), focus goes to the page's return point instead of <body>, so
+      // the next Tab carries on from there rather than from the top of the page.
+      if (opener && opener !== document.body && opener.isConnected) opener.focus()
+      else document.querySelector<HTMLElement>(`[${FOCUS_RETURN}]`)?.focus()
     }
   }, [])
 

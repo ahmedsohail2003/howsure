@@ -193,7 +193,21 @@ for (const { id: look, name: lookName } of LOOKS) {
       }
       expect(openedUnknown, 'the demo week has a meal with unknown calories').toBe(true)
 
-      sweep.check(20)
+      // Build-out item 2.1: Reset demo, after an edit (its confirmation), then its status line.
+      await page.getByTestId('day-today').click()
+      await page.getByTestId('meal-row').filter({ hasText: 'Lentil soup' }).getByTestId('meal-open').click()
+      const soup = await opened(page, 'meal-details')
+      await soup.getByTestId('delete-meal').click()
+      await soup.getByTestId('delete-confirm-btn').click()
+      await page.getByTestId('open-more').click()
+      await (await opened(page, 'more-menu')).getByTestId('more-resetDemo').click()
+      const reset = await opened(page, 'reset-demo-sheet')
+      await sweep.take('Reset demo confirmation')
+      await reset.getByTestId('reset-demo-confirm').click()
+      await expect(page.getByTestId('status-note')).toHaveText(copy.resetDemo.done)
+      await sweep.take('demo after Reset demo')
+
+      sweep.check(22)
     })
 
     test('your own log: dashboard, Profile and privacy, Delete and Import', async ({ page }) => {
@@ -223,10 +237,11 @@ for (const { id: look, name: lookName } of LOOKS) {
       sweep.check(5)
     })
 
-    test('an empty own log', async ({ page }) => {
+    test('an empty own log, Set wake time and the regroup preview', async ({ page }) => {
       const sweep = new Sweep(page)
+      await page.clock.setFixedTime(new Date('2026-11-05T10:00:00-05:00'))
       await page.goto('/')
-      await page.getByRole('button', { name: 'Start empty' }).click()
+      await page.getByRole('button', { name: 'Start my log' }).click()
       await expect(page.getByTestId('empty-day')).toBeVisible()
       await sweep.take('empty own log')
 
@@ -235,7 +250,31 @@ for (const { id: look, name: lookName } of LOOKS) {
       await sweep.take('sleep sheet in an empty log')
       await closeWithEsc(page, 'sleep-sheet')
 
-      sweep.check(2)
+      // Build-out item 2.1: Set wake time, with its message for a time later than now.
+      await page.getByTestId('set-wake').click()
+      const wake = await opened(page, 'set-wake-sheet')
+      await sweep.take('Set wake time')
+      await wake.getByTestId('set-wake-time').fill('11:30')
+      await wake.getByTestId('set-wake-save').click()
+      await expect(wake.getByTestId('set-wake-error')).toBeVisible()
+      await sweep.take('Set wake time, with its message')
+      await closeWithEsc(page, 'set-wake-sheet')
+
+      // A meal logged before the wake time is set, then the regroup preview.
+      await page.getByTestId('log-meal').click()
+      const logSheet = await opened(page, 'log-meal-sheet')
+      await logSheet.getByTestId('meal-name-input').fill('Rice cake')
+      await logSheet.getByTestId('source-label').check()
+      await logSheet.getByTestId('meal-kcal-input').fill('35')
+      await logSheet.getByTestId('save-meal').click()
+      await expect(page.getByTestId('log-meal-sheet')).toHaveCount(0)
+      await page.getByTestId('set-wake').click()
+      await (await opened(page, 'set-wake-sheet')).getByTestId('set-wake-save').click()
+      await opened(page, 'regroup-preview')
+      await sweep.take('regroup preview')
+      await closeWithEsc(page, 'regroup-preview')
+
+      sweep.check(5)
     })
 
     test('the saved-log notices: newer version and unreadable', async ({ page }) => {
@@ -276,7 +315,7 @@ for (const { id: look, name: lookName } of LOOKS) {
       await sweep.take('demo, storage blocked')
 
       await page.reload()
-      await page.getByRole('button', { name: 'Start empty' }).click()
+      await page.getByRole('button', { name: 'Start my log' }).click()
       await expect(page.getByTestId('empty-day')).toBeVisible()
       // In your own log the notice also points to Export.
       await expect(page.getByTestId('storage-blocked')).toHaveText(`${copy.storage.blocked} ${copy.storage.exportToKeep}`)

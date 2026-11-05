@@ -44,7 +44,7 @@ async function startDemo(page: Page) {
 
 async function startEmpty(page: Page) {
   await page.goto('/')
-  await page.getByRole('button', { name: 'Start empty' }).click()
+  await page.getByRole('button', { name: 'Start my log' }).click()
   await expect(page.getByTestId('dashboard')).toBeVisible()
 }
 
@@ -129,7 +129,8 @@ test.describe('item 1.3: the More menu', () => {
     await startDemo(page)
     const menu = await openMore(page)
     await expect(menu.getByTestId('fictional-banner')).toHaveText('Sample person — fictional')
-    await expect(menu.locator('.more-label')).toHaveText(['Targets', 'Look', 'Show full screen'])
+    // Build-out item 2.1 adds Reset demo, in the demo only.
+    await expect(menu.locator('.more-label')).toHaveText(['Targets', 'Look', 'Show full screen', 'Reset demo'])
     await expect(menu.getByTestId('more-targets')).toContainText('Sam’s daily targets, which are made up.')
   })
 })

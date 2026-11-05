@@ -16,22 +16,76 @@ export const copy = {
   /** After a short link's words ("Improve ›"); hidden from screen readers. */
   arrow: ' ›',
 
+  // Build-out item 2.1: your own log is the main path; the fictional demo is a side door. Both
+  // are one tap from the first open.
   firstOpen: {
     lede: 'A food log where every calorie number says how sure it is, what that rests on, and what would make it better.',
+    startMine: 'Start my log',
+    startMineHint: 'Your own log, saved on this device only. It starts with no meals and no wake time.',
+    orDemo: 'Or look around first',
     tryDemo: 'Try the fictional demo',
-    tryDemoHint: 'A week from Sam, a made-up person, with mixed sources and one rough meal.',
-    startEmpty: 'Start empty',
-    startEmptyHint: 'Your own log, starting with no meals and no wake time.',
+    tryDemoHint: 'A week from Sam, a made-up person, with mixed sources and one rough meal. It is kept apart from your log.',
   },
 
   header: {
     awakeSince: (weekday: string, time: string) => `${weekday} · awake since ${time}`,
     wakeTimeNotSet: 'Wake time not set',
-    switchToMine: 'Start empty',
-    switchToDemo: 'Try the fictional demo',
+    // The switch between the logs: back to your own log from the demo, and the demo as a side door.
+    switchToMine: 'Open my log',
+    switchToDemo: 'See the demo',
+    setWake: 'Set wake time',
     yourLog: 'Your log',
     // spec.md > Screens > Dashboard: the guest name opens Profile and privacy.
     profileAndPrivacy: 'Profile and privacy',
+  },
+
+  // Build-out item 2.1: Set wake time, for a log with no wake time yet (prd.md > Sleep and Waking
+  // Days > Before a wake time is set). The regroup preview names every meal and its day before
+  // anything is saved.
+  setWake: {
+    title: 'Set wake time',
+    intro: 'When did you wake up for the day you are logging now? Your waking day starts then.',
+    dayLegend: 'Day',
+    today: (weekday: string) => `Today, ${weekday}`,
+    yesterday: (weekday: string) => `Yesterday, ${weekday}`,
+    time: 'Wake time',
+    // Shown only while the field still holds the default.
+    timeHint: (time: string) => `Filled in as ${time}. Change it to when you woke up.`,
+    startsDay: (when: string) => `Your waking day will start ${when}.`,
+    save: 'Save',
+    next: 'Next',
+    cancel: 'Cancel',
+    previewTitle: 'Where your meals will go',
+    previewIntro: (when: string) => `With a wake time of ${when}, your meals fall into these days:`,
+    // The day the new wake starts is the one the dashboard shows as today after Save.
+    todayFrom: (when: string) => `Today, from ${when}`,
+    earlier: 'Earlier, before you woke',
+    earlierNote: 'These stay in the day before, which has no wake time.',
+    none: 'No meals',
+    // Each list's calories, counted as the headline counts them (known meals only).
+    total: (kcal: string) => `${kcal} kcal`,
+    totalUnknown: 'Calories unknown',
+    mealKcal: (kcal: string) => `${kcal} kcal`,
+    mealKcalUnknown: 'unknown',
+    keepsAll: 'Every meal stays in your log with its own date and time. Nothing changes until you tap Save.',
+    back: 'Change the time',
+  },
+
+  // Build-out item 2.1: Reset demo (prd.md > Demo and My Log; spec.md > Store). It asks first only
+  // when the demo has been edited, and never touches your own log.
+  resetDemo: {
+    title: 'Reset the demo?',
+    intro: 'The demo has changed since it started:',
+    mealsAdded: (n: number) => (n === 1 ? '1 meal added' : `${n} meals added`),
+    mealsChanged: (n: number) => (n === 1 ? '1 meal changed' : `${n} meals changed`),
+    mealsDeleted: (n: number) => (n === 1 ? '1 meal deleted' : `${n} meals deleted`),
+    sleepChanged: 'Sleep times changed',
+    targetsChanged: 'Sam’s targets changed',
+    otherChanged: 'Other demo details changed',
+    discards: 'Resetting puts back Sam’s week as it started and discards these changes. Your own log is not affected.',
+    confirm: 'Reset demo',
+    keep: 'Keep the changes',
+    done: 'The demo is back to Sam’s week as it started. Your own log was not touched.',
   },
 
   weekdays: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const,
@@ -275,6 +329,9 @@ export const copy = {
     targets: 'Targets',
     targetsHint: 'Your daily calories, protein, carbs and fat.',
     targetsHintDemo: 'Sam’s daily targets, which are made up.',
+    // Build-out item 2.1: in the demo only.
+    resetDemo: 'Reset demo',
+    resetDemoHint: 'Puts back Sam’s week as it started. Your own log is not affected.',
     fullScreenHint: 'Shows HowSure without the browser’s bars, using the whole screen.',
     // Build-out item 1.5.2: the Look sheet.
     look: 'Look',

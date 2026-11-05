@@ -41,21 +41,23 @@ async function openDemo(page: Page) {
   await page.goto('/')
   const tryDemo = page.getByRole('button', { name: 'Try the fictional demo' })
   await expect(tryDemo).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Start empty' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Start my log' })).toBeVisible()
   await tryDemo.click()
   await expect(page.getByTestId('dashboard')).toBeVisible()
 }
 
 test.describe('slice 1: the demo day says how sure it is', () => {
-  test('first open offers the demo as the primary choice and Start empty as the other', async ({ page }) => {
+  // Build-out item 2.1 (the owner's decision): your own log is the main path, and the
+  // fictional demo is the side door. Both are offered, one tap each.
+  test('first open offers Start my log as the primary choice and the demo as the other', async ({ page }) => {
     const offHost = watchOffHostRequests(page)
     await page.goto('/')
     const tryDemo = page.getByRole('button', { name: 'Try the fictional demo' })
-    const startEmpty = page.getByRole('button', { name: 'Start empty' })
+    const startMine = page.getByRole('button', { name: 'Start my log' })
     await expect(tryDemo).toBeVisible()
-    await expect(startEmpty).toBeVisible()
-    await expect(tryDemo).toHaveClass(/btn-primary/)
-    await expect(startEmpty).not.toHaveClass(/btn-primary/)
+    await expect(startMine).toBeVisible()
+    await expect(startMine).toHaveClass(/btn-primary/)
+    await expect(tryDemo).not.toHaveClass(/btn-primary/)
     expect(offHost).toEqual([])
   })
 
@@ -222,10 +224,10 @@ test.describe('slice 1: the demo day says how sure it is', () => {
     expect(lastBox!.y).toBeGreaterThanOrEqual(stuck!.y + stuck!.height)
   })
 
-  test('Start empty opens your own log without the fictional banner or invented numbers', async ({ page }) => {
+  test('Start my log opens your own log without the fictional banner or invented numbers', async ({ page }) => {
     const offHost = watchOffHostRequests(page)
     await page.goto('/')
-    await page.getByRole('button', { name: 'Start empty' }).click()
+    await page.getByRole('button', { name: 'Start my log' }).click()
     await expect(page.getByTestId('dashboard')).toBeVisible()
     await expect(page.getByTestId('fictional-banner')).toHaveCount(0)
     await expect(page.getByTestId('waking-day')).toHaveText('Wake time not set')

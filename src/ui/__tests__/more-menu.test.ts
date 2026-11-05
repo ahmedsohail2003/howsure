@@ -16,8 +16,18 @@ describe('More menu entries', () => {
 
   it('leaves Profile and privacy out of the demo, and says the demo targets are made up', () => {
     const entries = moreEntries({ kind: 'demo', fullScreen: 'off', look: 'journal' })
-    expect(entries.map((e) => e.id)).toEqual(['targets', 'look', 'fullScreen'])
+    expect(entries.map((e) => e.id)).toEqual(['targets', 'look', 'fullScreen', 'resetDemo'])
     expect(entries[0].hint).toBe(copy.moreMenu.targetsHintDemo)
+  })
+
+  it('offers Reset demo in the demo only (build-out item 2.1)', () => {
+    const demo = moreEntries({ kind: 'demo', fullScreen: 'off', look: 'night' })
+    expect(demo.find((e) => e.id === 'resetDemo')).toEqual({
+      id: 'resetDemo',
+      label: 'Reset demo',
+      hint: 'Puts back Sam’s week as it started. Your own log is not affected.',
+    })
+    expect(moreEntries({ kind: 'mine', fullScreen: 'off', look: 'night' }).map((e) => e.id)).not.toContain('resetDemo')
   })
 
   it('names the current look, and Journal for a look this build does not offer', () => {

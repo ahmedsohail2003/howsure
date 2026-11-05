@@ -75,11 +75,17 @@ export function loadSession(
     if (!problems.demo) saveLog(demo, store, keys)
   }
 
+  // Returning opens the last log used (build-out item 2.1). When no saved choice can be used, a
+  // saved own log comes first (it is the main path), then a saved demo; with neither saved, the
+  // first-open screen shows (active null).
+  const mineSaved = mineRes.status !== 'missing'
   let active = loadActive(store, keys)
   if (active === 'demo' && !demo) {
     // A saved demo that couldn't be read: show a fresh copy in memory and leave the saved one alone.
     if (problems.demo) demo = startDemo(realNow)
-    else active = null
+    else active = mineSaved ? 'mine' : null
+  } else if (active === null) {
+    active = mineSaved ? 'mine' : demo ? 'demo' : null
   }
   const mine = mineRes.status === 'ok' ? mineRes.doc : emptyLog()
   return { active, logs: { demo, mine }, problems, storageOk }

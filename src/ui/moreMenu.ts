@@ -9,7 +9,7 @@ import { copy } from './copy'
 import type { FullScreenMode } from './fullScreen'
 import { lookDef } from './looks'
 
-export type MoreEntryId = 'profile' | 'targets' | 'look' | 'fullScreen'
+export type MoreEntryId = 'profile' | 'targets' | 'look' | 'fullScreen' | 'resetDemo'
 
 /** What an entry may depend on: which log is open, the full-screen view's state, the look. */
 export interface MoreContext {
@@ -58,6 +58,13 @@ export const MORE_ENTRIES: readonly MoreEntryDef[] = [
         : ctx.fullScreen === 'native'
           ? copy.moreMenu.exitFullScreenHint
           : copy.moreMenu.exitFallbackHint,
+  },
+  {
+    // Build-out item 2.1: Reset demo, in the demo only. It never touches your own log.
+    id: 'resetDemo',
+    shows: (ctx) => ctx.kind === 'demo',
+    label: () => copy.moreMenu.resetDemo,
+    hint: () => copy.moreMenu.resetDemoHint,
   },
 ]
 

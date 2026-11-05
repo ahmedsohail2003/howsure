@@ -5,8 +5,9 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { nowIso, reanchorDemoClock, type LogKind } from '../clock'
-import { wakingDayStart } from '../kernel/sleepday'
+import { sleepStatus, wakingDayStart } from '../kernel/sleepday'
 import type { Meal, SleepRecord } from '../kernel/types'
+import { demoChanges, isDemoEdited, pristineDemo, type DemoChanges } from '../store/demoReset'
 import { emptyLog, startDemo, type LogDoc } from '../store/log'
 import { DEFAULT_LOOK, saveLook, type Look } from '../store/look'
 import { loadSession, type LogProblem, type Logs } from '../store/session'
@@ -21,6 +22,7 @@ import {
   olderCopies,
   replaceOwnLog,
 } from '../store/transfer'
+import { copy } from './copy'
 import { Dashboard } from './Dashboard'
 import { buildDayViewFor } from './dayView'
 import { anchorFor, dateOfDay, dayForDate, dayNav } from './days'
@@ -39,11 +41,14 @@ import { MealDetails } from './MealDetails'
 import { MoreMenu } from './MoreMenu'
 import { moreEntries, type MoreEntryId } from './moreMenu'
 import { ProfilePrivacy, type DeleteOutcome, type ImportOutcome } from './ProfilePrivacy'
+import { ResetDemoSheet } from './ResetDemoSheet'
+import { SetWakeSheet } from './SetWakeSheet'
 import { SleepTimeSheet } from './SleepTimeSheet'
 import { buildSleepView, type SleepAction } from './sleepView'
 import { StorageNotice } from './StorageNotice'
 import { withTargets, type Targets } from './targets'
 import { TargetsSheet } from './TargetsSheet'
+import { canSetWake } from './wakeSet'
 
 type SheetState =
   | ExplainMode
@@ -61,6 +66,10 @@ type SheetState =
   | { mode: 'targets' }
   // The Look sheet (build-out item 1.5.2).
   | { mode: 'look' }
+  // Build-out item 2.1: Set wake time (a log with no wake time yet), and Reset demo's
+  // confirmation, holding what the reset would discard.
+  | { mode: 'setWake' }
+  | { mode: 'resetDemo'; changes: DemoChanges }
 
 /** Re-render once a minute so "now" (and with it the current waking day) stays fresh. */
 function useMinuteTick(): number {
@@ -82,7 +91,14 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
   const [active, setActive] = useState<LogKind | null>(initial.active)
   const [logs, setLogs] = useState<Logs>(initial.logs)
   const [storageOk, setStorageOk] = useState(initial.storageOk)
-  const [sheet, setSheet] = useState<SheetState | null>(null)
+  const [sheet, setSheetState] = useState<SheetState | null>(null)
+  // A one-line confirmation under the header (Reset demo). Any next step clears it: opening a
+  // sheet, switching logs, or moving to another day.
+  const [statusNote, setStatusNote] = useState<string | null>(null)
+  function setSheet(next: SheetState | null) {
+    if (next !== null) setStatusNote(null)
+    setSheetState(next)
+  }
   // The waking day on screen; null follows the current day (the dashboard opens on it, and
   // after I woke up it moves to the new day). prd.md > Previous Days.
   const [viewed, setViewed] = useState<{ dayStart: string | null } | null>(null)
@@ -117,6 +133,7 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
 
   function activate(kind: LogKind) {
     setSheet(null)
+    setStatusNote(null)
     setViewed(null)
     setActive(kind)
     if (!saveActive(kind)) setStorageOk(false)
@@ -167,6 +184,7 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
 
   /** Show a waking day; the current one is followed (null) so a new wake moves the dashboard on. */
   function showDay(dayStart: string | null) {
+    setStatusNote(null)
     setViewed(nav && dayStart === nav.current ? null : { dayStart })
   }
 
@@ -183,6 +201,38 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
     }
     setViewed(null)
     commit(next)
+  }
+
+  /**
+   * Set wake time, after the regroup preview (when there were meals) was confirmed: the first wake
+   * is saved and the dashboard follows the day it starts. Every meal keeps its own date and time.
+   * Focus then goes to the waking-day line (Sheet.tsx FOCUS_RETURN), since the button has gone.
+   */
+  function saveWake(sleeps: SleepRecord[]) {
+    if (!doc) return
+    setViewed(null)
+    commit({ ...doc, sleeps })
+  }
+
+  /**
+   * Reset demo (build-out item 2.1; spec.md > Store): Sam's week as it started, with the demo clock
+   * restarted at the fixture's moment. It asks first only when the demo was edited (or `confirmed`
+   * is true once it has). Your own log is never read or written here.
+   */
+  function resetDemo(confirmed = false) {
+    const current = logs.demo
+    if (!current) return
+    if (!confirmed) {
+      const pristine = pristineDemo()
+      if (isDemoEdited(current, pristine)) {
+        setSheet({ mode: 'resetDemo', changes: demoChanges(current, pristine) })
+        return
+      }
+    }
+    const fresh = startDemo()
+    setViewed(null)
+    commit(fresh)
+    setStatusNote(copy.resetDemo.done)
   }
 
   /** Export: download your own log (the stored text as it is when this version can't read it). */
@@ -269,6 +319,10 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
         if (fullScreen.mode === 'off') fullScreen.enter()
         else fullScreen.exit()
         return
+      case 'resetDemo':
+        setSheet(null)
+        resetDemo()
+        return
       default: {
         const unhandled: never = id
         throw new Error(`More menu entry with no action: ${String(unhandled)}`)
@@ -290,7 +344,7 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
     return (
       <LookContext.Provider value={lookState}>
         {notice}
-        <FirstOpen onTryDemo={openDemo} onStartEmpty={openMine} />
+        <FirstOpen onStartMine={openMine} onTryDemo={openDemo} />
       </LookContext.Provider>
     )
   }
@@ -323,6 +377,8 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
         kind={active}
         view={view}
         onSwitch={demo ? openMine : openDemo}
+        onSetWake={canSetWake(doc.sleeps, sleepStatus(doc.sleeps)) ? () => setSheet({ mode: 'setWake' }) : undefined}
+        statusNote={statusNote}
         onOpen={setSheet}
         onImprove={(mealId) => setSheet({ mode: 'improve', mealId })}
         onLogMeal={openLogMeal}
@@ -333,7 +389,10 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
         onPrev={() => showDay(nav.days[nav.index - 1] ?? null)}
         onNext={() => showDay(nav.days[nav.index + 1] ?? null)}
         onPickDate={(date) => showDay(dayForDate(doc, date, at))}
-        onToday={() => setViewed(null)}
+        onToday={() => {
+          setStatusNote(null)
+          setViewed(null)
+        }}
         ownName={logs.mine.profile.name}
         onOpenProfile={() => setSheet({ mode: 'profile' })}
         targets={doc.profile.targets}
@@ -392,6 +451,19 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
           onDelete={deleteMine}
           onClose={() => setSheet(null)}
         />
+      )}
+      {sheet?.mode === 'setWake' && (
+        <SetWakeSheet
+          sleeps={doc.sleeps}
+          meals={doc.meals}
+          nowIso={at}
+          demo={demo}
+          onSave={saveWake}
+          onClose={() => setSheet(null)}
+        />
+      )}
+      {sheet?.mode === 'resetDemo' && demo && (
+        <ResetDemoSheet changes={sheet.changes} onConfirm={() => resetDemo(true)} onClose={() => setSheet(null)} />
       )}
       {sleepTime && (
         <SleepTimeSheet

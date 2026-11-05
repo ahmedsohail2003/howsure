@@ -46,6 +46,10 @@ interface DashboardProps {
   kind: LogKind
   view: DayView
   onSwitch: () => void
+  /** Set wake time (build-out item 2.1), while the log has no wake time; see DashboardHeader. */
+  onSetWake?: () => void
+  /** A one-line confirmation of the last action that changes nothing on screen by itself (Reset demo). */
+  statusNote?: string | null
   onOpen: (mode: ExplainMode) => void
   /** Opens the meal's edit sheet in improve mode (prd.md > Improve That Entry). */
   onImprove: (mealId: string) => void
@@ -99,11 +103,16 @@ export function Dashboard(props: DashboardProps) {
         ownName={props.ownName}
         onOpenProfile={props.onOpenProfile}
         onSwitch={onSwitch}
+        onSetWake={props.onSetWake}
         onOpenMore={props.onOpenMore}
         moreOpen={props.moreOpen}
         fullScreenOn={props.fullScreenOn}
         onExitFullScreen={props.onExitFullScreen}
       />
+
+      <p className="status-note" role="status" data-testid="status-note">
+        {props.statusNote ?? ''}
+      </p>
 
       {/* Two groups: the day's numbers, then the meals, sleep and day controls. They stack in
           the normal column; the full-screen view puts them side by side on a wide screen. */}
