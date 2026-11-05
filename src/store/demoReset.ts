@@ -91,7 +91,9 @@ export interface DemoChanges {
   targetsChanged: boolean
   /** Meals saved as usual were added, renamed or deleted (build-out item 2.3). */
   savedMealsChanged: boolean
-  /** The rest of the projection: the profile's other fields, workouts and plates. */
+  /** Workouts were logged, edited or deleted (build-out item 2.5a). */
+  workoutsChanged: boolean
+  /** The rest of the projection: the profile's other fields and plates. */
   otherChanged: boolean
 }
 
@@ -120,9 +122,8 @@ export function demoChanges(doc: LogDoc, pristine: LogDoc = pristineDemo()): Dem
     sleepChanged: sleepText(doc.sleeps) !== sleepText(pristine.sleeps),
     targetsChanged: demoJson(targetsNow ?? null) !== demoJson(targetsWas ?? null),
     savedMealsChanged: demoJson(inIdOrder(doc.savedMeals ?? [])) !== demoJson(inIdOrder(pristine.savedMeals ?? [])),
+    workoutsChanged: demoJson(inIdOrder(doc.workouts)) !== demoJson(inIdOrder(pristine.workouts)),
     otherChanged:
-      demoJson(profileNow) !== demoJson(profileWas) ||
-      demoJson(inIdOrder(doc.workouts)) !== demoJson(inIdOrder(pristine.workouts)) ||
-      demoJson(inIdOrder(doc.plates)) !== demoJson(inIdOrder(pristine.plates)),
+      demoJson(profileNow) !== demoJson(profileWas) || demoJson(inIdOrder(doc.plates)) !== demoJson(inIdOrder(pristine.plates)),
   }
 }

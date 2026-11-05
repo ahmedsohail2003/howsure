@@ -9,7 +9,7 @@ import { ACTIVE_KEY, saveActive, saveLog, serializeLog, STORAGE_KEYS } from '../
 import { MemoryStore } from './memoryStore'
 
 const R0 = Date.parse('2026-11-05T09:00:00-05:00')
-const NONE = { mealsAdded: 0, mealsChanged: 0, mealsDeleted: 0, sleepChanged: false, targetsChanged: false, savedMealsChanged: false, otherChanged: false }
+const NONE = { mealsAdded: 0, mealsChanged: 0, mealsDeleted: 0, sleepChanged: false, targetsChanged: false, savedMealsChanged: false, workoutsChanged: false, otherChanged: false }
 
 describe('stableJson', () => {
   it('sorts keys at every level and leaves out undefined values', () => {
@@ -120,6 +120,14 @@ describe('is the demo edited?', () => {
     expect(demoChanges({ ...fresh, savedMeals: [{ ...usual, name: 'Soup' }] }, added)).toEqual({ ...NONE, savedMealsChanged: true })
     // All of them deleted again: an empty list is the same as none.
     expect(isDemoEdited({ ...fresh, savedMeals: [] }, fresh)).toBe(false)
+  })
+
+  it('a workout logged, edited or deleted counts as its own change (build-out item 2.5a)', () => {
+    const fresh = pristineDemo()
+    const swim = { id: 'w-new', name: 'Swim', startedAt: '2026-10-22T01:00:00-04:00', minutes: 30, kcal: 300, source: 'burn_guess' as const }
+    expect(demoChanges({ ...fresh, workouts: [...fresh.workouts, swim] }, fresh)).toEqual({ ...NONE, workoutsChanged: true })
+    expect(demoChanges({ ...fresh, workouts: [{ ...fresh.workouts[0], kcal: 250 }] }, fresh)).toEqual({ ...NONE, workoutsChanged: true })
+    expect(demoChanges({ ...fresh, workouts: [] }, fresh)).toEqual({ ...NONE, workoutsChanged: true })
   })
 
   it('a change to the plates or the profile name counts as another change', () => {

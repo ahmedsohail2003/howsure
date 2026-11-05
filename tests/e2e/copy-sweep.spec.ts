@@ -15,6 +15,10 @@
 //
 // Build-out item 2.3: Save as a usual meal, Log a meal's Recent and Saved with the amount, the
 // Logged line with Undo, and the Saved meals sheet, each with its messages.
+//
+// Build-out item 2.5a: Log a workout with its messages, the net headline, eaten's and burned's
+// details, a workout's details and delete confirmation, the net explanation, and a workout with
+// unknown calories.
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { expect, test, type Page } from '@playwright/test'
@@ -98,8 +102,8 @@ for (const { id: look, name: lookName } of LOOKS) {
     })
 
     test('the first-open screen and the whole demo', async ({ page }) => {
-      // About 30 views and sheets in one walk-through.
-      test.setTimeout(120_000)
+      // About 45 views and sheets in one walk-through.
+      test.setTimeout(180_000)
       const sweep = new Sweep(page)
       await page.clock.setFixedTime(DEMO_NOW)
       await page.goto('/')
@@ -244,8 +248,61 @@ for (const { id: look, name: lookName } of LOOKS) {
       }
       expect(openedUnknown, 'the demo week has a meal with unknown calories').toBe(true)
 
-      // Build-out item 2.1: Reset demo, after an edit (its confirmation), then its status line.
+      // Build-out item 2.5a: Log a workout with its messages, the net headline, eaten's and burned's
+      // details, a workout's details and its delete confirmation, the net explanation, and a
+      // workout with unknown calories.
       await page.getByTestId('day-today').click()
+      await page.getByTestId('log-workout').click()
+      const workoutSheet = await opened(page, 'workout-sheet')
+      await workoutSheet.getByTestId('workout-kcal-input').fill('300')
+      await workoutSheet.getByTestId('workout-minutes-input').fill('0')
+      await workoutSheet.getByTestId('workout-name-input').focus()
+      await workoutSheet.getByTestId('workout-name-input').blur()
+      await expect(workoutSheet.getByTestId('workout-source-hint')).toBeVisible()
+      await expect(workoutSheet.getByTestId('workout-minutes-error')).toBeVisible()
+      await sweep.take('log a workout, with its messages')
+      await workoutSheet.getByTestId('workout-name-input').fill('Evening run')
+      await workoutSheet.getByTestId('source-burn_guess').check()
+      await workoutSheet.getByTestId('workout-minutes-input').fill('35')
+      await expect(workoutSheet.getByTestId('workout-range-preview')).toBeVisible()
+      await sweep.take('log a workout, filled in, with its ranges')
+      await workoutSheet.getByTestId('save-workout').click()
+      await expect(page.getByTestId('headline')).toHaveAttribute('data-mode', 'net')
+      await sweep.take('demo dashboard with net calories')
+      await page.getByTestId('ranges').click()
+      await opened(page, 'explain-net')
+      await sweep.take('net explanation')
+      await closeWithEsc(page, 'explain-net')
+      await page.getByTestId('headline-eaten').click()
+      await opened(page, 'eaten-sheet')
+      await sweep.take('eaten: the meals')
+      await closeWithEsc(page, 'eaten-sheet')
+      await page.getByTestId('headline-burned').click()
+      const burnedSheet = await opened(page, 'workouts-sheet')
+      await sweep.take('burned: the workouts')
+      await burnedSheet.getByTestId('workout-open').first().click()
+      const workoutDetails = await opened(page, 'workout-details')
+      await sweep.take('workout details')
+      await workoutDetails.getByTestId('delete-workout').click()
+      await expect(workoutDetails.getByTestId('workout-delete-confirm')).toBeVisible()
+      await sweep.take('workout delete confirmation')
+      await workoutDetails.getByTestId('workout-delete-keep').click()
+      await workoutDetails.getByTestId('edit-workout').click()
+      await opened(page, 'workout-sheet')
+      await sweep.take('edit workout')
+      await closeWithEsc(page, 'workout-sheet')
+      await page.getByTestId('log-workout').click()
+      const unknownSheet = await opened(page, 'workout-sheet')
+      await unknownSheet.getByTestId('workout-name-input').fill('Swim')
+      await unknownSheet.getByTestId('save-workout').click()
+      await expect(page.getByTestId('missing-workout')).toBeVisible()
+      await sweep.take('net with a workout of unknown calories')
+      await page.getByTestId('missing-workout').getByRole('button', { name: 'Swim' }).click()
+      await expect((await opened(page, 'workout-details')).getByTestId('workout-unknown')).toBeVisible()
+      await sweep.take('details of a workout with unknown calories')
+      await closeWithEsc(page, 'workout-details')
+
+      // Build-out item 2.1: Reset demo, after an edit (its confirmation), then its status line.
       await page.getByTestId('meal-row').filter({ hasText: 'Lentil soup' }).getByTestId('meal-open').click()
       const soup = await opened(page, 'meal-details')
       await soup.getByTestId('delete-meal').click()
@@ -258,7 +315,7 @@ for (const { id: look, name: lookName } of LOOKS) {
       await expect(page.getByTestId('status-note')).toHaveText(copy.resetDemo.done)
       await sweep.take('demo after Reset demo')
 
-      sweep.check(31)
+      sweep.check(43)
     })
 
     test('your own log: dashboard, Profile and privacy, Delete and Import', async ({ page }) => {

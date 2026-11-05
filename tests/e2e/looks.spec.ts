@@ -148,6 +148,107 @@ for (const { id: look, name } of LOOKS) {
       expect(await lookOnPage(page)).toBe(look)
     })
 
+    // Build-out item 2.5a (slice 10): the journey above has no workout, so net equals eaten there and
+    // the headline stays calories eaten. Here Sam logs a 300 kcal rough-guess workout: the headline
+    // becomes net (G11 − 300), with eaten and burned under it, each one tap from its detail. By hand:
+    // net sd √(381.2² + 150²) = 409.7, so likely 1,980 ± 525 and very likely 1,980 ± 803.
+    test('the core journey with a workout: net calories, with eaten and burned each one tap from its detail', async ({ page }) => {
+      test.setTimeout(90_000)
+      await openDemo(page)
+      await page.getByTestId('log-workout').click()
+      const sheet = await opened(page, 'workout-sheet')
+      await sheet.getByTestId('workout-name-input').fill('Evening run')
+      await sheet.getByTestId('source-burn_guess').check()
+      await sheet.getByTestId('workout-kcal-input').fill('300')
+      await sheet.getByTestId('workout-minutes-input').fill('35')
+      await sheet.getByTestId('save-workout').click()
+      await expect(sheet).toBeHidden()
+
+      // The headline is net, with its own ranges; the score under it is still the eaten score.
+      await expect(page.getByTestId('headline')).toHaveAttribute('data-mode', 'net')
+      await expect(page.locator('.headline-label')).toHaveText('Net calories today')
+      expect(await digits(page.getByTestId('headline-kcal'))).toBe('1980')
+      expect(await digits(page.getByTestId('likely-range'))).toContain('1455–2505')
+      expect(await digits(page.getByTestId('very-likely-range'))).toContain('1177–2783')
+      await expect(page.getByTestId('day-score')).toHaveText('Eaten: estimate score 83')
+      expect(await digits(page.getByTestId('headline-eaten'))).toContain('2280')
+      expect(await digits(page.getByTestId('headline-burned'))).toContain('300')
+      await expect(page.getByTestId('net-resting')).toHaveText('Burned counts the workouts you logged, not your resting burn.')
+
+      // Each look's own way of drawing it.
+      if (look === 'journal') {
+        // The bar shows net; the target (for calories eaten) is not marked on it, and the words say so.
+        await expect(page.getByTestId('range-bar')).toBeVisible()
+        await expect(page.getByTestId('range-target')).toHaveCount(0)
+        await expect(page.getByTestId('net-bar-note')).toBeVisible()
+        await expect(page.getByTestId('headline-target')).toHaveText('Daily target 2,400 kcal, for calories eaten')
+      } else if (look === 'panel') {
+        // Net in the centre, labelled as net; the ring keeps comparing calories eaten with the target
+        // (2,280 of 2,400), and says so under the ring, apart from the number.
+        await expect(page.getByTestId('target-ring')).toHaveAttribute('data-fill', '95')
+        await expect(page.locator('.ring-centre .unit')).toHaveText('kcal net')
+        await expect(page.locator('.ring-centre')).not.toContainText(/eaten/i)
+        await expect(page.getByTestId('ring-words')).toHaveText('Ring: eaten, 95% of 2,400 kcal daily target')
+        await expect(page.getByTestId('ring-note')).toContainText('calories eaten')
+      } else {
+        // Eaten and burned are chips; the target chip says what it compares with.
+        await expect(page.getByTestId('headline-eaten')).toHaveText('Eaten 2,280')
+        await expect(page.getByTestId('headline-burned')).toHaveText('Burned 300')
+        await expect(page.getByTestId('headline-target')).toHaveText('Target 2,400 for eaten')
+        await expect(page.getByTestId('timeline').getByTestId('workout-row')).toContainText('Evening run')
+      }
+
+      // Net's ranges open its explanation, with eaten's and burned's ranges and the resting-burn note.
+      await page.getByTestId('ranges').click()
+      const explain = await opened(page, 'explain-net')
+      expect(await digits(explain.getByTestId('explain-net-likely'))).toContain('1455–2505')
+      expect(await digits(explain.getByTestId('explain-net-eaten'))).toContain('1870–2780')
+      expect(await digits(explain.getByTestId('explain-net-burned'))).toContain('178–504')
+      await expect(explain.getByTestId('net-combine')).toContainText('√(381² + 150²) = ±410 kcal')
+      await expect(explain.getByTestId('net-note')).toHaveText(
+        "Not your full energy balance: your body's resting burn isn't counted, so net alone can't show whether you ate more or less than you burned.",
+      )
+      await expect(explain).not.toContainText(/deficit|surplus/i)
+      await closeWithEsc(page, 'explain-net')
+
+      // Eaten opens the meals; a meal opens its breakdown.
+      await page.getByTestId('headline-eaten').click()
+      const eaten = await opened(page, 'eaten-sheet')
+      await expect(eaten.getByRole('heading', { name: 'Eaten today' })).toBeVisible()
+      // Every meal on the day has calories, so the subtitle gives the count, not "known meals".
+      await expect(eaten).toContainText('From 5 logged meals')
+      await expect(eaten).not.toContainText('known meals')
+      expect(await digits(eaten.getByTestId('eaten-total'))).toBe('2280 kcal')
+      await expect(eaten.getByTestId('eaten-score')).toHaveText('Estimate score 83')
+      await expect(eaten.getByTestId('meal-row')).toHaveCount(5)
+      await eaten.getByTestId('meal-row').filter({ hasText: 'Pasta bake (ready meal)' }).getByTestId('meal-open').click()
+      const details = await opened(page, 'meal-details')
+      await expect(details.getByTestId('details-kcal')).toHaveText('760 kcal')
+      await closeWithEsc(page, 'meal-details')
+
+      // Burned opens the workouts, with burned's own score and ranges; a workout opens its details.
+      await page.getByTestId('headline-burned').click()
+      const burned = await opened(page, 'workouts-sheet')
+      await expect(burned.getByRole('heading', { name: 'Burned today' })).toBeVisible()
+      await expect(burned.getByRole('heading', { name: 'Workouts' })).toBeVisible()
+      await expect(burned.getByTestId('burned-total')).toHaveText('300 kcal')
+      await expect(burned.getByTestId('burned-score')).toHaveText('Estimate score 50')
+      await expect(burned.getByTestId('burned-likely')).toContainText('178–504 kcal')
+      await expect(burned.getByTestId('burned-very-likely')).toContainText('136–664 kcal')
+      await burned.getByTestId('workout-open').click()
+      const workout = await opened(page, 'workout-details')
+      await expect(workout.getByRole('heading', { name: 'Evening run' })).toBeVisible()
+      await expect(workout.getByTestId('workout-kcal')).toHaveText('300 kcal burned')
+      await expect(workout.getByTestId('workout-details-score')).toHaveText('Estimate score 50')
+      await expect(workout.getByTestId('workout-source')).toContainText('Rough guess · typical error 50%')
+      await expect(workout.getByTestId('workout-source').getByTestId('basis-tag')).toHaveText('assumption')
+      await closeWithEsc(page, 'workout-details')
+
+      // Saved: a reload keeps the workout and the net headline.
+      await page.reload()
+      expect(await digits(page.getByTestId('headline-kcal'))).toBe('1980')
+    })
+
     test('Log a meal and the sleep button: pinned to the bottom on a phone, in the layout on a wider screen', async ({
       page,
     }) => {

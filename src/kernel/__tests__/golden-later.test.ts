@@ -1,5 +1,6 @@
-// Golden cases G6 (net calories), G7 (plates), G9 (runs) and G10 (week summary). Their kernels
-// are not built yet, so the values wait in fixtures/golden.json, written by
+// Golden cases G6 (net calories), G7 (plates), G9 (runs) and G10 (week summary). G6's kernel,
+// src/kernel/net.ts, came with slice 10 (build-out item 2.5a) and is asserted below; the others'
+// kernels are not built yet, so their values wait in fixtures/golden.json, written by
 // `python3 scripts/golden.py --write` from spec.md > Maths Core (fictional inputs only).
 //
 // What runs now: the stored values are checked against the numbers spec.md prints (computed in
@@ -10,7 +11,8 @@
 import { describe, expect, it } from 'vitest'
 import golden from '../../../fixtures/golden.json'
 import { combineDay } from '../estimate'
-import type { MealSourceId } from '../types'
+import { combine, combineBurned } from '../net'
+import type { BurnSourceId, MealSourceId, Workout } from '../types'
 import { expectEPercent, expectRange, meal } from './helpers'
 
 const { G6, G7, G9, G10, tolerance } = golden
@@ -67,7 +69,61 @@ describe('G6: net calories (spec.md > Maths Core: Net Calories)', () => {
     expect(day.groups.map((g) => g.sd)).toEqual([expect.closeTo(x.eaten.sd, 6)])
   })
 
-  it.todo('net.combine() returns these values within tolerance — waits for src/kernel/net.ts (slice 10, build-out item 2.5)')
+  // Slice 10 (build-out item 2.5a): src/kernel/net.ts, read against the same fixture.
+  describe('net.combine() (src/kernel/net.ts)', () => {
+    const eaten = combineDay(
+      G6.input.eaten.map((m) => meal(m.source as MealSourceId, m.kcal, { id: m.id, eatenAt: m.eatenAt })),
+    )
+    const workouts: Workout[] = G6.input.burned.map((w) => ({
+      id: w.id,
+      name: w.name,
+      startedAt: w.at,
+      minutes: null,
+      kcal: w.kcal,
+      source: w.source as BurnSourceId,
+    }))
+    const burned = combineBurned(workouts)
+    const result = combine(eaten, burned)
+
+    it('eaten: 1800 kcal with sd 828', () => {
+      expect(result.eaten.knownTotal).toBe(x.eaten.total)
+      expect(result.eatenSd).toBeCloseTo(x.eaten.sd, 6)
+    })
+
+    it("burned: 300 kcal, sd 120, e 40%, score 60, and lognormal ranges like a day's", () => {
+      expect(burned.status).toBe('complete')
+      expect(burned.knownTotal).toBe(x.burned.total)
+      expect(burned.sd).toBeCloseTo(x.burned.sd, 6)
+      expectEPercent(burned.e, x.burned.ePercent)
+      expect(burned.score).toBe(x.burned.score)
+      expectEnds([Math.round(burned.likely!.lo), Math.round(burned.likely!.hi)], x.burned.likely[0], x.burned.likely[1])
+      expectEnds(
+        [Math.round(burned.veryLikely!.lo), Math.round(burned.veryLikely!.hi)],
+        x.burned.veryLikely[0],
+        x.burned.veryLikely[1],
+      )
+      expect(burned.groups).toEqual([{ source: 'burn_device', sd: expect.closeTo(120, 6), workoutIds: ['g6-walk'] }])
+    })
+
+    it('net: 1500, sd 836.65, normal ranges likely 428–2572 and very likely −140–3140', () => {
+      const net = result.net!
+      expect(net).not.toBeNull()
+      expect(net.total).toBe(x.net.total)
+      expect(net.sd).toBeCloseTo(x.net.sd, 3)
+      expectEnds([Math.round(net.likely.lo), Math.round(net.likely.hi)], x.net.likely[0], x.net.likely[1])
+      expectEnds([Math.round(net.veryLikely.lo), Math.round(net.veryLikely.hi)], x.net.veryLikely[0], x.net.veryLikely[1])
+      // Normal, so symmetric about net, and allowed below 0.
+      expect(net.total - net.likely.lo).toBeCloseTo(net.likely.hi - net.total, 9)
+      expect(net.veryLikely.lo).toBeLessThan(0)
+      expect(net.knownOnly).toBe(false)
+    })
+
+    it('net has no estimate score, and the score under the headline stays the eaten one', () => {
+      expect(result.net!.score).toBe(x.net.score)
+      expect(result.eaten.score).toBe(eaten.score)
+      expect(result.eaten).toBe(eaten)
+    })
+  })
 })
 
 describe('G7: weigh minus the plate (spec.md > Maths Core: Plates and Gamer Tags)', () => {

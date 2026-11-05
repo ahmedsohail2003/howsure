@@ -5,8 +5,9 @@
 //
 // The scale runs from a little below the lowest value shown (the very likely range's low end, or
 // the target) to a little above the highest, so every band and marker fits with room around it.
-// It never starts below 0 kcal. The bar is drawn for the eye only: every number is also written
-// as text in the legend beside it.
+// It never starts below 0 kcal for calories eaten; net calories (item 2.5a) may, and then the bar
+// marks where 0 falls. The bar is drawn for the eye only: every number is also written as text in
+// the legend beside it.
 //
 // A band is never drawn thinner than a few per cent of the bar. Early in a day, with a large
 // target, the true bands can be a sliver a few pixels wide; each is widened about its own middle
@@ -30,6 +31,8 @@ export interface RangeBarGeometry {
   /** Where the markers sit, as a percentage of the bar's width. */
   best: number
   target: number | null
+  /** Where 0 kcal falls, when the scale runs from below 0 to above it (net only); else null. */
+  zero: number | null
 }
 
 /** Room left at each end of the scale, as a share of the span between the outermost values. */
@@ -61,17 +64,23 @@ export function rangeBarGeometry(
   likely: Range | null,
   veryLikely: Range | null,
   target?: number,
+  /**
+   * Build-out item 2.5a: net calories can be below 0 and their ranges are normal, so the scale may
+   * start below 0 too. Eaten calories (the default) never go below 0.
+   */
+  { signed = false }: { signed?: boolean } = {},
 ): RangeBarGeometry | null {
   if (!likely || !veryLikely) return null
   const values = [veryLikely.lo, veryLikely.hi, likely.lo, likely.hi, best, ...(target !== undefined ? [target] : [])]
   if (!values.every(Number.isFinite)) return null
-  const lo = Math.max(0, Math.min(...values))
+  const floor = signed ? Number.NEGATIVE_INFINITY : 0
+  const lo = Math.max(floor, Math.min(...values))
   const hi = Math.max(...values)
   const span = hi - lo
   if (span <= 0) return null
-  const min = Math.max(0, lo - span * PAD)
+  const min = Math.max(floor, lo - span * PAD)
   const max = hi + span * PAD
-  const at = (v: number) => ((Math.max(0, v) - min) / (max - min)) * 100
+  const at = (v: number) => ((Math.max(floor, v) - min) / (max - min)) * 100
   const bestAt = at(best)
   let [lkL, lkR] = widen(at(likely.lo), at(likely.hi), MIN_LIKELY_WIDTH)
   // Widening never moves the inner band off the best estimate.
@@ -89,5 +98,6 @@ export function rangeBarGeometry(
     likely: box(lkL, lkR),
     best: round2(bestAt),
     target: target !== undefined ? round2(at(target)) : null,
+    zero: min < 0 && max > 0 ? round2(at(0)) : null,
   }
 }

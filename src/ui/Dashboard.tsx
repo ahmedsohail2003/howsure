@@ -24,6 +24,11 @@
 // uncertainty and Improve on that meal's own point. The sleep section keeps each night, one tap
 // deep. On a wide screen the page stays one centred column: a timeline across the screen would
 // squeeze a long day's labels together.
+//
+// Build-out item 2.5a (slice 10): the headline becomes net calories once the day has a workout
+// (HeadlineEstimate.tsx), the day lists its workouts under the meals with Log a workout (on the
+// Night timeline, workouts are points beside the meals), and a workout with unknown calories is
+// listed under Missing information.
 
 import { useEffect, useLayoutEffect, useRef } from 'react'
 import type { LogKind } from '../clock'
@@ -32,15 +37,16 @@ import { copy } from './copy'
 import { DashboardHeader } from './DashboardHeader'
 import type { DayView } from './dayView'
 import { DayNav, type DayNavState } from './DayNav'
-import type { ExplainMode } from './ExplainSheet'
 import { fmtSharePct } from './format'
 import { HeadlineEstimate } from './HeadlineEstimate'
+import type { HeadlineOpen } from './headlineView'
 import { useLook } from './lookContext'
 import { MacroRow } from './MacroRow'
 import { MealList } from './MealList'
 import { NightTimeline } from './NightTimeline'
 import { SleepSection } from './SleepSection'
 import type { SleepAction, SleepView } from './sleepView'
+import { WorkoutSection } from './WorkoutList'
 
 interface DashboardProps {
   kind: LogKind
@@ -58,13 +64,17 @@ interface DashboardProps {
   barNote?: string | null
   onUndo?: () => void
   undoLabel?: string
-  onOpen: (mode: ExplainMode) => void
+  /** Opens an explanation, or (net headline, build-out item 2.5a) the eaten or burned detail. */
+  onOpen: (mode: HeadlineOpen) => void
   /** Opens the meal's edit sheet in improve mode (prd.md > Improve That Entry). */
   onImprove: (mealId: string) => void
   /** Opens the Log a meal sheet (prd.md > Logging a Meal). */
   onLogMeal: () => void
   /** Opens a meal's details (prd.md > Meal Details, Edit and Delete). */
   onOpenMeal: (mealId: string) => void
+  /** Opens a workout's details, and Log a workout (build-out item 2.5a). */
+  onOpenWorkout: (workoutId: string) => void
+  onLogWorkout: () => void
   sleep: SleepView
   onSleepAction: (action: SleepAction) => void
   nav: DayNavState
@@ -94,6 +104,7 @@ export function Dashboard(props: DashboardProps) {
   const { kind, view, onSwitch, onOpen, onImprove, onLogMeal, onOpenMeal, sleep, onSleepAction, nav, targets } = props
   const { dayStart, meals, day, biggest, improvement } = view
   const unknownMeals = meals.filter((m) => day.unknownMealIds.includes(m.id))
+  const unknownWorkouts = view.workouts.filter((w) => view.burned.unknownWorkoutIds.includes(w.id))
   const knownOnly = day.status === 'partial'
   // The biggest meal's share of the day's uncertainty, as the explanation lists it.
   const biggestShare = biggest ? day.contributions.find((c) => c.mealId === biggest.id)?.share : undefined
@@ -136,7 +147,7 @@ export function Dashboard(props: DashboardProps) {
       <div className="dash-body">
         <div className="dash-col" data-testid="dash-col-day">
           <HeadlineEstimate
-            day={day}
+            view={view}
             onOpen={onOpen}
             today={nav.today}
             targetKcal={targets?.kcal}
@@ -148,7 +159,7 @@ export function Dashboard(props: DashboardProps) {
 
           {day.status !== 'empty' && !night && <MacroRow macros={view.macros} targets={targets} />}
 
-          {unknownMeals.length > 0 && (
+          {(unknownMeals.length > 0 || unknownWorkouts.length > 0) && (
             <section className="section" aria-labelledby="missing-title" data-testid="missing-info">
               <h2 className="section-title" id="missing-title">
                 {copy.missing.title}
@@ -161,6 +172,14 @@ export function Dashboard(props: DashboardProps) {
                       {m.name}
                     </button>
                     <span className="unknown">{copy.missing.unknownKcal}</span>
+                  </li>
+                ))}
+                {unknownWorkouts.map((w) => (
+                  <li key={w.id} data-testid="missing-workout">
+                    <button type="button" className="link-btn" onClick={() => props.onOpenWorkout(w.id)}>
+                      {w.name}
+                    </button>
+                    <span className="unknown">{copy.missing.unknownBurned}</span>
                   </li>
                 ))}
               </ul>
@@ -284,7 +303,14 @@ export function Dashboard(props: DashboardProps) {
           </div>
 
           {night ? (
-            <NightTimeline view={view} sleep={sleep} nowIso={props.nowIso} onOpenMeal={onOpenMeal} onImprove={onImprove} />
+            <NightTimeline
+              view={view}
+              sleep={sleep}
+              nowIso={props.nowIso}
+              onOpenMeal={onOpenMeal}
+              onImprove={onImprove}
+              onOpenWorkout={props.onOpenWorkout}
+            />
           ) : day.status === 'empty' ? (
             <section className="section empty-day" data-testid="empty-day">
               <p className="empty-title">{copy.emptyDay.noMeals}</p>
@@ -292,6 +318,14 @@ export function Dashboard(props: DashboardProps) {
           ) : (
             <MealList meals={meals} dayStart={dayStart} onOpenMeal={onOpenMeal} biggestId={biggest?.id ?? null} />
           )}
+
+          {/* Build-out item 2.5a: the day's workouts with Log a workout (Night draws them on its timeline). */}
+          <WorkoutSection
+            workouts={view.workouts}
+            dayStart={dayStart}
+            onOpenWorkout={props.onOpenWorkout}
+            onLogWorkout={props.onLogWorkout}
+          />
 
           <SleepSection sleep={sleep} today={nav.today} />
 

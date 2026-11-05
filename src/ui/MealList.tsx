@@ -22,6 +22,8 @@ interface MealListProps {
   onOpenMeal: (mealId: string) => void
   /** The meal with the biggest uncertainty (Panel look marks it), or null. */
   biggestId?: string | null
+  /** The heading's id: the Eaten sheet draws this list over the dashboard's, so it needs its own. */
+  headingId?: string
 }
 
 /** The meal's time, with its weekday when it falls on a later calendar date than the day's wake. */
@@ -38,10 +40,10 @@ export function mealSourceLabel(source: MealSourceId | null): string {
 export function MealList(props: MealListProps) {
   const { look } = useLook()
   if (look === 'panel') return <PanelMealList {...props} />
-  const { meals, dayStart, onOpenMeal } = props
+  const { meals, dayStart, onOpenMeal, headingId = 'meals-title' } = props
   return (
-    <section className="section" aria-labelledby="meals-title">
-      <h2 className="section-title" id="meals-title">
+    <section className="section" aria-labelledby={headingId}>
+      <h2 className="section-title" id={headingId}>
         {copy.meals.title}
       </h2>
       <ul data-testid="meal-list">
@@ -78,10 +80,10 @@ export function MealList(props: MealListProps) {
   )
 }
 
-function PanelMealList({ meals, dayStart, onOpenMeal, biggestId = null }: MealListProps) {
+function PanelMealList({ meals, dayStart, onOpenMeal, biggestId = null, headingId = 'meals-title' }: MealListProps) {
   return (
-    <section className="section" aria-labelledby="meals-title">
-      <h2 className="section-title" id="meals-title">
+    <section className="section" aria-labelledby={headingId}>
+      <h2 className="section-title" id={headingId}>
         {copy.meals.title}
       </h2>
       <ul data-testid="meal-list">

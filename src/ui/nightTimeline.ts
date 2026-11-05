@@ -7,10 +7,12 @@
 // Everything here is read from the shared view-models (dayView.ts, sleepView.ts), so the numbers
 // are the ones every look shows. Pure: no React.
 //
+// Build-out item 2.5a: the day's workouts sit among the meals at their start times.
+//
 // Seam for the 3-day and 4-day timeline (build-out item 2.8): that view draws this list once per
 // waking day, side by side; nothing here assumes a single day on screen.
 
-import type { Meal } from '../kernel/types'
+import type { Meal, Workout } from '../kernel/types'
 import type { DayView } from './dayView'
 import { onLaterDate } from './format'
 import type { SleepView } from './sleepView'
@@ -21,6 +23,8 @@ export type TimelinePoint =
   | { kind: 'noWake' }
   /** `laterDate`: eaten after midnight, on a later calendar date than the wake. */
   | { kind: 'meal'; meal: Meal; laterDate: boolean; biggest: boolean }
+  /** Build-out item 2.5a: a workout at its start time, among the meals. */
+  | { kind: 'workout'; workout: Workout; laterDate: boolean }
   /** No meals logged yet on this day. */
   | { kind: 'empty' }
   | { kind: 'now'; at: string }
@@ -34,9 +38,19 @@ export function timelinePoints(view: DayView, sleep: SleepView, nowIso: string):
     dayStart === null ? { kind: 'noWake' } : { kind: 'wake', at: dayStart, sleptMinutes: sleep.lastNight?.minutes ?? null },
   ]
   if (view.meals.length === 0) points.push({ kind: 'empty' })
-  for (const meal of view.meals) {
-    points.push({ kind: 'meal', meal, laterDate: onLaterDate(meal.eatenAt, dayStart), biggest: meal.id === view.biggest?.id })
-  }
+  // Meals and workouts in time order; at the same minute a meal comes first.
+  const items: (TimelinePoint & { kind: 'meal' | 'workout' })[] = [
+    ...view.meals.map((meal) => ({
+      kind: 'meal' as const,
+      meal,
+      laterDate: onLaterDate(meal.eatenAt, dayStart),
+      biggest: meal.id === view.biggest?.id,
+    })),
+    ...view.workouts.map((workout) => ({ kind: 'workout' as const, workout, laterDate: onLaterDate(workout.startedAt, dayStart) })),
+  ]
+  const at = (p: (typeof items)[number]) => Date.parse(p.kind === 'meal' ? p.meal.eatenAt : p.workout.startedAt)
+  items.sort((a, b) => at(a) - at(b) || (a.kind === b.kind ? 0 : a.kind === 'meal' ? -1 : 1))
+  points.push(...items)
   const end = sleep.dayEnd
   if (end.kind === 'awake') points.push({ kind: 'now', at: nowIso })
   else if (end.kind === 'asleep') points.push({ kind: 'asleep', since: end.since, laterDate: onLaterDate(end.since, dayStart) })

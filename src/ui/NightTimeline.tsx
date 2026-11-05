@@ -11,13 +11,15 @@
 // this one too. Dots and the line are drawn for the eye only; every point says what it is in words.
 
 import { estimateMeal } from '../kernel/estimate'
-import type { Meal } from '../kernel/types'
+import { estimateWorkout } from '../kernel/net'
+import type { Meal, Workout } from '../kernel/types'
 import { copy } from './copy'
 import type { DayView } from './dayView'
 import { fmtInt, fmtTime, fmtWeekday, fmtWeekdayFull } from './format'
 import { mealSourceLabel, mealTimeLabel } from './MealList'
 import { timelinePoints, type TimelinePoint } from './nightTimeline'
 import { fmtDuration, type SleepView } from './sleepView'
+import { workoutDuration, workoutKcal, workoutSourceLabel, workoutTimeLabel } from './WorkoutList'
 
 interface NightTimelineProps {
   view: DayView
@@ -26,9 +28,11 @@ interface NightTimelineProps {
   nowIso: string
   onOpenMeal: (mealId: string) => void
   onImprove: (mealId: string) => void
+  /** Opens a workout's details (build-out item 2.5a). */
+  onOpenWorkout: (workoutId: string) => void
 }
 
-export function NightTimeline({ view, sleep, nowIso, onOpenMeal, onImprove }: NightTimelineProps) {
+export function NightTimeline({ view, sleep, nowIso, onOpenMeal, onImprove, onOpenWorkout }: NightTimelineProps) {
   const points = timelinePoints(view, sleep, nowIso)
   const average = sleep.stats.avgMinutes !== null ? copy.night.average(fmtDuration(sleep.stats.avgMinutes)) : copy.night.averageNotAvailable
   return (
@@ -39,12 +43,13 @@ export function NightTimeline({ view, sleep, nowIso, onOpenMeal, onImprove }: Ni
       <ol className="tl" data-testid="meal-list">
         {points.map((p, i) => (
           <Point
-            key={p.kind === 'meal' ? p.meal.id : `${p.kind}-${i}`}
+            key={p.kind === 'meal' ? p.meal.id : p.kind === 'workout' ? p.workout.id : `${p.kind}-${i}`}
             point={p}
             view={view}
             average={average}
             onOpenMeal={onOpenMeal}
             onImprove={onImprove}
+            onOpenWorkout={onOpenWorkout}
           />
         ))}
       </ol>
@@ -59,6 +64,7 @@ interface PointProps {
   average: string
   onOpenMeal: (mealId: string) => void
   onImprove: (mealId: string) => void
+  onOpenWorkout: (workoutId: string) => void
 }
 
 /** A time in the left column; after midnight its weekday sits above it ("Thu" over "12:40 AM"). */
@@ -71,7 +77,7 @@ function Time({ iso, laterDate }: { iso: string; laterDate: boolean }) {
   )
 }
 
-function Point({ point, view, average, onOpenMeal, onImprove }: PointProps) {
+function Point({ point, view, average, onOpenMeal, onImprove, onOpenWorkout }: PointProps) {
   switch (point.kind) {
     case 'wake':
       return (
@@ -114,6 +120,8 @@ function Point({ point, view, average, onOpenMeal, onImprove }: PointProps) {
           </span>
         </li>
       )
+    case 'workout':
+      return <WorkoutPoint workout={point.workout} laterDate={point.laterDate} view={view} onOpenWorkout={onOpenWorkout} />
     case 'meal':
       return <MealPoint meal={point.meal} laterDate={point.laterDate} biggest={point.biggest} view={view} onOpenMeal={onOpenMeal} onImprove={onImprove} />
     case 'now':
@@ -262,6 +270,55 @@ function MealPoint({ meal, laterDate, biggest, view, onOpenMeal, onImprove }: Me
           )}
         </p>
       )}
+    </li>
+  )
+}
+
+interface WorkoutPointProps {
+  workout: Workout
+  laterDate: boolean
+  view: DayView
+  onOpenWorkout: (workoutId: string) => void
+}
+
+/**
+ * Build-out item 2.5a: a workout on the timeline, at its start time. A diamond dot sets it apart
+ * from the meals, and its words say it: "300 kcal burned", how you know and its score. One button
+ * that opens the workout's details, as the meal points do.
+ */
+function WorkoutPoint({ workout, laterDate, view, onOpenWorkout }: WorkoutPointProps) {
+  const est = estimateWorkout(workout)
+  const source = workoutSourceLabel(workout.source)
+  const kcal = workoutKcal(workout)
+  const meta = copy.workouts.meta(workoutTimeLabel(workout, view.dayStart), workoutDuration(workout), source)
+  const score = est ? copy.workouts.rowScore(String(est.score)) : copy.workouts.noScore
+  return (
+    <li className="tl-point workout-row tl-workout" data-testid="workout-row" data-workout-id={workout.id}>
+      <button
+        type="button"
+        className="meal-open tl-row"
+        onClick={() => onOpenWorkout(workout.id)}
+        aria-label={copy.workouts.rowLabel(workout.name, meta, kcal, score)}
+        data-testid="workout-open"
+      >
+        <Time iso={workout.startedAt} laterDate={laterDate} />
+        <span className={workout.kcal === null ? 'tl-dot workout unknown' : 'tl-dot workout'} aria-hidden="true" />
+        <span className="tl-body">
+          <span className="tl-line">
+            <span className="meal-name">{workout.name}</span>
+            <span className={workout.kcal === null ? 'meal-kcal unknown' : 'meal-kcal num'}>{kcal}</span>
+          </span>
+          <span className="tl-meta num">
+            {workoutDuration(workout)}
+            {copy.sep}
+            {source}
+            {copy.sep}
+            <span className={est ? 'meal-score' : 'meal-score none'} data-testid="workout-score">
+              {est ? copy.workouts.nightScore(String(est.score)) : copy.workouts.nightNoScore}
+            </span>
+          </span>
+        </span>
+      </button>
     </li>
   )
 }

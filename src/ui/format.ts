@@ -29,6 +29,43 @@ export function fmtRange(r: Range): string {
   return copy.headline.rangeValue(lo, hi)
 }
 
+/**
+ * A number that can be below 0 (net calories), with a real minus sign: -140 -> "−140",
+ * 1500 -> "1,500". Rounded like fmtInt; a value that rounds to 0 is "0", never "−0".
+ */
+export function fmtSigned(n: number): string {
+  const r = Math.round(n)
+  return r < 0 ? `${copy.headline.minus}${group.format(-r)}` : group.format(r === 0 ? 0 : r)
+}
+
+/** A range's ends that may run below 0 (net), not cut off at 0. */
+export function fmtSignedRangeEnds(r: Range): { lo: string; hi: string } {
+  return { lo: fmtSigned(r.lo), hi: fmtSigned(r.hi) }
+}
+
+/** True when either end of a range rounds below 0, so the ends are joined with "to", not a dash. */
+function runsBelowZero(r: Range): boolean {
+  return Math.round(r.lo) < 0 || Math.round(r.hi) < 0
+}
+
+/** "428–2,572 kcal", or "−140 to 3,140 kcal" once an end is below 0. */
+export function fmtSignedRange(r: Range): string {
+  const { lo, hi } = fmtSignedRangeEnds(r)
+  return runsBelowZero(r) ? copy.headline.signedRangeValue(lo, hi) : copy.headline.rangeValue(lo, hi)
+}
+
+/** A range without its unit (Night's one-line ranges): "1,870–2,780". Never below 0. */
+export function fmtRangeShort(r: Range): string {
+  const { lo, hi } = fmtRangeEnds(r)
+  return copy.night.rangeEnds(lo, hi)
+}
+
+/** A range that may run below 0, without its unit: "428–2,572", or "−140 to 3,140". */
+export function fmtSignedRangeShort(r: Range): string {
+  const { lo, hi } = fmtSignedRangeEnds(r)
+  return runsBelowZero(r) ? copy.night.signedRangeEnds(lo, hi) : copy.night.rangeEnds(lo, hi)
+}
+
 /** A fraction as a percentage with at most one decimal: 0.46 -> "46", 0.1672 -> "16.7". */
 export function fmtPct(fraction: number, decimals = 1): string {
   const f = 10 ** decimals

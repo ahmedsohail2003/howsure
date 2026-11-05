@@ -4,7 +4,7 @@
 // of days, validation, movedMeals() and nightStats() with the circular-mean wake time.
 // Pure: no React, no storage, no clock reads ("at" is always passed in).
 
-import type { Meal, Night, NightStats, SleepProblem, SleepRecord, SleepStatus } from './types'
+import type { Meal, Night, NightStats, SleepProblem, SleepRecord, SleepStatus, Workout } from './types'
 
 function ms(iso: string): number {
   return Date.parse(iso)
@@ -36,12 +36,8 @@ export function nextWakeAfter(sleeps: SleepRecord[], dayStart: string): string |
   return null
 }
 
-/**
- * The meals from the wake dayStart up to (not including) the next wake, in time order.
- * dayStart null means the provisional day: meals before the first wake (all meals when
- * no wake is recorded).
- */
-export function mealsForDay(meals: Meal[], sleeps: SleepRecord[], dayStart: string | null): Meal[] {
+/** The bounds [from, to) of the waking day starting at dayStart (null = the provisional day), in ms. */
+function dayBounds(sleeps: SleepRecord[], dayStart: string | null): [number, number] {
   let from = Number.NEGATIVE_INFINITY
   let to = Number.POSITIVE_INFINITY
   if (dayStart === null) {
@@ -52,12 +48,35 @@ export function mealsForDay(meals: Meal[], sleeps: SleepRecord[], dayStart: stri
     const next = nextWakeAfter(sleeps, dayStart)
     if (next !== null) to = ms(next)
   }
-  return meals
-    .filter((m) => {
-      const t = ms(m.eatenAt)
+  return [from, to]
+}
+
+/** The items whose time falls in the waking day, in time order. */
+function itemsForDay<T>(items: T[], timeOf: (item: T) => string, sleeps: SleepRecord[], dayStart: string | null): T[] {
+  const [from, to] = dayBounds(sleeps, dayStart)
+  return items
+    .filter((i) => {
+      const t = ms(timeOf(i))
       return t >= from && t < to
     })
-    .sort((a, b) => ms(a.eatenAt) - ms(b.eatenAt))
+    .sort((a, b) => ms(timeOf(a)) - ms(timeOf(b)))
+}
+
+/**
+ * The meals from the wake dayStart up to (not including) the next wake, in time order.
+ * dayStart null means the provisional day: meals before the first wake (all meals when
+ * no wake is recorded).
+ */
+export function mealsForDay(meals: Meal[], sleeps: SleepRecord[], dayStart: string | null): Meal[] {
+  return itemsForDay(meals, (m) => m.eatenAt, sleeps, dayStart)
+}
+
+/**
+ * The workouts that started in the waking day (slice 10; prd.md > Workouts and Net Calories: a
+ * workout belongs to the waking day it started in, like a meal), in time order.
+ */
+export function workoutsForDay(workouts: Workout[], sleeps: SleepRecord[], dayStart: string | null): Workout[] {
+  return itemsForDay(workouts, (w) => w.startedAt, sleeps, dayStart)
 }
 
 /* ---------------- slice 4: status, the list of days, nights, moved meals, validation ---------------- */
@@ -95,7 +114,7 @@ export function sleepStatus(sleeps: SleepRecord[]): SleepStatus {
  * comes first when there is no wake at all, or when some meal falls before the first wake.
  * Days that start after `upTo` (the log's now) are left out, so the list ends on the current day.
  */
-export function wakingDays(meals: Meal[], sleeps: SleepRecord[], upTo?: string): (string | null)[] {
+export function wakingDays(meals: Pick<Meal, 'eatenAt'>[], sleeps: SleepRecord[], upTo?: string): (string | null)[] {
   const wakes = wakesOf(sleeps).filter((w) => upTo === undefined || ms(w) <= ms(upTo))
   const first = wakes[0]
   const provisional = first === undefined || meals.some((m) => ms(m.eatenAt) < ms(first))

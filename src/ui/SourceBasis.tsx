@@ -2,7 +2,7 @@
 // finding, re-check date) or the word "assumption" with its nearest study as context.
 // Study wording comes from src/kernel/sources.ts; HowSure's own words from copy.ts.
 
-import type { MealSourceId, Source } from '../kernel/types'
+import type { Source, SourceId } from '../kernel/types'
 import { getSource, SOURCES } from '../kernel/sources'
 import { copy } from './copy'
 import { fmtPct } from './format'
@@ -51,13 +51,13 @@ export function SourceBasisItem({ source }: { source: Source }) {
   )
 }
 
-/** The distinct sources used by a set of meals, in the sources table's order. */
-export function sourcesUsed(ids: MealSourceId[]): Source[] {
+/** The distinct sources used by a set of meals (or workouts), in the sources table's order. */
+export function sourcesUsed(ids: SourceId[]): Source[] {
   const order = Object.keys(SOURCES)
   return [...new Set(ids)].sort((a, b) => order.indexOf(a) - order.indexOf(b)).map((id) => getSource(id))
 }
 
-export function SourceBasisList({ ids }: { ids: MealSourceId[] }) {
+export function SourceBasisList({ ids }: { ids: SourceId[] }) {
   return (
     <ul className="source-basis">
       {sourcesUsed(ids).map((s) => (

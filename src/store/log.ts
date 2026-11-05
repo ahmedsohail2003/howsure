@@ -12,7 +12,7 @@ import {
   type LogKind,
 } from '../clock'
 import { SOURCES } from '../kernel/sources'
-import type { Meal, MealFood, MealLookup, MealSourceId, SleepRecord } from '../kernel/types'
+import type { BurnSourceId, Meal, MealFood, MealLookup, MealSourceId, SleepRecord, Workout } from '../kernel/types'
 
 export interface Profile {
   name: string
@@ -47,8 +47,9 @@ export interface LogDoc {
   profile: Profile
   meals: Meal[]
   sleeps: SleepRecord[]
-  // Carried through untouched until their slices (Tier 2): workouts and plates.
-  workouts: unknown[]
+  /** Workouts (slice 10, build-out item 2.5a), each on the waking day it started in. */
+  workouts: Workout[]
+  // Carried through untouched until its slice (Tier 2, slice 11).
   plates: unknown[]
   settings?: Record<string, unknown>
   /** Meals saved as usual (build-out item 2.3). Optional: a log saved before it has none. */
@@ -102,11 +103,27 @@ function toSleep(raw: unknown): SleepRecord {
   return { id: raw.id, sleepStart: conv(raw.sleepStart), wake: conv(raw.wake) }
 }
 
-/** Workouts stay untyped until slice 10, but their start time is converted like every other time. */
-function toWorkout(raw: unknown): unknown {
-  const w = structuredClone(raw)
-  if (isObj(w) && typeof w.startedAt === 'string') w.startedAt = wallToLocalIso(w.startedAt)
-  return w
+function isBurnSource(v: unknown): v is BurnSourceId {
+  return typeof v === 'string' && v in SOURCES && v.startsWith('burn_')
+}
+
+/** A fixture workout, with its start time converted like every other time (slice 10). */
+function toWorkout(raw: unknown): Workout {
+  if (!isObj(raw)) throw new Error('demo fixture: a workout is not an object')
+  const { id, name, startedAt, source } = raw
+  if (typeof id !== 'string' || typeof name !== 'string' || typeof startedAt !== 'string') {
+    throw new Error('demo fixture: a workout is missing id, name or startedAt')
+  }
+  if (source !== null && !isBurnSource(source)) throw new Error(`demo fixture: workout ${id} has an unknown source`)
+  return {
+    ...(structuredClone(raw) as unknown as Workout),
+    id,
+    name,
+    startedAt: wallToLocalIso(startedAt),
+    minutes: numOrNull(raw.minutes),
+    kcal: numOrNull(raw.kcal),
+    source,
+  }
 }
 
 export interface DemoStart {

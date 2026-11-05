@@ -82,6 +82,7 @@ export const copy = {
     sleepChanged: 'Sleep times changed',
     targetsChanged: 'Sam’s targets changed',
     savedMealsChanged: 'Saved meals changed',
+    workoutsChanged: 'Workouts changed',
     otherChanged: 'Other demo details changed',
     discards: 'Resetting puts back Sam’s week as it started and discards these changes. Your own log is not affected.',
     confirm: 'Reset demo',
@@ -122,6 +123,40 @@ export const copy = {
     rangesKnownOnly: 'These ranges cover the known meals only, so no bar is drawn until every meal has calories.',
     // Panel and Night, which draw no range bar.
     rangesKnownOnlyShort: 'These ranges cover the known meals only.',
+    // Build-out item 2.5a (slice 10): with a workout on the day, the headline is net calories,
+    // with eaten and burned under it. The score under it stays the eaten score, labelled so.
+    netLabel: 'Net calories today',
+    netLabelEarlierDay: 'Net calories that day',
+    netLabelKnownOnly: 'Net calories, known entries only',
+    netKnownOnly: 'Known entries only — incomplete day',
+    unknownWorkouts: (n: number) =>
+      n === 1 ? '1 workout with unknown calories burned' : `${n} workouts with unknown calories burned`,
+    eatenScore: (score: string) => `Eaten: estimate score ${score}`,
+    eatenScoreNotAvailable: 'Eaten: estimate score not available yet',
+    netRangesKnownOnly: 'These ranges cover the known meals and workouts only.',
+    // A range that runs below 0 reads "−140 to 3,140 kcal": an en dash after a minus sign is hard to read.
+    signedRangeValue: (lo: string, hi: string) => `${lo} to ${hi} kcal`,
+    minus: '−',
+  },
+
+  // Build-out item 2.5a (slice 10; prd.md > Workouts and Net Calories): eaten and burned under the
+  // net headline, each one tap from its detail, and what net leaves out.
+  net: {
+    eaten: 'Eaten',
+    burned: 'Burned',
+    value: (kcal: string) => `${kcal} kcal`,
+    unknown: 'unknown',
+    notAvailable: 'not available yet',
+    eatenOpen: (value: string) => `Eaten ${value}. Opens the meals.`,
+    burnedOpen: (value: string) => `Burned ${value}. Opens the workouts.`,
+    restingShort: 'Burned counts the workouts you logged, not your resting burn.',
+    // spec.md > Maths Core: Net Calories, word for word.
+    note: "Not your full energy balance: your body's resting burn isn't counted, so net alone can't show whether you ate more or less than you burned.",
+    // Journal's range bar shows net once net is the headline; the target is for calories eaten.
+    // One line with restingShort under the bar.
+    barNote: 'The bar shows net, so your target for eating isn’t marked on it.',
+    // The mark for 0 on Journal's net range bar, once the bar runs below 0.
+    zero: '0',
   },
 
   macros: {
@@ -146,6 +181,7 @@ export const copy = {
   missing: {
     title: 'Missing information',
     unknownKcal: 'calories unknown',
+    unknownBurned: 'calories burned unknown',
   },
 
   dashboard: {
@@ -172,6 +208,99 @@ export const copy = {
 
   emptyDay: {
     noMeals: 'No meals logged yet',
+  },
+
+  // Build-out item 2.5a (slice 10; prd.md > Workouts and Net Calories): log, list, edit and delete
+  // workouts. A workout belongs to the waking day it started in. Blank is unknown, never 0.
+  workouts: {
+    sectionTitle: 'Workouts',
+    none: 'No workouts logged',
+    logWorkout: 'Log a workout',
+    titleNew: 'Log a workout',
+    titleEdit: (name: string) => `Edit: ${name}`,
+    name: 'Workout name',
+    nameNeeded: 'Give the workout a name.',
+    howKnow: 'How do you know?',
+    pickSourceHint: 'Pick how you know, so HowSure can say how sure.',
+    calories: 'Calories burned (kcal)',
+    caloriesHint: 'Leave it blank if you don’t know. A typed 0 counts as zero.',
+    // "With this source: likely 178–504 kcal, very likely 136–664 kcal." Each range is kept on one line.
+    rangePreviewLead: 'With this source:',
+    rangePreviewLikely: (range: string) => `likely ${range}`,
+    rangePreviewVeryLikely: (range: string) => `very likely ${range}`,
+    rangePreviewJoin: ', ',
+    rangePreviewEnd: '.',
+    start: 'Start date and time',
+    startNeeded: 'Pick a date and time.',
+    otherDay: 'That time is on another waking day, so this workout won’t show on the day on screen.',
+    duration: 'Duration (minutes)',
+    durationHint: 'Leave it blank if you don’t know.',
+    durationZero: 'A duration of 0 isn’t used. Type the minutes, or leave it blank if you don’t know.',
+    save: 'Save',
+    cancel: 'Cancel',
+    minutes: (n: string) => `${n} min`,
+    durationUnknown: 'duration unknown',
+    unknownKcal: 'unknown',
+    kcalBurned: (n: string) => `${n} kcal burned`,
+    meta: (time: string, duration: string, source: string) => `${time} · ${duration} · ${source}`,
+    rowScore: (score: string) => `Estimate score ${score}`,
+    rowScoreShort: (score: string) => `Score ${score}`,
+    noScore: 'No estimate score',
+    rowLabel: (name: string, meta: string, kcal: string, score: string) =>
+      `${name}, ${meta}, ${kcal}, ${score}. Opens the workout details.`,
+    sourceNotPicked: 'source not picked',
+    // The Night timeline's point.
+    nightScore: (score: string) => `score ${score}`,
+    nightNoScore: 'no estimate score',
+
+    // The list, opened from Burned under the net headline.
+    listTitle: 'Burned today',
+    listTitleEarlierDay: 'Burned that day',
+    listSub: (n: number) => (n === 1 ? 'From 1 logged workout' : `From ${n} logged workouts`),
+    listIntro: 'Tap a workout for its details.',
+    listNone: 'No workouts logged on this day.',
+    listKnownOnly: 'Known workouts only: a workout with unknown calories is left out of burned.',
+    burnedNotAvailable: 'Not available yet: no workout on this day has known calories burned.',
+    scoreSentence:
+      'A workout’s estimate score comes from the typical error of how you know its calories, as a meal’s does. Burned’s score combines the workouts the same way the day combines meals.',
+    combinedGroups:
+      'Workouts from the same kind of source are added together, then the sources are combined as the square root of the sum of squares.',
+    groupLine: (source: string, spread: string) => `${source}: ±${spread} kcal`,
+    combinedLine: (spread: string, total: string, pct: string, score: string) =>
+      `Burned: ±${spread} kcal on ${total} kcal, a typical error of ${pct}%, so an estimate score of ${score}.`,
+    // Burned's own wording for the design-target line.
+    designTargets:
+      "These ranges are design targets, meant to catch about 8 in 10 and 19 in 20 workouts like this. HowSure hasn't measured its own hit rate.",
+    how: (pct: string) =>
+      `With burned’s typical error e = ${pct}%: likely runs from burned ÷ (1 + e)^1.2816 to burned × (1 + e)^1.2816, and very likely uses 1.96 in place of 1.2816. The ranges never go below 0.`,
+
+    // A workout's details.
+    caloriesUnknown: 'Calories burned unknown',
+    unknownNote:
+      'With its calories unknown, this workout has no estimate score or range and is left out of burned and net. It is listed under Missing information.',
+    started: 'Started',
+    durationLabel: 'Duration',
+    source: 'How you know',
+    sourceLine: (label: string, pct: string) => `${label} · typical error ${pct}%`,
+    scoreMeans: (score: string, pct: string) =>
+      `A ${score}% estimate score means this source is assigned a typical error of about ${pct}%. It does not mean there is a ${score}% chance this number is correct. The actual error could be larger.`,
+    basisLabel: 'Where the typical error comes from',
+    edit: 'Edit',
+    delete: 'Delete',
+    confirmDelete: (name: string) => `Delete ${name}? It leaves this day and its burned and net totals. This can’t be undone.`,
+    keep: 'Keep it',
+    deleteConfirm: 'Delete workout',
+  },
+
+  // Build-out item 2.5a: Eaten under the net headline opens the day's meals, each opening its breakdown.
+  eaten: {
+    title: 'Eaten today',
+    titleEarlierDay: 'Eaten that day',
+    // Every meal has calories: the count, as Burned's detail says it. Some don't: the known total.
+    sub: (n: number) => (n === 1 ? 'From 1 logged meal' : `From ${n} logged meals`),
+    subKnownOnly: (kcal: string) => `${kcal} kcal from the known meals`,
+    intro: 'Tap a meal for its breakdown.',
+    none: 'No meals logged on this day.',
   },
 
   // prd.md > Sleep and Waking Days. A missing sleep or wake time is "not logged", never 0 h.
@@ -380,6 +509,14 @@ export const copy = {
     macroNoTarget: 'no target',
     biggestShare: (pct: string) => `${pct}% of the day’s uncertainty`,
     biggestShareKnownOnly: (pct: string) => `${pct}% of the known meals’ uncertainty`,
+    // Build-out item 2.5a: with net in the centre, the ring keeps showing calories eaten against
+    // the daily target, which is a target for eating. The number in the ring is labelled "kcal
+    // net", and what the ring shows is said under the ring, apart from the number.
+    ringNetUnit: 'kcal net',
+    // Under the ring, before ringShare: "Ring: eaten, 95% of 2,400".
+    ringEatenLead: 'Ring: eaten,',
+    ringNoteEaten: 'The ring shows calories eaten (best estimate), not net, against your daily target for eating.',
+    ringKnownOnlyEaten: 'The ring is not filled until every meal has calories.',
   },
 
   // Build-out item 1.5.2c: words only the Night look draws. The waking day is a timeline from the
@@ -389,6 +526,8 @@ export const copy = {
     likely: 'likely',
     veryLikely: 'very likely',
     rangeEnds: (lo: string, hi: string) => `${lo}–${hi}`,
+    // A net range with an end below 0: "−140 to 3,140", as the other looks write it.
+    signedRangeEnds: (lo: string, hi: string) => `${lo} to ${hi}`,
     // Read after each range by screen readers; the number above already shows the unit.
     rangeUnitHidden: ' kcal',
     rangesNotAvailable: 'Ranges: not available yet',
@@ -400,6 +539,11 @@ export const copy = {
     // Starts with the chip's own words, then spells each macro out.
     macroChipLabel: (shown: string, spoken: string) => `${shown}: ${spoken}. Shows each macro, its target and any missing entries.`,
     targetChipLabel: (target: string) => `Daily target ${target} kcal. Opens the targets editor.`,
+    targetChipLabelEaten: (target: string) =>
+      `Daily target ${target} kcal, compared with calories eaten. Opens the targets editor.`,
+    // Build-out item 2.5a: eaten and burned as chips under the net headline.
+    eatenChip: (kcal: string) => `Eaten ${kcal}`,
+    burnedChip: (kcal: string) => `Burned ${kcal}`,
     timelineTitle: 'The waking day',
     wokeUp: 'Woke up',
     slept: (duration: string) => `slept ${duration}`,
@@ -446,6 +590,9 @@ export const copy = {
     macro: (grams: string) => `Target ${grams} g`,
     // The Panel ring and the Night target chip.
     short: (kcal: string) => `Target ${kcal}`,
+    // Build-out item 2.5a: once net is the headline, the target still compares with calories eaten.
+    headlineEaten: (kcal: string) => `Daily target ${kcal} kcal, for calories eaten`,
+    shortEaten: (kcal: string) => `Target ${kcal} for eaten`,
     setKcal: 'Set a calorie target',
   },
 
@@ -672,6 +819,31 @@ export const copy = {
     calcFromAssumption: "HowSure's calculation from the assumed typical errors below, not a finding of any study.",
     calcFromStudy: (study: string) => `HowSure's calculation from ${study}`,
     notAvailable: 'Not available yet: there are no meals with known calories on this day.',
+  },
+
+  // Build-out item 2.5a: ExplainSheet's net mode, opened from net's ranges (spec.md > Maths Core:
+  // Net Calories): eaten's range, burned's range and how they combine, with the resting-burn note.
+  explainNet: {
+    title: 'What net calories mean',
+    intro: 'Net is the calories you ate minus the calories burned in the workouts you logged.',
+    net: 'Net',
+    eaten: 'Eaten',
+    burned: 'Burned',
+    total: (kcal: string) => `${kcal} kcal`,
+    likelyOf: (range: string) => `likely ${range}`,
+    combine: (eaten: string, burned: string, net: string) =>
+      `Eaten and burned are estimated separately, so their spreads combine as the square root of the sum of squares: √(${eaten}² + ${burned}²) = ±${net} kcal.`,
+    ranges:
+      'The likely range is meant to catch the real net about 8 times in 10, and the very likely range about 19 times in 20. Net can be near or below 0, so its ranges are even on both sides and can go below 0.',
+    noScore:
+      'Net has no estimate score: a percentage of a number near 0 says nothing. The score under the headline is for calories eaten.',
+    knownOnly: 'Meals and workouts with unknown calories are left out of both sides, as they are from the day’s total.',
+    // Net's own wording for the design-target line (net is not a meal).
+    designTargets: "These ranges are design targets: HowSure hasn't measured how often they catch the real net.",
+    howTitle: 'How the ranges are worked out',
+    how: (sd: string) =>
+      `With net’s spread of ±${sd} kcal: likely runs from net − 1.2816 × ${sd} to net + 1.2816 × ${sd}, and very likely uses 1.96 in place of 1.2816.`,
+    notAvailable: 'Not available yet: net needs known calories for both eaten and burned on this day.',
   },
 
   more: {

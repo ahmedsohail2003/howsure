@@ -264,6 +264,34 @@ describe('Import reads a file through the same pipeline as a stored log', () => 
     expect(readImport(JSON.stringify(old))).toMatchObject({ status: 'refused', problem: 'unreadable' })
   })
 
+  it('a workout logged in this version round-trips through Export and Import unchanged (build-out item 2.5a)', () => {
+    const doc = mineDoc()
+    const withRun: LogDoc = {
+      ...doc,
+      workouts: [
+        ...doc.workouts,
+        { id: 'workout-run', name: 'Evening run', startedAt: '2026-10-28T18:30:00-04:00', minutes: 35, kcal: 300, source: 'burn_guess' },
+        { id: 'workout-swim', name: 'Swim', startedAt: '2026-10-28T19:30:00-04:00', minutes: null, kcal: null, source: null },
+      ],
+    }
+    const res = readImport(exportOwnLog(withRun, null, null))
+    expect(res.status).toBe('ok')
+    if (res.status !== 'ok') return
+    expect(res.doc).toStrictEqual(withRun)
+    expect(res.summary.workouts).toBe(3)
+  })
+
+  it('refuses a workout with known calories and no source, as for a meal (build-out item 2.5a)', () => {
+    const doc = structuredClone(V1_MINE) as { workouts: { kcal: unknown; source: unknown }[] }
+    doc.workouts[0].kcal = 200
+    doc.workouts[0].source = null
+    expect(readImport(JSON.stringify(doc))).toMatchObject({ status: 'refused', problem: 'unreadable', detail: expect.stringContaining('workouts.0.source') })
+    // Unknown is null, never a negative number or a word.
+    const bad = structuredClone(V1_MINE) as { workouts: { minutes: unknown }[] }
+    bad.workouts[0].minutes = -5
+    expect(readImport(JSON.stringify(bad))).toMatchObject({ status: 'refused', problem: 'unreadable' })
+  })
+
   it('refuses text that is not a log', () => {
     for (const text of ['', 'not json', '[]', '{}', '{"version":"1"}', '{"version":1,"kind":"mine"}']) {
       expect(readImport(text)).toMatchObject({ status: 'refused', problem: 'unreadable' })

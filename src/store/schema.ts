@@ -8,7 +8,7 @@
 
 import { z } from 'zod'
 import { hasOffset } from '../clock'
-import type { MealSourceId } from '../kernel/types'
+import type { BurnSourceId, MealSourceId } from '../kernel/types'
 
 /**
  * The format version this build writes. Saved logs in an older version are upgraded on load
@@ -99,6 +99,32 @@ export const savedMealSchema = z
     path: ['source'],
   })
 
+/** Burn sources (spec.md > Maths Core: Sources Table, Tier 2 rows). */
+const BURN_SOURCES = ['burn_device', 'burn_machine', 'burn_guess'] as const satisfies readonly BurnSourceId[]
+type MissingBurnSource = Exclude<BurnSourceId, (typeof BURN_SOURCES)[number]>
+const _everyBurnSourceListed: MissingBurnSource extends never ? true : false = true
+void _everyBurnSourceListed
+
+/**
+ * A workout (slice 10, build-out item 2.5a; spec.md > Data Model). The shape the demo fixture and
+ * the frozen version 1 logs already hold, so no format version bump: blank calories and duration
+ * are unknown (null), never 0, and as for a meal, known calories need their source. Keys added by
+ * later slices (run, split, sets) are kept as they are.
+ */
+export const workoutSchema = z
+  .looseObject({
+    id: z.string().min(1),
+    name: z.string(),
+    startedAt: isoWithOffset,
+    minutes: amountOrUnknown,
+    kcal: amountOrUnknown,
+    source: z.enum(BURN_SOURCES).nullable(),
+  })
+  .refine((w) => w.kcal === null || w.source !== null, {
+    message: 'a workout with known calories needs its source',
+    path: ['source'],
+  })
+
 export const sleepSchema = z.looseObject({
   id: z.string().min(1),
   sleepStart: isoWithOffset.nullable(),
@@ -132,8 +158,8 @@ export const logDocSchema = z.looseObject({
   profile: profileSchema,
   meals: z.array(mealWithSourceSchema),
   sleeps: z.array(sleepSchema),
-  // Tier 2 (workouts: slice 10, plates: slice 11). Carried through untouched until then.
-  workouts: z.array(z.looseObject({ id: z.string() })),
+  // Tier 2: workouts (slice 10, build-out item 2.5a). Plates (slice 11) are carried through untouched until then.
+  workouts: z.array(workoutSchema),
   plates: z.array(z.looseObject({ id: z.string() })),
   settings: z.looseObject({}).optional(),
   // Build-out item 2.3: optional, so a log saved before it loads unchanged (no version bump).

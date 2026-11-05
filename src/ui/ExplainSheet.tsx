@@ -1,18 +1,21 @@
 // spec.md > Screens > ExplainSheet.tsx and prd.md > Estimate Score and Explanations:
 // meal score, day score and ranges, each short, with the calculation and the sources
-// under More detail. Net mode arrives with workouts (Tier 2).
+// under More detail. Net mode (build-out item 2.5a, slice 10; spec.md > Maths Core: Net
+// Calories) shows net's ranges, eaten's range, burned's range and how they combine, with the
+// resting-burn note. Net has no score.
 
 import { estimateMeal, improve, isKnownMeal } from '../kernel/estimate'
+import { isKnownWorkout } from '../kernel/net'
 import { getSource } from '../kernel/sources'
-import type { Meal } from '../kernel/types'
+import type { Meal, SourceId } from '../kernel/types'
 import { copy } from './copy'
 import type { DayView } from './dayView'
-import { fmtInt, fmtPct, fmtRange, fmtSharePct } from './format'
+import { fmtInt, fmtPct, fmtRange, fmtSharePct, fmtSigned, fmtSignedRange } from './format'
 import { mealSourceLabel, mealTimeLabel } from './MealList'
 import { Sheet } from './Sheet'
 import { BasisTag, SourceBasisItem, SourceBasisList, sourcesUsed } from './SourceBasis'
 
-export type ExplainMode = { mode: 'meal'; mealId: string } | { mode: 'day' } | { mode: 'ranges' }
+export type ExplainMode = { mode: 'meal'; mealId: string } | { mode: 'day' } | { mode: 'ranges' } | { mode: 'net' }
 
 interface ExplainSheetProps {
   mode: ExplainMode
@@ -50,10 +53,113 @@ export function ExplainSheet({ mode, view, demo, onClose }: ExplainSheetProps) {
       </Sheet>
     )
   }
+  if (mode.mode === 'net') {
+    return (
+      <Sheet title={copy.explainNet.title} demo={demo} onClose={onClose} testId="explain-net">
+        <NetExplanation view={view} />
+      </Sheet>
+    )
+  }
   return (
     <Sheet title={copy.explainRanges.title} demo={demo} onClose={onClose} testId="explain-ranges">
       <RangesExplanation view={view} />
     </Sheet>
+  )
+}
+
+/* ---------------- net ---------------- */
+
+function NetExplanation({ view }: { view: DayView }) {
+  const { net, day, burned, eatenSd } = view
+  const sourceIds: SourceId[] = [
+    ...view.meals.filter(isKnownMeal).map((m) => m.source),
+    ...view.workouts.filter(isKnownWorkout).map((w) => w.source),
+  ]
+  return (
+    <>
+      <p data-testid="net-intro">{copy.explainNet.intro}</p>
+      {net ? (
+        <ul className="fact-list num" data-testid="net-facts">
+          <li data-testid="explain-net-total">
+            <span className="k">{copy.explainNet.net}</span>
+            <span>{copy.explainNet.total(fmtSigned(net.total))}</span>
+          </li>
+          <li data-testid="explain-net-likely">
+            <span className="k">{copy.headline.likely}</span>
+            <span>{fmtSignedRange(net.likely)}</span>
+          </li>
+          <li data-testid="explain-net-very-likely">
+            <span className="k">{copy.headline.veryLikely}</span>
+            <span>{fmtSignedRange(net.veryLikely)}</span>
+          </li>
+        </ul>
+      ) : (
+        <p data-testid="net-not-available">{copy.explainNet.notAvailable}</p>
+      )}
+
+      <ul className="fact-list num" data-testid="net-sides">
+        <li data-testid="explain-net-eaten">
+          <span className="k">{copy.explainNet.eaten}</span>
+          <span>
+            {day.status === 'complete' || day.status === 'partial' ? copy.explainNet.total(fmtInt(day.knownTotal)) : copy.net.notAvailable}
+            {day.likely && (
+              <>
+                {copy.sep}
+                {copy.explainNet.likelyOf(fmtRange(day.likely))}
+              </>
+            )}
+          </span>
+        </li>
+        <li data-testid="explain-net-burned">
+          <span className="k">{copy.explainNet.burned}</span>
+          <span>
+            {burned.status === 'complete' || burned.status === 'partial' ? copy.explainNet.total(fmtInt(burned.knownTotal)) : copy.net.unknown}
+            {burned.likely && (
+              <>
+                {copy.sep}
+                {copy.explainNet.likelyOf(fmtRange(burned.likely))}
+              </>
+            )}
+          </span>
+        </li>
+      </ul>
+
+      {net && (
+        <p className="num" data-testid="net-combine">
+          {copy.explainNet.combine(fmtInt(eatenSd), fmtInt(burned.sd), fmtInt(net.sd))}
+        </p>
+      )}
+      {net?.knownOnly && <p className="small">{copy.explainNet.knownOnly}</p>}
+      <p className="callout amber" data-testid="net-note">
+        {copy.net.note}
+      </p>
+      <p data-testid="net-no-score">{copy.explainNet.noScore}</p>
+
+      <details className="more">
+        <summary>{copy.sheet.moreDetail}</summary>
+        <div className="more-body">
+          {net && (
+            <>
+              <p>{copy.explainNet.ranges}</p>
+              <div>
+                <h3>{copy.explainNet.howTitle}</h3>
+                <p className="num">{copy.explainNet.how(fmtInt(net.sd))}</p>
+              </div>
+            </>
+          )}
+          {sourcesUsed(sourceIds).some((src) => src.basis.kind === 'assumption') && (
+            <p className="small">{copy.explainRanges.calcFromAssumption}</p>
+          )}
+          {sourceIds.length > 0 && (
+            <div>
+              <h3>{copy.more.sourcesTitle}</h3>
+              <SourceBasisList ids={sourceIds} />
+            </div>
+          )}
+          {net && <p className="small">{copy.explainNet.designTargets}</p>}
+        </div>
+      </details>
+    </>
   )
 }
 

@@ -160,14 +160,20 @@ export interface MacroTotal {
 }
 
 // Added by the kernel builder: the shape of fixtures/demo-week.json (spec.md > Demo Fixture).
+// Typed in slice 10 (build-out item 2.5a): a workout belongs to the waking day it started in, as a
+// meal does to the day it was eaten in.
 export interface Workout {
   id: string
   name: string
   startedAt: string // ISO with offset in a log; a wall-clock string with no offset in the fixture
-  minutes: number
-  kcal: number | null
-  source: BurnSourceId
+  minutes: number | null // null = duration unknown, never 0
+  kcal: number | null // calories burned; null = unknown, never 0
+  // null = "How do you know?" not picked, allowed only while kcal is null (as for a meal).
+  source: BurnSourceId | null
 }
+
+/** A workout the burned maths can count: known calories and a picked source (net.ts isKnownWorkout). */
+export type KnownWorkout = Workout & { kcal: number; source: BurnSourceId }
 
 export interface Plate {
   id: string
@@ -219,3 +225,6 @@ export type Parsed =
 //              movedMeals(meals, before: SleepRecord[], after: SleepRecord[]): Meal[]
 //              circularMeanMinutes(minutes: number[]): number | null; nightStats(sleeps, lastN = 7): NightStats
 //              validateSleep(sleeps, changed: SleepRecord, latest: string | null): SleepProblem | null
+//              workoutsForDay(workouts, sleeps, dayStart): Workout[]   // the waking day a workout started in
+// net.ts       combineBurned(workouts: Workout[]): BurnedEstimate        // per-source grouping, like a day
+//              combine(eaten: DayEstimate, burned: BurnedEstimate): NetDay // N = X - B, sd_N = sqrt(sd_X^2 + sd_B^2)

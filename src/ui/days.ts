@@ -28,7 +28,8 @@ export interface DayNav {
 
 export function dayNav(doc: LogDoc, viewed: string | null, nowIso: string): DayNav {
   const current = wakingDayStart(doc.sleeps, nowIso)
-  const days = wakingDays(doc.meals, doc.sleeps, nowIso)
+  // A workout before the first wake keeps the provisional day in the list, as a meal does.
+  const days = wakingDays([...doc.meals, ...doc.workouts.map((w) => ({ eatenAt: w.startedAt }))], doc.sleeps, nowIso)
   if (!days.includes(current)) days.push(current)
   const index = days.indexOf(viewed)
   return { days, index: index === -1 ? days.indexOf(current) : index, current }

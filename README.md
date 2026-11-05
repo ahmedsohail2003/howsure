@@ -31,6 +31,12 @@ The demo person, Sam, is fictional, and so is every meal, sleep time and target 
 
 **Log a meal** opens with **Saved** (meals you saved as usual) and **Recent** (the last different meals you logged, newest first) at the top. Tap one and it is logged at once, as a new meal with its own time and the same source and values, so a usual meal takes two taps. A short **Logged** line with **Undo** follows, just above **Log a meal**. **Amount** (×0.5, ×1, ×1.5, ×2 or a number from 0.1 to 10 that you type) scales the calories, macros and both ranges; the source stays the same, so the typical error stays the same percentage. To save a meal as usual, open it and choose **Save as a usual meal**. If you edit a meal after saving it, its details say what the saved meal still holds, and saving it again under that name updates the saved meal. **More** › **Saved meals** renames or deletes them; meals already logged never change. Saved meals are part of your log, so Export and Import carry them.
 
+### Log a workout: net calories
+
+Under the meals, **Workouts** › **Log a workout** takes a name, **How do you know?** (a device or watch estimate, a machine's display, or a rough guess, each with its typical error, all marked assumption), the calories burned, the start time and the duration. A blank number is unknown, never zero. A workout belongs to the waking day it started in. Once a day has a workout, the headline becomes **net calories** (eaten minus burned), with its own likely and very likely ranges and **Eaten** and **Burned** under it. Tap **Eaten** for the meals, each opening its breakdown; tap **Burned** for the workouts, with burned's own estimate score and ranges; tap net's ranges for how eaten and burned combine. The score under the headline stays the eaten score. Burned counts only the workouts you logged, not your resting burn, so net is not your full energy balance, and the app says so. In the demo, log a 300 kcal rough guess on Wednesday: the headline reads **1,980 kcal**, likely 1,455–2,505, with Eaten 2,280 and Burned 300. Sam's Monday already has a 210 kcal walk.
+
+Your daily calorie target is a target for eating, so it is always compared with calories eaten: Journal's range bar shows net once net is the headline and leaves the target off it (the target line says it is for calories eaten), Panel's ring keeps showing eaten against the target, with net in its centre labelled "kcal net" and "Ring: eaten, 95% of 2,400" under the ring, and Night's target chip reads "for eaten". A net range with an end below 0 is written "−140 to 3,140" in every look, and Journal's bar marks where 0 falls.
+
 ## How the numbers work
 
 - **Typical error per source.** Each way of knowing a meal's calories has a typical error: weighed 8%, nutrition label 10%, published menu 21%, description 41%, photo estimate 46%.
@@ -38,8 +44,9 @@ The demo person, Sam, is fictional, and so is every meal, sleep time and target 
 - **The day.** Errors from the same kind of source are added, because they tend to lean the same way. Different kinds partly cancel, combined as the root of the sum of squares. So three photo meals stay as unsure as one photo meal, rather than averaging out.
 - **Ranges.** Ranges are lognormal and never go below zero. They are meant to catch about 8 in 10 (likely) and 19 in 20 (very likely) meals like this. These are **design targets**: HowSure has not measured its own hit rate.
 - **Unknown is never zero.** A meal with no calories is listed under Missing information. The day says "Known meals only — incomplete day", and nothing is invented.
+- **Net calories.** Burned is worked out like a day of meals: same-source workouts add, different sources combine as the root of the sum of squares, with its own score and lognormal ranges. Net = eaten − burned, and its spread is `√(sd_eaten² + sd_burned²)`, because the two are estimated separately. Net's ranges are normal (net ± 1.2816 sd and ± 1.96 sd), so they can go below zero, and net has no estimate score: a percentage of a number near zero says nothing. A workout with unknown calories is listed under Missing information and left out, as an unknown meal is.
 - **Golden tests.** The maths rules above (typical errors, combining, the score and the ranges) are checked by golden values computed separately in Python (`scripts/golden.py`) and asserted in `src/kernel/__tests__/golden.test.ts`. The unknown-calories rule is checked in `src/kernel/__tests__/estimate.test.ts`.
-- **Golden values for maths still to come.** `python3 scripts/golden.py` also works out the golden values for net calories (G6), weigh-minus-the-plate (G7), run pace and distance (G9) and the week average (G10) from the spec's formulas, and keeps them in `fixtures/golden.json`. Their kernels aren't built yet, so `src/kernel/__tests__/golden-later.test.ts` checks the stored values against the spec and lists each kernel's own test as pending until it lands.
+- **Golden values for maths still to come.** `python3 scripts/golden.py` also works out the golden values for net calories (G6), weigh-minus-the-plate (G7), run pace and distance (G9) and the week average (G10) from the spec's formulas, and keeps them in `fixtures/golden.json`. `src/kernel/__tests__/golden-later.test.ts` checks the stored values against the spec. G6's kernel, `src/kernel/net.ts`, is built and asserted there; the others list their kernel's own test as pending until it lands.
 
 ## Sources
 
@@ -54,6 +61,9 @@ Every typical error is currently marked **assumption**. On 2026-10-26 each was r
 | Photo estimate | 46% | Fridolfsson et al. 2025, *Curr Dev Nutr* 9(10):107556, doi:10.1016/j.cdnut.2025.107556 | On 52 food photos, two of three AI models (ChatGPT-4o and Claude 3.5 Sonnet) had a mean absolute percentage error of 35.8% for energy (Gemini 1.5 Pro: 64.2%), and estimates ran lower as portions grew. That is an average miss, not HowSure's spread measure. |
 | Description | 41% | Block et al. 2013, *BMJ* 346:f2907, doi:10.1136/bmj.f2907 | 1,877 diners guessed their fast-food meal 175 kcal low on average, with a spread of 637 kcal on meals averaging 836 kcal. Untrained guesses can be much less sure than 41%. |
 | Food database | 15% | Urban et al. 2013, *JAMA Intern Med* 173(14):1292–9, doi:10.1001/jamainternmed.2013.6163 | Non-chain restaurant meals held 19% more energy than database values: an average gap, not a per-entry error. |
+| Workout: device or watch estimate | 40% | Shcherbina et al. 2017, *J Pers Med* 7(2):3, doi:10.3390/jpm7020003 | Seven wrist devices tested against lab gas analysis in 60 adults had median energy-expenditure errors from 27.4% to 92.6%; none was under 20%. 40% sits inside that range but is not a figure from the study. |
+| Workout: machine display | 30% | Erdogan et al. 2010, *J Sports Sci Med* | A rowing machine's monitor read 2.3–2.9 kcal per minute too high against lab measurement. No study found gives a percentage for gym-machine displays. |
+| Workout: rough guess | 50% | Willbond et al. 2010, *J Sports Med Phys Fitness* | 16 adults guessed about 825 kcal for a treadmill session that burned 200 kcal, and about 897 kcal for one that burned 300 kcal: 3 to 4 times too high. Guesses can be off by far more than 50%. |
 
 ## What leaves this machine
 
@@ -100,7 +110,7 @@ Logs are kept per browser origin, so a test run on http://127.0.0.1:5273 would s
 ## Provenance
 
 - **Ideas.** HowSure rebuilds the ideas of a personal food, weight and sleep tracker that the author, Ahmed Sohail Butt, built for his own use in September–October 2026: a claude.ai artifact plus a Claude skill for logging food. **No code, styling or data from that prototype is used here.** This repository was started from an empty folder on 2026-10-25.
-- **Reused prior work.** The starting typical-error figure for every source comes from that earlier tool: weighed 8%, label 10%, looked-up label 12%, menu 21%, food database 15%, description 41%, photo 46%, and the workout-burn figures (device 40%, machine 30%, rough guess 50%, in `src/kernel/sources.ts` but not used until workouts are built). They are disclosed here and were re-checked against published studies (see Sources).
+- **Reused prior work.** The starting typical-error figure for every source comes from that earlier tool: weighed 8%, label 10%, looked-up label 12%, menu 21%, food database 15%, description 41%, photo 46%, and the workout-burn figures (device 40%, machine 30%, rough guess 50%, in `src/kernel/sources.ts`, used for workouts and net calories). They are disclosed here and were re-checked against published studies (see Sources).
 - **AI assistance.** This project was planned and built with AI assistance: Claude, via the Devpost Learn Skill Pack's interview-driven planning and agent-built, test-verified slices. The planning conversations' outputs are in `devpost/`.
 - **Credits.** Some feature ideas came from friends who saw the earlier tracker.
 
@@ -112,7 +122,6 @@ Planned for this submission but not finished in time, to be built next:
 These are designed in `devpost/prd.md` but not built for this submission:
 - the week view and averages;
 - gamer-tag guest names;
-- workouts and net calories;
 - plates (weigh minus the plate);
 - barcode lookup;
 - the rest of the privacy panel (the sent-off-device count and the connector switch; export, import and delete are built);

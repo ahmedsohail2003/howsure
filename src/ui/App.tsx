@@ -6,7 +6,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { nowIso, reanchorDemoClock, type LogKind } from '../clock'
 import { sleepStatus, wakingDayStart } from '../kernel/sleepday'
-import type { Meal, SleepRecord } from '../kernel/types'
+import type { Meal, SleepRecord, Workout } from '../kernel/types'
 import { demoChanges, isDemoEdited, pristineDemo, type DemoChanges } from '../store/demoReset'
 import { emptyLog, startDemo, type LogDoc } from '../store/log'
 import { DEFAULT_LOOK, saveLook, type Look } from '../store/look'
@@ -28,6 +28,8 @@ import { buildDayViewFor } from './dayView'
 import { anchorFor, dateOfDay, dayForDate, dayNav } from './days'
 import type { DayNavState } from './DayNav'
 import { blankMeal, defaultMealTime, newMealId, toLocalInput, withMeal, withoutMeal } from './editMeal'
+import { blankWorkout, newWorkoutId, withoutWorkout, withWorkout } from './editWorkout'
+import { EatenSheet } from './EatenSheet'
 import { ExplainSheet, type ExplainMode } from './ExplainSheet'
 import { FictionalBanner } from './FictionalBanner'
 import { FirstOpen } from './FirstOpen'
@@ -61,6 +63,9 @@ import {
   type MealValues,
 } from './usualMeals'
 import { canSetWake } from './wakeSet'
+import { WorkoutDetails } from './WorkoutDetails'
+import { WorkoutListSheet } from './WorkoutList'
+import { WorkoutSheet } from './WorkoutSheet'
 
 type SheetState =
   | ExplainMode
@@ -84,6 +89,13 @@ type SheetState =
   | { mode: 'resetDemo'; changes: DemoChanges }
   // Build-out item 2.3: the Saved meals sheet. Opened from Log a meal, closing it goes back there.
   | { mode: 'savedMeals'; from: 'more' | 'logMeal' | 'details'; mealId?: string }
+  // Build-out item 2.5a: eaten's and burned's details under the net headline, a workout's
+  // details, and Log a workout (a new workout keeps its blank starting point while open) and Edit.
+  | { mode: 'eaten' }
+  | { mode: 'workouts' }
+  | { mode: 'workout'; workoutId: string }
+  | { mode: 'newWorkout'; workout: Workout }
+  | { mode: 'editWorkout'; workoutId: string }
 
 /**
  * The one-line confirmation of the last action: under the header (Reset demo), or in the action
@@ -211,6 +223,15 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
 
   function deleteMeal(mealId: string) {
     if (doc) commit(withoutMeal(doc, mealId))
+  }
+
+  /** Log a workout and Edit save through here (build-out item 2.5a): a new id is added, a known id replaced. */
+  function saveWorkout(workout: Workout) {
+    if (doc) commit(withWorkout(doc, workout))
+  }
+
+  function deleteWorkout(workoutId: string) {
+    if (doc) commit(withoutWorkout(doc, workoutId))
   }
 
   /** Show a waking day; the current one is followed (null) so a new wake moves the dashboard on. */
@@ -370,6 +391,12 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
     setSheet({ mode: 'new', meal: blankMeal(newMealId(), defaultMealTime(doc.sleeps, view.dayStart, at)) })
   }
 
+  /** Log a workout: a blank workout starting now, or on the viewed waking day when that isn't today's. */
+  function openLogWorkout() {
+    if (!doc || !view || !at) return
+    setSheet({ mode: 'newWorkout', workout: blankWorkout(newWorkoutId(), defaultMealTime(doc.sleeps, view.dayStart, at)) })
+  }
+
   /**
    * Build-out item 2.3, tap 2: log a recent or saved meal again as a fresh meal with its own id and
    * time. On the current waking day the time is now (read at the tap); on another day it is the
@@ -449,7 +476,12 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
     max: toLocalInput(at).slice(0, 10),
   }
   const sleepTime = sheet?.mode === 'sleepTime' ? sheet : null
-  const explain = sheet?.mode === 'meal' || sheet?.mode === 'day' || sheet?.mode === 'ranges' ? sheet : null
+  const explain =
+    sheet?.mode === 'meal' || sheet?.mode === 'day' || sheet?.mode === 'ranges' || sheet?.mode === 'net' ? sheet : null
+  const findWorkout = (id: string) => doc.workouts.find((w) => w.id === id)
+  const workoutDetails = sheet?.mode === 'workout' ? findWorkout(sheet.workoutId) : undefined
+  const editingWorkout =
+    sheet?.mode === 'newWorkout' ? sheet.workout : sheet?.mode === 'editWorkout' ? findWorkout(sheet.workoutId) : undefined
   return (
     <LookContext.Provider value={lookState}>
       {demo && <FictionalBanner sticky />}
@@ -467,6 +499,8 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
         onImprove={(mealId) => setSheet({ mode: 'improve', mealId })}
         onLogMeal={openLogMeal}
         onOpenMeal={(mealId) => setSheet({ mode: 'details', mealId })}
+        onOpenWorkout={(workoutId) => setSheet({ mode: 'workout', workoutId })}
+        onLogWorkout={openLogWorkout}
         sleep={buildSleepView(doc.sleeps, viewedStart)}
         onSleepAction={(action) => setSheet({ mode: 'sleepTime', action })}
         nav={navState}
@@ -500,6 +534,48 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
         <TargetsSheet targets={doc.profile.targets} demo={demo} onSave={saveTargets} onClose={() => setSheet(null)} />
       )}
       {explain && <ExplainSheet mode={explain} view={view} demo={demo} onClose={() => setSheet(null)} />}
+      {sheet?.mode === 'eaten' && (
+        <EatenSheet
+          view={view}
+          today={today}
+          demo={demo}
+          onClose={() => setSheet(null)}
+          onOpen={setSheet}
+          onOpenMeal={(mealId) => setSheet({ mode: 'details', mealId })}
+        />
+      )}
+      {sheet?.mode === 'workouts' && (
+        <WorkoutListSheet
+          view={view}
+          today={today}
+          demo={demo}
+          onClose={() => setSheet(null)}
+          onOpenWorkout={(workoutId) => setSheet({ mode: 'workout', workoutId })}
+          onLogWorkout={openLogWorkout}
+        />
+      )}
+      {workoutDetails && (
+        <WorkoutDetails
+          workout={workoutDetails}
+          dayStart={view.dayStart}
+          demo={demo}
+          onClose={() => setSheet(null)}
+          onEdit={() => setSheet({ mode: 'editWorkout', workoutId: workoutDetails.id })}
+          onDelete={() => deleteWorkout(workoutDetails.id)}
+        />
+      )}
+      {editingWorkout && sheet && (sheet.mode === 'newWorkout' || sheet.mode === 'editWorkout') && (
+        <WorkoutSheet
+          key={`${sheet.mode}-${editingWorkout.id}`}
+          mode={sheet.mode === 'newWorkout' ? 'new' : 'edit'}
+          workout={editingWorkout}
+          sleeps={doc.sleeps}
+          viewDayStart={view.dayStart}
+          demo={demo}
+          onSave={saveWorkout}
+          onClose={() => setSheet(null)}
+        />
+      )}
       {details && (
         <MealDetails
           meal={details}
