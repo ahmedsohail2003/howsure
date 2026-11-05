@@ -35,6 +35,7 @@ export const copy = {
   },
 
   weekdays: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const,
+  weekdaysFull: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] as const,
   am: 'AM',
   pm: 'PM',
 
@@ -64,6 +65,8 @@ export const copy = {
     bestEstimate: 'Best estimate',
     target: 'Target',
     rangesKnownOnly: 'These ranges cover the known meals only, so no bar is drawn until every meal has calories.',
+    // Panel and Night, which draw no range bar.
+    rangesKnownOnlyShort: 'These ranges cover the known meals only.',
   },
 
   macros: {
@@ -103,6 +106,8 @@ export const copy = {
     // Build-out item 1.5.2, Journal look: the whole row opens the meal's details. The score shows
     // as plain text; the row's accessible name says it in full.
     rowScoreShort: (score: string) => `Score ${score}`,
+    // Panel and Night mark the meal with the biggest uncertainty in words on its own row.
+    rowScoreBiggest: (score: string) => `Estimate score ${score} · biggest uncertainty`,
     rowLabel: (meal: string, meta: string, kcal: string, score: string) =>
       `${meal}, ${meta}, ${kcal}, ${score}. Opens the meal details.`,
     meta: (time: string, source: string) => `${time} · ${source}`,
@@ -293,6 +298,10 @@ export const copy = {
       name: 'Panel',
       description: 'Tiles and rings: the day against your target at a glance, with the ranges beside it.',
     },
+    night: {
+      name: 'Night',
+      description: 'Dark, with the waking day as a timeline from waking up to now.',
+    },
   },
 
   // Build-out item 1.5.2b: words only the Panel look draws. The ring shows the best estimate only,
@@ -302,16 +311,49 @@ export const copy = {
     ringShare: (pct: string, target: string) => `${pct}% of ${target}`,
     // Read after ringShare by screen readers, so "95% of 2,400" is heard as a share of the target.
     ringShareHidden: ' kcal daily target',
-    ringTarget: (target: string) => `Target ${target}`,
     noTarget: 'No target',
-    setTarget: 'Set a calorie target',
     // An incomplete day: the known meals are only part of it, so the ring is not filled.
     ringKnownOnly: 'The ring is not filled until every meal has calories.',
-    rangesKnownOnly: 'These ranges cover the known meals only.',
     macroNoTarget: 'no target',
     biggestShare: (pct: string) => `${pct}% of the day’s uncertainty`,
     biggestShareKnownOnly: (pct: string) => `${pct}% of the known meals’ uncertainty`,
-    rowScoreBiggest: (score: string) => `Estimate score ${score} · biggest uncertainty`,
+  },
+
+  // Build-out item 1.5.2c: words only the Night look draws. The waking day is a timeline from the
+  // wake to now (or to the sleep that closed it); the ranges are one line under the number, and
+  // the score, target and macros are chips that each open their detail.
+  night: {
+    likely: 'likely',
+    veryLikely: 'very likely',
+    rangeEnds: (lo: string, hi: string) => `${lo}–${hi}`,
+    // Read after each range by screen readers; the number above already shows the unit.
+    rangeUnitHidden: ' kcal',
+    rangesNotAvailable: 'Ranges: not available yet',
+    // Macro chip: "P 124 · C 272 · F 74 g". Its accessible name spells each macro out.
+    macroLetters: { protein: 'P', carbs: 'C', fat: 'F' },
+    macroChip: (parts: string) => `${parts} g`,
+    macroPart: (letter: string, value: string) => `${letter} ${value}`,
+    macrosMissing: 'entries missing',
+    // Starts with the chip's own words, then spells each macro out.
+    macroChipLabel: (shown: string, spoken: string) => `${shown}: ${spoken}. Shows each macro, its target and any missing entries.`,
+    targetChipLabel: (target: string) => `Daily target ${target} kcal. Opens the targets editor.`,
+    timelineTitle: 'The waking day',
+    wokeUp: 'Woke up',
+    slept: (duration: string) => `slept ${duration}`,
+    sleepNotLogged: 'sleep not logged',
+    score: (score: string) => `score ${score}`,
+    noScore: 'no estimate score',
+    biggest: 'biggest uncertainty',
+    biggestKnownOnly: 'biggest uncertainty among the known meals',
+    // A meal after midnight still belongs to the waking day it was eaten in.
+    stillDay: (weekday: string) => `still ${weekday}’s day`,
+    now: 'now',
+    nowAwake: (time: string) => `${time}, awake`,
+    wentToSleep: 'Went to sleep',
+    sleepStartNotLogged: 'Went to sleep: time not logged',
+    asleepNow: 'asleep now',
+    average: (duration: string) => `7-night avg ${duration}`,
+    averageNotAvailable: '7-night avg not available yet',
   },
 
   // Build-out item 1.3: the full-screen view switch. Its label names the view it goes to.
@@ -339,6 +381,9 @@ export const copy = {
     // Shown on the dashboard where a target is set.
     headline: (kcal: string) => `Daily target ${kcal} kcal`,
     macro: (grams: string) => `Target ${grams} g`,
+    // The Panel ring and the Night target chip.
+    short: (kcal: string) => `Target ${kcal}`,
+    setKcal: 'Set a calorie target',
   },
 
   logMeal: {

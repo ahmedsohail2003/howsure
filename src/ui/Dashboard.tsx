@@ -17,6 +17,13 @@
 // with its share of the day's uncertainty (the share the kernel already works out for the
 // explanation, day.contributions) and an Improve button. On a wide screen the tiles flow into two
 // columns, and three on the widest.
+//
+// Build-out item 1.5.2c, Night look: dark, built around the waking day. The headline draws its
+// Night variant (the ranges on one line, then chips for the score, the target and the macros), and
+// the meals become a timeline from the wake to now (NightTimeline.tsx), with the biggest
+// uncertainty and Improve on that meal's own point. The sleep section keeps each night, one tap
+// deep. On a wide screen the page stays one centred column: a timeline across the screen would
+// squeeze a long day's labels together.
 
 import { useLayoutEffect, useRef } from 'react'
 import type { LogKind } from '../clock'
@@ -31,6 +38,7 @@ import { HeadlineEstimate } from './HeadlineEstimate'
 import { useLook } from './lookContext'
 import { MacroRow } from './MacroRow'
 import { MealList } from './MealList'
+import { NightTimeline } from './NightTimeline'
 import { SleepSection } from './SleepSection'
 import type { SleepAction, SleepView } from './sleepView'
 
@@ -60,6 +68,8 @@ interface DashboardProps {
   targets: Profile['targets']
   /** Opens the targets editor (the Panel ring offers it when no calorie target is set). */
   onOpenTargets: () => void
+  /** The open log's now, where the Night timeline's current day ends. */
+  nowIso: string
   /** Opens the More menu (build-out item 1.3). */
   onOpenMore: () => void
   moreOpen: boolean
@@ -79,6 +89,7 @@ export function Dashboard(props: DashboardProps) {
   const actionBarRef = useActionBarHeight()
   const { look } = useLook()
   const panel = look === 'panel'
+  const night = look === 'night'
 
   return (
     <main className="page dash-page" data-testid="dashboard">
@@ -105,9 +116,11 @@ export function Dashboard(props: DashboardProps) {
             targetKcal={targets?.kcal}
             onSetTarget={props.onOpenTargets}
             dayKey={dayStart ?? 'provisional'}
+            macros={night ? view.macros : undefined}
+            targets={targets}
           />
 
-          {day.status !== 'empty' && <MacroRow macros={view.macros} targets={targets} />}
+          {day.status !== 'empty' && !night && <MacroRow macros={view.macros} targets={targets} />}
 
           {unknownMeals.length > 0 && (
             <section className="section" aria-labelledby="missing-title" data-testid="missing-info">
@@ -167,7 +180,7 @@ export function Dashboard(props: DashboardProps) {
             </section>
           )}
 
-          {biggest && !panel && (
+          {biggest && !panel && !night && (
             <section className="section uncertainty" aria-labelledby="uncertainty-title">
               <h2 className="section-title uncertainty-title" id="uncertainty-title">
                 {copy.uncertainty.sectionTitle}
@@ -220,7 +233,9 @@ export function Dashboard(props: DashboardProps) {
             </button>
           </div>
 
-          {day.status === 'empty' ? (
+          {night ? (
+            <NightTimeline view={view} sleep={sleep} nowIso={props.nowIso} onOpenMeal={onOpenMeal} onImprove={onImprove} />
+          ) : day.status === 'empty' ? (
             <section className="section empty-day" data-testid="empty-day">
               <p className="empty-title">{copy.emptyDay.noMeals}</p>
             </section>

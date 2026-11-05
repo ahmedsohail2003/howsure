@@ -8,6 +8,7 @@
 
 import { copy } from './copy'
 import { fmtWeekday, fmtWeekdayTime } from './format'
+import { useLook } from './lookContext'
 import { fmtClockMinutes, fmtDuration, type SleepView } from './sleepView'
 
 interface SleepSectionProps {
@@ -16,7 +17,10 @@ interface SleepSectionProps {
   today: boolean
 }
 
-export function SleepSection({ sleep, today }: SleepSectionProps) {
+export function SleepSection(props: SleepSectionProps) {
+  const { look } = useLook()
+  if (look === 'night') return <NightSleep {...props} />
+  const { sleep, today } = props
   const { status, lastNight, stats } = sleep
   const asleep = status.kind === 'asleep'
   return (
@@ -59,35 +63,68 @@ export function SleepSection({ sleep, today }: SleepSectionProps) {
 
       <details className="more sleep-nights" data-testid="sleep-nights">
         <summary>{copy.sleep.eachNight}</summary>
-        {stats.total === 0 ? (
-          <p className="small">{copy.sleep.noNights}</p>
-        ) : (
-          <div className="more-body">
-            <ul className="fact-list">
-              {[...stats.nights].reverse().map((n) => (
-                <li key={n.id} data-testid="night-row">
-                  <span className="k">
-                    {copy.sleep.nightRow(fmtWeekday((n.wake ?? n.sleepStart) as string))}
-                  </span>
-                  {n.minutes !== null ? (
-                    <span className="num">{fmtDuration(n.minutes)}</span>
-                  ) : (
-                    <span className="not-logged">{copy.sleep.notLogged}</span>
-                  )}
-                </li>
-              ))}
-            </ul>
-            {stats.complete < stats.total && <p className="small">{copy.sleep.leftOut}</p>}
-            <p className="small num" data-testid="avg-wake">
-              {stats.avgWakeMinutes !== null
-                ? copy.sleep.avgWake(fmtClockMinutes(stats.avgWakeMinutes))
-                : stats.wakeVaries
-                  ? copy.sleep.wakeVaries
-                  : copy.sleep.notAvailable}
-            </p>
-          </div>
-        )}
+        <EachNight stats={stats} />
       </details>
     </section>
+  )
+}
+
+/**
+ * Night look (build-out item 1.5.2c): the timeline already shows last night, now's status and the
+ * 7-night average (NightTimeline.tsx), so this section keeps the rest: how many nights the average
+ * counts and each night, one tap deep.
+ */
+function NightSleep({ sleep }: SleepSectionProps) {
+  const { stats } = sleep
+  return (
+    <section className="section sleep-section night-sleep" aria-labelledby="sleep-title" data-testid="sleep-section">
+      <h2 className="visually-hidden" id="sleep-title">
+        {copy.sleep.title}
+      </h2>
+      <details className="more sleep-nights" data-testid="sleep-nights">
+        <summary>
+          {copy.sleep.eachNight}
+          {stats.total > 0 && (
+            <span className="sleep-count num" data-testid="night-count">
+              {copy.sep}
+              {copy.sleep.nightCount(String(stats.complete), String(stats.total))}
+            </span>
+          )}
+        </summary>
+        <EachNight stats={stats} />
+      </details>
+    </section>
+  )
+}
+
+/** Each night's length, oldest last, with the average wake time. */
+function EachNight({ stats }: { stats: SleepView['stats'] }) {
+  return stats.total === 0 ? (
+    <p className="small">{copy.sleep.noNights}</p>
+  ) : (
+    <div className="more-body">
+      <ul className="fact-list">
+        {[...stats.nights].reverse().map((n) => (
+          <li key={n.id} data-testid="night-row">
+            <span className="k">
+              {copy.sleep.nightRow(fmtWeekday((n.wake ?? n.sleepStart) as string))}
+            </span>
+            {n.minutes !== null ? (
+              <span className="num">{fmtDuration(n.minutes)}</span>
+            ) : (
+              <span className="not-logged">{copy.sleep.notLogged}</span>
+            )}
+          </li>
+        ))}
+      </ul>
+      {stats.complete < stats.total && <p className="small">{copy.sleep.leftOut}</p>}
+      <p className="small num" data-testid="avg-wake">
+        {stats.avgWakeMinutes !== null
+          ? copy.sleep.avgWake(fmtClockMinutes(stats.avgWakeMinutes))
+          : stats.wakeVaries
+            ? copy.sleep.wakeVaries
+            : copy.sleep.notAvailable}
+      </p>
+    </div>
   )
 }

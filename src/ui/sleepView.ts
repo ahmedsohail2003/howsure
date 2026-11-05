@@ -15,7 +15,19 @@ export interface SleepView {
   lastNight: Night | null
   /** The 7 nights up to the viewed day's wake. */
   stats: NightStats
+  /** How the viewed waking day ends (the Night look's timeline ends with it). */
+  dayEnd: DayEnd
 }
+
+/**
+ * How a waking day ends: still running with the person awake (the current day), with the person
+ * asleep since a time (the current day, closed by a sleep with no wake yet), or closed by a night
+ * that has its wake (an earlier day). A closed day's sleep start may be "not logged" (null).
+ */
+export type DayEnd =
+  | { kind: 'awake' }
+  | { kind: 'asleep'; since: string }
+  | { kind: 'closed'; sleepStart: string | null }
 
 /** The sleep section for the waking day `dayStart`: nights up to that day's wake, so a previous day shows its own. */
 export function buildSleepView(sleeps: SleepRecord[], dayStart: string | null): SleepView {
@@ -28,11 +40,24 @@ export function buildSleepView(sleeps: SleepRecord[], dayStart: string | null): 
         })
   const stats = nightStats(upTo)
   const last = stats.nights[stats.nights.length - 1]
+  const status = sleepStatus(sleeps)
   return {
-    status: sleepStatus(sleeps),
+    status,
     lastNight: last && dayStart !== null && last.wake === dayStart ? last : null,
     stats,
+    dayEnd: dayEndOf(sleeps, dayStart, status),
   }
+}
+
+/** How the waking day starting at `dayStart` (null: the provisional day) ends. */
+export function dayEndOf(sleeps: SleepRecord[], dayStart: string | null, status: SleepStatus = sleepStatus(sleeps)): DayEnd {
+  const sorted = sortedSleeps(sleeps)
+  const from = dayStart === null ? Number.NEGATIVE_INFINITY : Date.parse(dayStart)
+  // The night that closes this day is the first one whose wake comes after the day's wake.
+  const closing = sorted.find((r) => r.wake !== null && Date.parse(r.wake) > from)
+  if (closing) return { kind: 'closed', sleepStart: closing.sleepStart }
+  if (status.kind === 'asleep' && Date.parse(status.since) >= from) return { kind: 'asleep', since: status.since }
+  return { kind: 'awake' }
 }
 
 /** Minutes as "8 h 45 min" (rounded to the minute). */

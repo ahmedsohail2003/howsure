@@ -13,7 +13,7 @@ import { estimateMeal } from '../kernel/estimate'
 import { getSource } from '../kernel/sources'
 import type { Meal, MealSourceId } from '../kernel/types'
 import { copy } from './copy'
-import { fmtInt, fmtTime, fmtWeekday, fmtWeekdayTime } from './format'
+import { fmtInt, fmtTime, fmtWeekdayTime, onLaterDate } from './format'
 import { useLook } from './lookContext'
 
 interface MealListProps {
@@ -26,7 +26,7 @@ interface MealListProps {
 
 /** The meal's time, with its weekday when it falls on a later calendar date than the day's wake. */
 export function mealTimeLabel(meal: Meal, dayStart: string | null): string {
-  if (dayStart && fmtWeekday(meal.eatenAt) !== fmtWeekday(dayStart)) return fmtWeekdayTime(meal.eatenAt)
+  if (onLaterDate(meal.eatenAt, dayStart)) return fmtWeekdayTime(meal.eatenAt)
   return fmtTime(meal.eatenAt)
 }
 
@@ -92,7 +92,7 @@ function PanelMealList({ meals, dayStart, onOpenMeal, biggestId = null }: MealLi
           const kcal = meal.kcal === null ? copy.meals.unknownKcal : copy.units.kcalValue(fmtInt(meal.kcal))
           const score = est
             ? biggest
-              ? copy.panel.rowScoreBiggest(String(est.score))
+              ? copy.meals.rowScoreBiggest(String(est.score))
               : copy.meals.rowScore(String(est.score))
             : copy.meals.noScore
           return (

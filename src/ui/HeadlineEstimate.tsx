@@ -23,12 +23,20 @@
 // invented), and on an incomplete or unknown day it stays empty, with the same status words as
 // Journal, so it never looks surer than the day is. Over the target it is full and the words give
 // the real share.
+//
+// Build-out item 1.5.2c, Night look (NightHeadline below): a big thin number, both ranges on one
+// line under it ("likely 1,870–2,780 · very likely 1,684–3,087", one tap target that opens the
+// range explanation), and chips for the score, the calorie target and the macros. The score chip
+// opens its explanation, the target chip the targets editor (or offers to set a target when there
+// is none), and the macro chip shows each macro with its target and any missing entries.
 
-import type { DayEstimate } from '../kernel/types'
+import type { DayEstimate, MacroKey, MacroTotal, Range } from '../kernel/types'
+import type { Profile } from '../store/log'
 import { copy } from './copy'
 import type { ExplainMode } from './ExplainSheet'
-import { fmtAmount, fmtInt, fmtRange } from './format'
+import { fmtAmount, fmtInt, fmtRange, fmtRangeEnds } from './format'
 import { useLook } from './lookContext'
+import { NightMacros } from './MacroRow'
 import { rangeBarGeometry } from './rangeBar'
 import { Ring } from './Ring'
 import { ringFill } from './targetRing'
@@ -44,10 +52,14 @@ interface HeadlineEstimateProps {
   onSetTarget?: () => void
   /** Names the viewed day; the Panel ring draws itself in again when it changes. */
   dayKey?: string
+  /** The day's macros and the log's targets: the Night look draws them as a chip here. */
+  macros?: Record<MacroKey, MacroTotal>
+  targets?: Profile['targets']
 }
 
 export function HeadlineEstimate(props: HeadlineEstimateProps) {
   const { look } = useLook()
+  if (look === 'night') return <NightHeadline {...props} />
   return look === 'panel' ? <PanelHeadline {...props} /> : <JournalHeadline {...props} />
 }
 
@@ -211,7 +223,7 @@ function PanelHeadline({ day, onOpen, today = true, targetKcal, onSetTarget, day
                   <span className="visually-hidden">{copy.panel.ringShareHidden}</span>
                 </>
               ) : targetKcal !== undefined ? (
-                copy.panel.ringTarget(fmtAmount(targetKcal))
+                copy.targets.short(fmtAmount(targetKcal))
               ) : (
                 copy.panel.noTarget
               )}
@@ -234,7 +246,7 @@ function PanelHeadline({ day, onOpen, today = true, targetKcal, onSetTarget, day
               </span>
               {partial && (
                 <span className="range-note" data-testid="ranges-known-only">
-                  {copy.panel.rangesKnownOnly}
+                  {copy.headline.rangesKnownOnlyShort}
                 </span>
               )}
             </button>
@@ -278,9 +290,93 @@ function PanelHeadline({ day, onOpen, today = true, targetKcal, onSetTarget, day
 
       {targetKcal === undefined && onSetTarget && (
         <button type="button" className="btn btn-quiet ring-set-target" onClick={onSetTarget} data-testid="ring-set-target">
-          {copy.panel.setTarget}
+          {copy.targets.setKcal}
         </button>
       )}
+    </section>
+  )
+}
+
+/** "1,870–2,780": a range's ends, with the unit left to the number above (read out after it). */
+function nightRange(r: Range): string {
+  const { lo, hi } = fmtRangeEnds(r)
+  return copy.night.rangeEnds(lo, hi)
+}
+
+function NightHeadline({ day, onOpen, today = true, targetKcal, onSetTarget, macros, targets }: HeadlineEstimateProps) {
+  const hasKnown = day.status === 'complete' || day.status === 'partial'
+  const partial = day.status === 'partial'
+  const label = today ? copy.headline.label : copy.headline.labelEarlierDay
+
+  return (
+    <section className="headline night-hero" aria-label={label}>
+      <p className="headline-label">{partial ? copy.headline.labelKnownOnly : label}</p>
+
+      {hasKnown ? (
+        <p className="headline-number num">
+          <span data-testid="headline-kcal">{fmtInt(day.knownTotal)}</span>
+          <span className="unit">{copy.units.kcal}</span>
+        </p>
+      ) : (
+        <p className="headline-na" data-testid="headline-kcal">
+          {copy.headline.notAvailable}
+        </p>
+      )}
+
+      {(partial || day.status === 'all-unknown') && (
+        <p className="day-status" data-testid="day-status">
+          {partial && <span className="status-pill">{copy.headline.incompleteDay}</span>}
+          <span className="status-count" data-testid="unknown-count">
+            {copy.headline.unknownCount(day.unknownMealIds.length)}
+          </span>
+        </p>
+      )}
+
+      {day.likely && day.veryLikely ? (
+        <button type="button" className="range-summary night-ranges num" onClick={() => onOpen({ mode: 'ranges' })} data-testid="ranges">
+          <span className="night-range" data-testid="likely-range">
+            {copy.night.likely} <b>{nightRange(day.likely)}</b>
+            <span className="visually-hidden">{copy.night.rangeUnitHidden}</span>
+          </span>
+          <span className="night-range-sep" aria-hidden="true">
+            {copy.sep}
+          </span>
+          <span className="night-range" data-testid="very-likely-range">
+            {copy.night.veryLikely} <b>{nightRange(day.veryLikely)}</b>
+            <span className="visually-hidden">{copy.night.rangeUnitHidden}</span>
+          </span>
+          {partial && (
+            <span className="range-note" data-testid="ranges-known-only">
+              {copy.headline.rangesKnownOnlyShort}
+            </span>
+          )}
+        </button>
+      ) : (
+        <p className="night-ranges na" data-testid="ranges-na">
+          {copy.night.rangesNotAvailable}
+        </p>
+      )}
+
+      <div className="night-chips">
+        <DayScore day={day} onOpen={onOpen} />
+        {onSetTarget &&
+          (targetKcal !== undefined ? (
+            <button
+              type="button"
+              className="btn night-chip num"
+              onClick={onSetTarget}
+              aria-label={copy.night.targetChipLabel(fmtAmount(targetKcal))}
+              data-testid="headline-target"
+            >
+              {copy.targets.short(fmtAmount(targetKcal))}
+            </button>
+          ) : (
+            <button type="button" className="btn night-chip" onClick={onSetTarget} data-testid="set-kcal-target">
+              {copy.targets.setKcal}
+            </button>
+          ))}
+        {macros && day.status !== 'empty' && <NightMacros macros={macros} targets={targets} />}
+      </div>
     </section>
   )
 }

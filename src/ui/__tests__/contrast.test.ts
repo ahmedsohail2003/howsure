@@ -8,9 +8,11 @@
 //
 // Which pairs: a rule that sets both a text colour and a background is checked as that pair.
 // A state rule (":hover", ":disabled", ...) that sets only a background is checked with the text
-// colour of its base rule. Every other light background is a surface any text may sit on, so
-// every text colour used on light backgrounds is checked against every one of them: more pairs
-// than the screens use, never fewer. A new colour or background in theme.css is picked up
+// colour of its base rule. Every other background of the look's own tone (light in a light look,
+// dark in a dark one) is a surface any text may sit on, so every text colour used on those
+// surfaces is checked against every one of them: more pairs than the screens use, never fewer. A
+// fill of the opposite tone (a teal button in a light look, a light teal button in a dark look)
+// must name the text colour on it. A new colour or background in theme.css is picked up
 // automatically.
 //
 // On top of that, the cascade check takes every element the .tsx files draw (each class list its
@@ -22,10 +24,12 @@
 // theme.css without any look-scoped rule. Another look is Journal's rules plus the rules scoped
 // to it ([data-look="night"] ...), with its token overrides ([data-look="night"] { --bg: ... })
 // applied on top of the :root palette, and without the rules of any other look. Each look named
-// in theme.css, and each look src/ui/looks.ts offers, is found and checked automatically.
+// in theme.css, and each look src/ui/looks.ts offers, is found and checked automatically. A
+// look's tone is its --bg's: Journal and Panel are light, Night (item 1.5.2c) is dark.
 import { readdirSync, readFileSync } from 'node:fs'
 import { parseSync } from 'vite'
 import { describe, expect, it } from 'vitest'
+import { DARK_LOOKS } from '../../store/earlyLook'
 import type { Look } from '../../store/look'
 import { BUILT_LOOKS } from '../looks'
 
@@ -140,6 +144,17 @@ function solid(value: string, tokens: Tokens): string | null | 'unreadable' {
   return 'unreadable'
 }
 
+/**
+ * A look's tone is its page background's (--bg). In a light look the light backgrounds are the
+ * surfaces any text may sit on and a dark fill must name its own text colour; in a dark look it
+ * is the other way round. Returns true for a fill of the opposite tone.
+ */
+function oppositeToneOf(tokens: Tokens): (hex: string) => boolean {
+  const bg = solid('var(--bg)', tokens)
+  const darkLook = typeof bg === 'string' && bg !== 'unreadable' && isDark(bg)
+  return (hex) => isDark(hex) !== darkLook
+}
+
 function bgOf(r: Rule, tokens: Tokens): string | null | 'unreadable' {
   const v = r.decls.get('background-color') ?? r.decls.get('background')
   return v === undefined ? null : solid(v, tokens)
@@ -218,6 +233,9 @@ const NO_TEXT: Record<string, string> = {
     'the teal fill of the aria-hidden score bar on a meal row (Panel look) holds no text; the score is written beside it',
   '.score-bar .score-fill.biggest':
     'the amber fill of that bar for the meal with the biggest uncertainty, no text; "biggest uncertainty" is written beside it',
+  '.tl .tl-dot':
+    "a dot on the Night look's timeline (aria-hidden) holds no text; each point says what it is in words beside it",
+  '.tl .tl-dot.amber': 'the amber dot of the meal with the biggest uncertainty, no text; "biggest uncertainty" is written beside it',
 }
 /** Selector starts whose rules hold no text, with why. Each must still match a rule. */
 const NO_TEXT_PREFIXES: Record<string, string> = {
@@ -243,20 +261,22 @@ interface Pair {
 
 interface RulePairs {
   ownPairs: Pair[]
-  /** Light backgrounds any text may sit on: hex -> first selector that uses it. */
+  /** Backgrounds of the look's own tone, which any text may sit on: hex -> first selector that uses it. */
   surfaces: Map<string, string>
-  darkUnpaired: string[]
+  /** Fills of the opposite tone that don't name the text colour on them. */
+  oppositeUnpaired: string[]
   unreadable: string[]
-  /** Every text colour set in a rule that doesn't put it on a dark fill of its own. */
-  lightTextColours: Map<string, string>
+  /** Every text colour set in a rule that doesn't put it on a fill of the opposite tone. */
+  surfaceTextColours: Map<string, string>
   surfacePairs: Pair[]
 }
 
 function rulePairs(rules: Rule[], tokens: Tokens): RulePairs {
   const ownPairs: Pair[] = []
   const surfaces = new Map<string, string>()
-  const darkUnpaired: string[] = []
+  const oppositeUnpaired: string[] = []
   const unreadable: string[] = []
+  const opposite = oppositeToneOf(tokens)
 
   for (const r of rules) {
     const bg = bgOf(r, tokens)
@@ -275,27 +295,27 @@ function rulePairs(rules: Rule[], tokens: Tokens): RulePairs {
     }
 
     if (text) ownPairs.push({ text, bg, where: r.selector })
-    if (isDark(bg)) {
-      if (!text) darkUnpaired.push(r.selector)
+    if (opposite(bg)) {
+      if (!text) oppositeUnpaired.push(r.selector)
     } else if (!(r.selector in ONLY_OWN_TEXT) && !surfaces.has(bg)) {
       surfaces.set(bg, r.selector)
     }
   }
 
-  const lightTextColours = new Map<string, string>()
+  const surfaceTextColours = new Map<string, string>()
   for (const r of rules) {
     const fg = colourOf(r, tokens)
     const bg = bgOf(r, tokens)
     if (typeof fg !== 'string' || fg === 'unreadable') continue
-    if (typeof bg === 'string' && bg !== 'unreadable' && isDark(bg)) continue
-    if (!lightTextColours.has(fg)) lightTextColours.set(fg, r.selector)
+    if (typeof bg === 'string' && bg !== 'unreadable' && opposite(bg)) continue
+    if (!surfaceTextColours.has(fg)) surfaceTextColours.set(fg, r.selector)
   }
 
   const surfacePairs: Pair[] = []
-  for (const [text, textWhere] of lightTextColours) {
+  for (const [text, textWhere] of surfaceTextColours) {
     for (const [bg, bgWhere] of surfaces) surfacePairs.push({ text, bg, where: `${textWhere} on ${bgWhere}` })
   }
-  return { ownPairs, surfaces, darkUnpaired, unreadable, lightTextColours, surfacePairs }
+  return { ownPairs, surfaces, oppositeUnpaired, unreadable, surfaceTextColours, surfacePairs }
 }
 
 // ---------- the cascade: every state of every element the screens draw ----------
@@ -342,9 +362,9 @@ interface Element {
 
 interface CascadeResult {
   pairs: Pair[]
-  /** Dark backgrounds that win with no text colour of their own. */
-  darkWithoutText: string[]
-  /** Text colours that win with no background of their own: checked on every light surface. */
+  /** Fills of the opposite tone (dark in a light look, light in a dark one) that win with no text colour of their own. */
+  oppositeWithoutText: string[]
+  /** Text colours that win with no background of their own: checked on every surface of the look's tone. */
   bareText: Pair[]
 }
 
@@ -361,7 +381,8 @@ function cascade(ruleList: Rule[], elements: Element[], surfaceMap: Map<string, 
   const stateSets: string[][] = [[]]
   for (const n of stateNames) for (const set of [...stateSets]) stateSets.push([...set, n])
 
-  const out: CascadeResult = { pairs: [], darkWithoutText: [], bareText: [] }
+  const out: CascadeResult = { pairs: [], oppositeWithoutText: [], bareText: [] }
+  const opposite = oppositeToneOf(tokens)
   const seen = new Set<string>()
   for (const el of elements) {
     for (const states of stateSets) {
@@ -389,8 +410,8 @@ function cascade(ruleList: Rule[], elements: Element[], surfaceMap: Map<string, 
       const bgHex = typeof bg === 'string' && bg !== 'unreadable' ? bg : null
       if (bgHex && fgHex) {
         add(out.pairs, `${fgHex} ${bgHex}`, { text: fgHex, bg: bgHex, where: `${label}: ${fgRule!.selector} on ${bgRule!.selector}` })
-      } else if (bgHex && isDark(bgHex)) {
-        add(out.darkWithoutText, `dark ${bgHex} ${label}`, `${label}: ${bgRule!.selector} has no text colour`)
+      } else if (bgHex && opposite(bgHex)) {
+        add(out.oppositeWithoutText, `opposite ${bgHex} ${label}`, `${label}: ${bgRule!.selector} has no text colour`)
       } else if (fgHex && !bgHex) {
         for (const [surface, surfaceWhere] of surfaceMap) {
           add(out.bareText, `${fgHex} ${surface}`, { text: fgHex, bg: surface, where: `${label}: ${fgRule!.selector} on ${surfaceWhere}` })
@@ -583,7 +604,7 @@ describe('reading theme.css', () => {
     for (const t of ['--bg', '--surface', '--ink', '--ink-soft', '--teal', '--teal-ink', '--amber', '--amber-ink', '--amber-bg']) {
       expect(tokens.has(t), t).toBe(true)
     }
-    expect(journal.lightTextColours.size).toBeGreaterThanOrEqual(4)
+    expect(journal.surfaceTextColours.size).toBeGreaterThanOrEqual(4)
     expect(surfaces.size).toBeGreaterThanOrEqual(4)
     expect(journal.ownPairs.length).toBeGreaterThanOrEqual(5)
     expect(journal.signalUses.length).toBeGreaterThanOrEqual(20)
@@ -643,6 +664,18 @@ describe('the looks (build-out item 1.5.2)', () => {
     }
   })
 
+  // Night (item 1.5.2c) is dark: it must draw native controls dark too, and index.html's early
+  // script must know it is dark (src/store/earlyLook.ts), so a reload never flashes light.
+  it('a look named in DARK_LOOKS sets color-scheme: dark and has a dark --bg; every other look stays light', () => {
+    for (const a of analyses) {
+      const scheme = a.rules.filter((r) => r.selector === ':root' && r.decls.has('color-scheme')).pop()?.decls.get('color-scheme')
+      const dark = DARK_LOOKS.includes(a.look)
+      expect(scheme, a.look).toBe(dark ? 'dark' : 'light')
+      expect(isDark(solid('var(--bg)', a.tokens) as string), a.look).toBe(dark)
+    }
+    expect(analyses.some((a) => DARK_LOOKS.includes(a.look))).toBe(true)
+  })
+
   it("Journal's palette is the :root palette, with no look-scoped rule in it", () => {
     expect(journal.tokens).toEqual(rootTokens(allRules.filter((r) => r.selector === ':root')))
     expect(journal.rules.filter((r) => r.bonus !== undefined)).toEqual([])
@@ -679,6 +712,42 @@ describe('the looks (build-out item 1.5.2)', () => {
     expect(textFailures(j.resolved.pairs)).toEqual([])
     // --ink #3A3F44 on --bg #1E2226 (Python, WCAG 2.x, 2026-11-05: 1.50:1).
     expect(textFailures(d.resolved.pairs)).toEqual([expect.stringContaining('#3A3F44 on #1E2226 is 1.50:1')])
+  })
+
+  // A dark look reads the other way round: its dark backgrounds are the surfaces text sits on,
+  // and a light fill must name the colour of the text on it.
+  const TONES = `
+    :root { --bg: #FAF7F2; --surface: #FFFFFF; --ink: #2B2B2B; --ink-soft: #5E5A55; --accent: #F2F8F7; }
+    body { background: var(--bg); color: var(--ink); }
+    .card { background: var(--surface); }
+    .chip { background: var(--accent); }
+    .note { color: var(--ink-soft); }
+    [data-look="dusk"] { --bg: #15191B; --surface: #1E2427; --ink: #ECE8E1; --accent: #6CC2BA; }
+  `
+  const toneRules = parseRules(TONES)
+
+  it("takes a look's tone from its --bg: the dark look's surfaces are its dark backgrounds", () => {
+    const j = analyse(forLook(toneRules, 'journal'), body)
+    const d = analyse(forLook(toneRules, 'dusk'), body)
+    expect([...j.surfaces.keys()]).toEqual(['#FAF7F2', '#FFFFFF', '#F2F8F7'])
+    expect([...d.surfaces.keys()]).toEqual(['#15191B', '#1E2427'])
+    // --ink-soft #5E5A55 is 6.40:1 on Journal's --bg #FAF7F2, but 2.59:1 on the dark look's
+    // --bg #15191B and 2.30:1 on its --surface #1E2427 (WCAG 2.x, worked out 2026-11-05).
+    expect(textFailures(j.surfacePairs)).toEqual([])
+    expect(textFailures(d.surfacePairs)).toEqual([
+      '.note on body: #5E5A55 on #15191B is 2.59:1',
+      '.note on .card: #5E5A55 on #1E2427 is 2.30:1',
+    ])
+  })
+
+  it('flags a light fill with no text colour of its own in a dark look, as it flags a dark fill in a light look', () => {
+    expect(analyse(forLook(toneRules, 'journal'), body).oppositeUnpaired).toEqual([])
+    expect(analyse(forLook(toneRules, 'dusk'), body).oppositeUnpaired).toEqual(['.chip'])
+    const chip: Element[] = [{ tag: 'span', classes: ['chip'], where: 'sample' }]
+    const d = forLook(toneRules, 'dusk')
+    expect(cascade(d.rules, chip, new Map(), d.tokens).oppositeWithoutText).toEqual([
+      '<span class="chip"> (sample): .chip has no text colour',
+    ])
   })
 
   it('reports a look scope that is not at the start of its selector', () => {
@@ -719,8 +788,8 @@ describe.each(analyses.map((a) => [a.look, a] as const))('the %s look', (_look, 
       expect(a.unreadable).toEqual([])
     })
 
-    it('every dark fill names the colour of the text on it', () => {
-      expect(a.darkUnpaired).toEqual([])
+    it('every fill of the opposite tone (dark in a light look, light in a dark look) names the colour of the text on it', () => {
+      expect(a.oppositeUnpaired).toEqual([])
     })
   })
 
@@ -732,7 +801,7 @@ describe.each(analyses.map((a) => [a.look, a] as const))('the %s look', (_look, 
     it('every element, in every mix of states, with the color and background the cascade gives it', () => {
       expect(a.resolved.pairs.length).toBeGreaterThanOrEqual(5)
       expect(textFailures(a.resolved.pairs)).toEqual([])
-      expect(a.resolved.darkWithoutText).toEqual([])
+      expect(a.resolved.oppositeWithoutText).toEqual([])
     })
 
     it('a disabled button stays readable while the mouse is over it, in every variant', () => {
@@ -748,11 +817,11 @@ describe.each(analyses.map((a) => [a.look, a] as const))('the %s look', (_look, 
       expect(textFailures(a.insidePairs)).toEqual([])
     })
 
-    it('a text colour with no background of its own, on every light surface', () => {
+    it("a text colour with no background of its own, on every surface of the look's tone", () => {
       expect(textFailures(a.resolved.bareText)).toEqual([])
     })
 
-    it('every text colour on every light surface', () => {
+    it("every text colour on every surface of the look's tone", () => {
       expect(a.surfacePairs.length).toBeGreaterThanOrEqual(16)
       expect(textFailures(a.surfacePairs)).toEqual([])
     })

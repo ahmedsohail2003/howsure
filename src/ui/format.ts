@@ -55,6 +55,16 @@ export function fmtWeekday(iso: string): string {
   return copy.weekdays[new Date(iso).getDay()]
 }
 
+/** "Wednesday" from an ISO string, in local time (the Night look's "still Wednesday’s day"). */
+export function fmtWeekdayFull(iso: string): string {
+  return copy.weekdaysFull[new Date(iso).getDay()]
+}
+
+/** True when `iso` falls on a later calendar date than the waking day's wake (after midnight). */
+export function onLaterDate(iso: string, dayStart: string | null): boolean {
+  return dayStart !== null && fmtWeekday(iso) !== fmtWeekday(dayStart)
+}
+
 /** "Thu 12:40 AM": a meal's time with its own weekday, used where it differs from the day's. */
 export function fmtWeekdayTime(iso: string): string {
   return `${fmtWeekday(iso)} ${fmtTime(iso)}`

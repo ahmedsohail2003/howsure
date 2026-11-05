@@ -680,3 +680,367 @@ test.describe('the Panel look in detail', () => {
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(1440)
   })
 })
+
+// Build-out item 1.5.2c: the Night look (direction C, night timeline). The same numbers as the
+// other looks, on a dark page, with the waking day drawn as a timeline from the wake to now.
+test.describe('the Night look in detail', () => {
+  test.beforeEach(async ({ page }) => {
+    await startInLook(page, 'night')
+  })
+
+  /** Relative luminance (WCAG 2.x) of a computed "rgb(r, g, b)" colour. */
+  function luminanceOf(rgb: string): number {
+    const [r, g, b] = (rgb.match(/\d+(\.\d+)?/g) ?? []).slice(0, 3).map(Number)
+    const c = (v: number) => {
+      const s = v / 255
+      return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4
+    }
+    return 0.2126 * c(r) + 0.7152 * c(g) + 0.0722 * c(b)
+  }
+
+  /** The first opaque background behind an element, walking up its ancestors. */
+  async function backgroundOf(locator: Locator): Promise<string> {
+    return locator.evaluate((el) => {
+      for (let e: Element | null = el; e; e = e.parentElement) {
+        const bg = getComputedStyle(e).backgroundColor
+        if (bg && bg !== 'transparent' && !/rgba\(.*,\s*0\)$/.test(bg)) return bg
+      }
+      return getComputedStyle(document.documentElement).backgroundColor
+    })
+  }
+
+  /** The element is drawn dark with light text: background luminance under 0.05, text over 0.5. */
+  async function expectDark(locator: Locator, what: string) {
+    const bg = luminanceOf(await backgroundOf(locator))
+    const fg = luminanceOf(await locator.evaluate((e) => getComputedStyle(e).color))
+    expect(bg, `${what} background`).toBeLessThan(0.05)
+    expect(fg, `${what} text`).toBeGreaterThan(0.5)
+  }
+
+  async function toIncompleteDay(page: Page) {
+    for (let i = 0; i < 7 && (await page.getByTestId('day-status').count()) === 0; i += 1) {
+      await page.getByTestId('day-prev').click()
+    }
+    await expect(page.getByTestId('day-status')).toContainText('Known meals only — incomplete day')
+  }
+
+  test('a big thin headline, both ranges on one line, and chips that each open their detail', async ({ page }) => {
+    await openDemo(page)
+    const number = page.locator('.headline-number')
+    const style = await number.evaluate((e) => ({ size: parseFloat(getComputedStyle(e).fontSize), weight: getComputedStyle(e).fontWeight }))
+    expect(style.size).toBeGreaterThanOrEqual(64)
+    expect(style.weight).toBe('300')
+    expect(await number.evaluate((e) => getComputedStyle(e).fontVariantNumeric)).toContain('tabular-nums')
+    // The headline is the largest text on the screen.
+    const size = (sel: string) => page.locator(sel).first().evaluate((e) => parseFloat(getComputedStyle(e).fontSize))
+    for (const sel of ['.night-range', '.meal-name', '.meal-kcal', '.score-btn', '.night-chip', '.tl-main']) {
+      expect(style.size, sel).toBeGreaterThan(await size(sel))
+    }
+
+    // Both ranges on one line, one tap from their explanation.
+    const likely = page.getByTestId('likely-range')
+    const veryLikely = page.getByTestId('very-likely-range')
+    await expect(likely).toHaveText('likely 1,870–2,780 kcal')
+    await expect(veryLikely).toHaveText('very likely 1,684–3,087 kcal')
+    // " kcal" is read out but not drawn: the number above already shows the unit.
+    await expect(likely.locator('.visually-hidden')).toHaveText(' kcal')
+    const [a, b] = [(await likely.boundingBox())!, (await veryLikely.boundingBox())!]
+    expect(Math.abs(a.y - b.y)).toBeLessThan(2)
+    expect(b.x).toBeGreaterThan(a.x + a.width - 1)
+    await page.getByTestId('ranges').click()
+    expect(await digits((await opened(page, 'explain-ranges')).getByTestId('explain-likely'))).toContain(G11.likely)
+    await closeWithEsc(page, 'explain-ranges')
+
+    // The score chip opens its explanation.
+    await page.getByTestId('day-score').click()
+    await expect(await opened(page, 'explain-day')).toContainText("How sure is today's total?")
+    await closeWithEsc(page, 'explain-day')
+
+    // The target chip opens the targets editor.
+    const target = page.getByTestId('headline-target')
+    await expect(target).toHaveText('Target 2,400')
+    await expect(target).toHaveAccessibleName('Daily target 2,400 kcal. Opens the targets editor.')
+    await target.click()
+    await expect((await opened(page, 'targets-sheet')).getByTestId('target-kcal-input')).toHaveValue('2400')
+    await closeWithEsc(page, 'targets-sheet')
+
+    // The macro chip opens each macro with its target.
+    const chip = page.getByTestId('macro-chip')
+    await expect(chip).toHaveText('P 124 · C 272 · F 74 g')
+    await expect(chip).toHaveAccessibleName(/^P 124 · C 272 · F 74 g: Protein 124 g, Carbs 272 g, Fat 74 g\./)
+    await expect(chip).toHaveAttribute('aria-expanded', 'false')
+    await expect(page.getByTestId('night-macros')).toBeHidden()
+    await chip.click()
+    await expect(chip).toHaveAttribute('aria-expanded', 'true')
+    const macros = page.getByTestId('night-macros')
+    await expect(macros).toBeVisible()
+    await expect(macros.getByTestId('macro-protein')).toContainText('124 g')
+    await expect(macros.getByTestId('macro-protein-target')).toHaveText('Target 130 g')
+    await expect(macros.getByTestId('macro-fat')).toContainText('74 g')
+    await chip.click()
+    await expect(macros).toBeHidden()
+
+    // With no calorie target, the chip offers to set one; it never invents a target.
+    await target.click()
+    const sheet = await opened(page, 'targets-sheet')
+    await sheet.getByTestId('target-kcal-input').fill('')
+    await sheet.getByTestId('save-targets').click()
+    await expect(sheet).toBeHidden()
+    await expect(page.getByTestId('headline-target')).toHaveCount(0)
+    await page.getByTestId('set-kcal-target').click()
+    await expect((await opened(page, 'targets-sheet')).getByTestId('target-kcal-input')).toHaveValue('')
+  })
+
+  test('the waking day as a timeline: the wake, each meal at its time, the biggest uncertainty on its meal, then now', async ({
+    page,
+  }) => {
+    await openDemo(page)
+    const wake = page.getByTestId('tl-wake')
+    await expect(wake.locator('.tl-time')).toHaveText('1:20 PM')
+    await expect(wake).toContainText('Woke up')
+    await expect(wake.getByTestId('last-night')).toHaveText('slept 8 h 45 min')
+
+    // Each meal at its time, with its name, calories, source and score.
+    const rows = page.getByTestId('meal-row')
+    await expect(rows.locator('.tl-time')).toHaveText(['1:50 PM', '5:30 PM', '9:10 PM', '11:15 PM', 'Thu 12:40 AM'])
+    const kefir = row(page, 'Kefir with oats and blueberries')
+    await expect(kefir.locator('.meal-kcal')).toHaveText('410 kcal')
+    await expect(kefir.locator('.tl-meta')).toHaveText('Nutrition label (typed) · score 90')
+    await expect(kefir.getByRole('button')).toHaveAccessibleName(
+      'Kefir with oats and blueberries, 1:50 PM · Nutrition label (typed), 410 kcal, Estimate score 90. Opens the meal details.',
+    )
+
+    // The biggest uncertainty sits on its own meal, with its words and Improve, in an amber box.
+    const pasta = row(page, 'Pasta bake (ready meal)')
+    await expect(pasta.locator('.tl-meta')).toHaveText('Photo estimate · score 54 · biggest uncertainty')
+    await expect(pasta.locator('.tl-dot')).toHaveClass(/amber/)
+    expect(await pasta.evaluate((e) => getComputedStyle(e, '::before').backgroundColor)).toBe('rgb(46, 38, 23)')
+    await expect(page.getByTestId('tl-biggest')).toHaveCount(1)
+    await expect(page.locator('.meal-row.biggest')).toHaveCount(1)
+    const improve = pasta.getByTestId('improve-entry')
+    await expect(improve).toHaveText('Improve ›')
+    await expect(improve).toHaveAccessibleName('Improve that entry')
+    // No separate biggest-uncertainty section: it is on the meal.
+    await expect(page.locator('.uncertainty')).toHaveCount(0)
+
+    // The snack after midnight is still on Wednesday's waking day, and says so.
+    const apple = row(page, 'Apple and peanut butter')
+    await expect(apple.getByTestId('still-day')).toHaveText('still Wednesday’s day')
+    await expect(apple.getByRole('button')).toHaveAccessibleName(/Thu 12:40 AM · Description · still Wednesday’s day/)
+    await expect(page.getByTestId('still-day')).toHaveCount(1)
+
+    // The day ends now, with the 7-night average.
+    const end = page.getByTestId('tl-end')
+    await expect(end.locator('.tl-time')).toHaveText('now')
+    await expect(end.getByTestId('sleep-status')).toHaveText('1:30 AM, awake')
+    await expect(end.getByTestId('sleep-average')).toHaveText('7-night avg 8 h 49 min')
+    await expect(page.getByTestId('night-count')).toHaveText(' · 6 of 7 nights')
+
+    // Spaced by order, not to scale: each point sits below the last, one under the other.
+    const points = page.locator('.tl-point')
+    await expect(points).toHaveCount(7)
+    const boxes = await points.evaluateAll((els) => els.map((e) => e.getBoundingClientRect()).map((r) => ({ top: r.top, bottom: r.bottom })))
+    for (let i = 1; i < boxes.length; i += 1) expect(boxes[i].top, `point ${i}`).toBeGreaterThanOrEqual(boxes[i - 1].bottom - 0.5)
+    const dots = await page.locator('.tl-dot').evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().x)))
+    expect(new Set(dots).size).toBe(1)
+
+    // Every meal point opens that meal's details.
+    for (const name of ['Kefir with oats and blueberries', 'Pasta bake (ready meal)', 'Chicken, rice and broccoli', 'Lentil soup from the café', 'Apple and peanut butter']) {
+      await row(page, name).getByTestId('meal-open').click()
+      await expect((await opened(page, 'meal-details')).getByRole('heading', { name })).toBeVisible()
+      await closeWithEsc(page, 'meal-details')
+    }
+
+    // Improve opens the pasta bake in improve mode.
+    await improve.click()
+    await expect((await opened(page, 'log-meal-sheet')).getByRole('heading', { name: 'Improve: Pasta bake (ready meal)' })).toBeVisible()
+  })
+
+  test('an earlier day ends with its sleep start, an incomplete day marks the biggest among the known meals, and an empty log says so', async ({
+    page,
+  }) => {
+    await openDemo(page)
+    // Tuesday: its sleep start was not logged before the wake; it ended when Sam went to sleep.
+    await page.getByTestId('day-prev').click()
+    await expect(page.getByTestId('waking-day')).toHaveText('Tue · awake since 1:05 PM')
+    await expect(page.getByTestId('tl-wake').getByTestId('last-night')).toHaveText('sleep not logged')
+    const end = page.getByTestId('tl-end')
+    await expect(end.locator('.tl-time')).toHaveText('Wed 4:35 AM')
+    await expect(end.getByTestId('sleep-status')).toHaveText('Went to sleep')
+    await expect(end).not.toContainText('awake')
+
+    // An incomplete day: the unknown meal reads "unknown", never 0, and the biggest uncertainty
+    // is among the known meals.
+    await toIncompleteDay(page)
+    await expect(page.getByTestId('tl-biggest')).toHaveText('biggest uncertainty among the known meals')
+    await expect(page.getByTestId('biggest-line')).toContainText('Among the known meals, most uncertainty comes from')
+    const unknown = page.getByTestId('meal-row').filter({ has: page.locator('.meal-kcal.unknown') })
+    await expect(unknown).toHaveCount(1)
+    await expect(unknown.locator('.meal-kcal')).toHaveText('unknown')
+    await expect(unknown.locator('.tl-dot')).toHaveClass(/unknown/)
+    await expect(unknown.locator('.tl-meta')).toContainText('no estimate score')
+    await expect(page.getByTestId('missing-info')).toBeVisible()
+    await expect(page.getByTestId('macro-chip')).toContainText('entries missing')
+    await expect(page.getByTestId('ranges-known-only')).toHaveText('These ranges cover the known meals only.')
+
+    // Your own empty log: no wake time, no meals, nothing invented.
+    await page.getByTestId('day-today').click()
+    await page.getByTestId('log-switch').click()
+    await expect(page.getByTestId('tl-wake')).toHaveText('Wake time not set')
+    await expect(page.getByTestId('empty-day')).toHaveText('No meals logged yet')
+    await expect(page.getByTestId('headline-kcal')).toHaveText('Not available yet')
+    await expect(page.getByTestId('ranges-na')).toHaveText('Ranges: not available yet')
+    await expect(page.getByTestId('day-score-na')).toHaveText('Estimate score: Not available yet')
+    await expect(page.getByTestId('macro-chip')).toHaveCount(0)
+    await expect(page.getByTestId('tl-end').getByTestId('sleep-average')).toHaveText('7-night avg not available yet')
+    await expect(page.getByTestId('log-meal')).toHaveText('Log your first meal')
+  })
+
+  test('every screen and sheet is dark and readable, and native controls draw dark', async ({ page }) => {
+    await page.clock.setFixedTime(DEMO_NOW)
+    await page.goto('/')
+    expect(await page.evaluate(() => getComputedStyle(document.documentElement).colorScheme)).toBe('dark')
+    await expect(page.locator('meta[name="color-scheme"]')).toHaveAttribute('content', 'dark')
+    expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe('rgb(21, 25, 27)')
+    await expectDark(page.getByTestId('first-open').locator('.wordmark'), 'first open')
+
+    await page.getByRole('button', { name: 'Try the fictional demo' }).click()
+    await expect(page.getByTestId('dashboard')).toBeVisible()
+    await expectDark(page.locator('.page-banner'), 'fictional banner')
+    await expectDark(page.getByTestId('headline-kcal'), 'headline')
+    await expectDark(page.locator('.meal-name').first(), 'timeline')
+
+    const sheets: [string, () => Promise<void>][] = [
+      ['explain-day', () => page.getByTestId('day-score').click()],
+      ['explain-ranges', () => page.getByTestId('ranges').click()],
+      ['meal-details', () => row(page, 'Pasta bake (ready meal)').getByTestId('meal-open').click()],
+      ['log-meal-sheet', () => page.getByTestId('log-meal').click()],
+      ['sleep-sheet', () => page.getByTestId('sleep-action').click()],
+      ['more-menu', () => page.getByTestId('open-more').click()],
+      ['targets-sheet', () => page.getByTestId('headline-target').click()],
+    ]
+    for (const [id, open] of sheets) {
+      await open()
+      const sheet = await opened(page, id)
+      await expectDark(sheet.locator('.sheet-title'), id)
+      await expectDark(sheet.getByTestId('fictional-banner'), `${id} banner`)
+      // Inputs, date and time pickers draw dark too.
+      for (const input of await sheet.locator('input').all()) {
+        expect(await input.evaluate((e) => getComputedStyle(e).colorScheme), `${id} input`).toBe('dark')
+        expect(luminanceOf(await backgroundOf(input)), `${id} input background`).toBeLessThan(0.05)
+      }
+      await closeWithEsc(page, id)
+    }
+    // A form with its message.
+    await page.getByTestId('log-meal').click()
+    const log = await opened(page, 'log-meal-sheet')
+    await log.getByTestId('meal-kcal-input').fill('abc')
+    await expectDark(log.getByTestId('kcal-error'), 'field message')
+    await closeWithEsc(page, 'log-meal-sheet')
+    // The Look sheet and the day picker.
+    const look = await openLookSheet(page)
+    await expectDark(look.locator('.look-name').first(), 'Look sheet')
+    await closeWithEsc(page, 'look-sheet')
+    expect(await page.getByTestId('day-date').evaluate((e) => getComputedStyle(e).colorScheme)).toBe('dark')
+    // Profile and privacy, in your own log.
+    await page.getByTestId('log-switch').click()
+    await page.getByTestId('open-profile').click()
+    await expectDark((await opened(page, 'profile-privacy')).locator('.sheet-title'), 'Profile and privacy')
+    await closeWithEsc(page, 'profile-privacy')
+
+    // Back to Journal: light again, native controls included.
+    await (await openLookSheet(page)).getByRole('radio', { name: 'Journal', exact: true }).check()
+    expect(await page.evaluate(() => getComputedStyle(document.documentElement).colorScheme)).toBe('light')
+    await expect(page.locator('meta[name="color-scheme"]')).toHaveAttribute('content', 'light')
+  })
+
+  test('the storage notices are dark and readable too', async ({ page }) => {
+    await seedNight(page, { [E2E_KEYS.mine]: JSON.stringify({ ...JSON.parse(V1_MINE), version: 99 }), [E2E_KEYS.active]: 'mine' })
+    await expectDark(page.getByTestId('storage-newer'), 'newer-version notice')
+  })
+
+  test('a reload in Night is dark from the start: the look is set before the page body exists', async ({ page }) => {
+    await page.addInitScript(() => {
+      const w = window as unknown as { atBody?: { look: string | null; scheme: string | null } }
+      const watch = new MutationObserver(() => {
+        if (document.body && w.atBody === undefined) {
+          w.atBody = {
+            look: document.documentElement.getAttribute('data-look'),
+            scheme: document.querySelector('meta[name="color-scheme"]')?.getAttribute('content') ?? null,
+          }
+          watch.disconnect()
+        }
+      })
+      watch.observe(document, { childList: true, subtree: true })
+    })
+    await openDemo(page)
+    await page.reload()
+    await expect(page.getByTestId('dashboard')).toBeVisible()
+    expect(await page.evaluate(() => (window as unknown as { atBody?: unknown }).atBody)).toEqual({ look: 'night', scheme: 'dark' })
+  })
+
+  test('a long day stays readable: points never overlap, no sideways scroll on a phone, and one centred column on a wide screen', async ({
+    page,
+  }) => {
+    const log = JSON.parse(V1_MINE)
+    for (let i = 1; i <= 14; i += 1) {
+      log.meals.push({
+        id: `snack-${i}`,
+        name: i === 7 ? 'Snack with a long name that wraps onto a second line on a phone' : `Snack ${i}`,
+        eatenAt: `2026-10-28T18:${String(i * 2).padStart(2, '0')}:00-04:00`,
+        source: 'label',
+        kcal: 100 + i,
+        protein: 2,
+        carbs: 15,
+        fat: 3,
+      })
+    }
+    await seedNight(page, { [E2E_KEYS.mine]: JSON.stringify(log), [E2E_KEYS.active]: 'mine' })
+    await expect(page.getByTestId('meal-row')).toHaveCount(18)
+
+    const noOverlap = async () => {
+      const boxes = await page.locator('.tl-point').evaluateAll((els) => els.map((e) => e.getBoundingClientRect()).map((r) => ({ top: r.top, bottom: r.bottom })))
+      for (let i = 1; i < boxes.length; i += 1) expect(boxes[i].top, `point ${i}`).toBeGreaterThanOrEqual(boxes[i - 1].bottom - 0.5)
+      // Times never run into the dots beside them.
+      const clear = await page.locator('.tl-row').evaluateAll((els) =>
+        els.every((row) => {
+          const time = row.querySelector('.tl-time')
+          const dot = row.querySelector('.tl-dot')
+          if (!time || !dot) return true
+          const r = document.createRange()
+          r.selectNodeContents(time)
+          return r.getBoundingClientRect().right <= dot.getBoundingClientRect().left
+        }),
+      )
+      expect(clear).toBe(true)
+    }
+
+    await page.setViewportSize({ width: 390, height: 844 })
+    await noOverlap()
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390)
+
+    // A wide screen keeps the timeline vertical, under the headline, in one centred column.
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await noOverlap()
+    const xs = await page.locator('.tl-dot').evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().x)))
+    expect(new Set(xs).size).toBe(1)
+    const head = (await page.locator('.headline-number').boundingBox())!
+    const timeline = (await page.getByTestId('timeline').boundingBox())!
+    expect(timeline.y).toBeGreaterThan(head.y + head.height)
+    const column = (await page.getByTestId('dashboard').boundingBox())!
+    expect(column.width).toBeLessThanOrEqual(720)
+    expect(Math.abs(column.x + column.width / 2 - 720)).toBeLessThan(2)
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(1440)
+  })
+})
+
+/** Opens the app in Night with these keys saved, as a person returning to it would. */
+async function seedNight(page: Page, values: Record<string, string>) {
+  await page.clock.setFixedTime(MINE_NOW)
+  await page.goto('/')
+  await page.evaluate((entries) => {
+    for (const [k, v] of Object.entries(entries)) localStorage.setItem(k, v)
+  }, values)
+  await page.reload()
+  await expect(page.getByTestId('dashboard')).toBeVisible()
+}

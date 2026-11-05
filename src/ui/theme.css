@@ -8,7 +8,11 @@
    below and its layout the unscoped rules. Another look puts its palette overrides in
    [data-look="<id>"] { --token: ... } and its own layout rules under [data-look="<id>"] .x { },
    at the end of this file (see "looks"). src/ui/__tests__/contrast.test.ts finds every look named
-   in a [data-look="..."] selector and checks its palette with the same rules as Journal's. */
+   in a [data-look="..."] selector and checks its palette with the same rules as Journal's.
+   Night (item 1.5.2c) is the one dark look: its palette replaces every colour token and sets
+   color-scheme: dark, and the contrast test reads its dark backgrounds as the surfaces text sits
+   on. A rule that sets a colour must use a token (or name its token, as the Look previews do), so
+   a new rule turns dark with the rest. */
 
 :root {
   --bg: #FAF7F2;
@@ -23,6 +27,10 @@
   --amber: #B7791F;
   --amber-ink: #8A5A12;
   --amber-bg: #FBF1E1;
+  /* Text on a filled button: on --teal (4.73:1), on --ink, and the --ink button's hover fill. */
+  --on-teal: #FFFFFF;
+  --on-ink: #FFFFFF;
+  --ink-hover: #000000;
 
   --font: "Segoe UI", system-ui, -apple-system, sans-serif;
   --s1: 8px;
@@ -178,7 +186,7 @@ button {
 .btn-primary {
   background: var(--teal);
   border-color: var(--teal);
-  color: #FFFFFF;
+  color: var(--on-teal);
 }
 
 .btn-primary:hover:not(:disabled) {
@@ -1133,11 +1141,11 @@ details.more > summary {
 .btn-ink {
   background: var(--ink);
   border-color: var(--ink);
-  color: #FFFFFF;
+  color: var(--on-ink);
 }
 
 .btn-ink:hover:not(:disabled) {
-  background: #000000;
+  background: var(--ink-hover);
 }
 
 .delete-confirm-text {
@@ -1814,8 +1822,7 @@ details.more > summary {
    overrides and its layout here, scoped by the attribute main.tsx sets on <html>:
      [data-look="panel"] { --bg: ...; }            palette (tokens only)
      [data-look="panel"] .headline { ... }          layout
-   Panel (item 1.5.2b) is below; Night (item 1.5.2c) goes here when it is built, with one line in
-   src/ui/looks.ts. contrast.test.ts checks every look it finds here, so a new palette is held to
+   Panel (item 1.5.2b) and Night (item 1.5.2c) are below, each with one line in src/ui/looks.ts. contrast.test.ts checks every look it finds here, so a new palette is held to
    the same contrast rules as Journal's without any change to the test. */
 
 /* ---------- Panel (direction B, instrument panel; build-out item 1.5.2b) ---------- */
@@ -2025,7 +2032,7 @@ details.more > summary {
 [data-look="panel"] .panel-hero .score-btn {
   border-color: var(--teal);
   background: var(--teal);
-  color: #FFFFFF;
+  color: var(--on-teal);
 }
 
 [data-look="panel"] .panel-hero .score-btn:hover:not(:disabled) {
@@ -2323,6 +2330,479 @@ details.more > summary {
     grid-column: 2;
     grid-row: 3;
   }
+}
+
+/* ---------- Night (direction C, night timeline; build-out item 1.5.2c) ---------- */
+
+/* A full dark palette: every screen and sheet reads its colours from these tokens, so all of
+   them turn dark together. Text is 6:1 or more on every surface (ink-soft on the --line fill of
+   a disabled button is 5.93:1); --teal, --amber and --line-strong are 3:1 or more against every
+   surface they sit on (WCAG 2.x, worked out 2026-11-05; contrast.test.ts checks them all).
+   color-scheme: dark draws native inputs, date and time pickers, selects and scrollbars dark. */
+[data-look="night"] {
+  --bg: #15191B;
+  --surface: #1E2427;
+  --ink: #ECE8E1;
+  --ink-soft: #B8B2AA;
+  --line: #2E3539;
+  --line-strong: #7A8388; /* 4.58:1 on --bg, 4.06:1 on --surface, 3.62:1 on --teal-bg */
+  --teal-bg: #17302E;
+  --teal: #6CC2BA;
+  --teal-ink: #7ACCC4;
+  --amber: #E3AE5B;
+  --amber-ink: #E8B868;
+  --amber-bg: #2E2617;
+  --on-teal: #0F2A28; /* 7.28:1 on --teal, 8.15:1 on its hover fill (--teal-ink) */
+  --on-ink: #15191B;
+  --ink-hover: #FFFFFF;
+  --shadow-sheet: 0 8px 32px rgba(0, 0, 0, .55);
+  --radius: 10px;
+  color-scheme: dark;
+}
+
+[data-look="night"] .sheet-backdrop {
+  background: rgba(0, 0, 0, .62);
+}
+
+/* A sheet is one step lighter than the page; its edge keeps it apart where the shadow can't. */
+[data-look="night"] .sheet {
+  border: 1px solid var(--line);
+}
+
+[data-look="night"] .app-header {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+/* The headline: a big, thin number, still the largest thing on the screen. */
+[data-look="night"] .night-hero {
+  padding: 20px 0 4px;
+}
+
+[data-look="night"] .night-hero .headline-number {
+  font-size: 64px;
+  font-weight: 300;
+  line-height: 1;
+  letter-spacing: -.02em;
+  margin-top: 8px;
+}
+
+[data-look="night"] .night-hero .headline-number .unit {
+  font-size: 18px;
+}
+
+[data-look="night"] .night-hero .headline-na {
+  font-size: 28px;
+  font-weight: 300;
+}
+
+/* Both ranges on one line under the number; one tap target that opens their explanation. Each
+   range keeps its words and numbers together when the line wraps. */
+[data-look="night"] .night-ranges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  margin-top: 6px;
+  color: var(--ink-soft);
+  font-size: 15px;
+}
+
+[data-look="night"] .night-range {
+  white-space: nowrap;
+}
+
+[data-look="night"] .night-range b {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+[data-look="night"] .night-range-sep {
+  white-space: pre;
+}
+
+[data-look="night"] .night-ranges .range-note {
+  flex-basis: 100%;
+}
+
+[data-look="night"] .night-ranges.na {
+  margin-top: var(--s1);
+}
+
+/* The score, the target and the macros as chips; each is a button that opens its detail. The
+   score keeps its teal edge, as in the other looks; the target and macro chips are quieter. */
+[data-look="night"] .night-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s1);
+  margin-top: 14px;
+}
+
+[data-look="night"] .night-chips .btn {
+  min-height: 36px;
+  padding: 4px 14px;
+  border-radius: 999px;
+  font-size: 14px;
+}
+
+[data-look="night"] .night-chips .score-btn {
+  background: none;
+  border-color: var(--teal);
+  color: var(--teal-ink);
+}
+
+[data-look="night"] .night-chips .score-btn::after {
+  content: none;
+}
+
+[data-look="night"] .night-chip {
+  border-color: var(--line-strong);
+  background: none;
+  color: var(--ink-soft);
+  font-weight: 400;
+}
+
+[data-look="night"] .night-chip:hover:not(:disabled),
+[data-look="night"] .night-chips .score-btn:hover:not(:disabled) {
+  background: var(--surface);
+}
+
+[data-look="night"] .night-chip[aria-expanded="true"] {
+  border-color: var(--teal);
+}
+
+[data-look="night"] .night-chip .chip-note {
+  color: var(--amber-ink);
+}
+
+[data-look="night"] .night-chips .score-na {
+  padding: 0 4px;
+}
+
+/* The opened macro chip: Journal's row of three macros, on its own line under the chips. */
+[data-look="night"] .night-macros {
+  flex-basis: 100%;
+}
+
+[data-look="night"] .night-macros .macro-row {
+  margin-top: 4px;
+}
+
+/* The timeline: a time column, a line of dots, and each point's words. Points are spaced by
+   order, not by the clock, so a long day stays readable and nothing overlaps. */
+[data-look="night"] .night-timeline {
+  --tl-time: 64px;
+  --tl-dot: 22px;
+  padding-top: var(--s3);
+  font-size: 15px;
+}
+
+[data-look="night"] .tl-point {
+  position: relative;
+  border: 0;
+}
+
+/* The line: each point draws it from its own dot (20 px down) to the next point's dot. */
+[data-look="night"] .tl-point:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  top: 20px;
+  bottom: -24px;
+  left: calc(var(--tl-time) + var(--tl-dot) / 2 - 1px);
+  width: 2px;
+  background: var(--line);
+}
+
+[data-look="night"] .tl-row {
+  display: grid;
+  grid-template-columns: var(--tl-time) var(--tl-dot) minmax(0, 1fr);
+  align-items: start;
+  gap: 0;
+}
+
+[data-look="night"] li.tl-row {
+  padding: 8px 0;
+}
+
+[data-look="night"] .tl .meal-open {
+  min-height: 44px;
+  padding: 8px 0;
+  border-radius: var(--radius);
+}
+
+[data-look="night"] .tl-time {
+  padding: 2px 8px 0 0;
+  color: var(--ink-soft);
+  font-size: 12px;
+  line-height: 19px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+[data-look="night"] .tl-time > span {
+  display: block;
+}
+
+/* Dots are drawn for the eye only: every point says what it is in words. */
+[data-look="night"] .tl .tl-dot {
+  position: relative;
+  z-index: 1;
+  justify-self: center;
+  width: 12px;
+  height: 12px;
+  margin-top: 6px;
+  border-radius: 50%;
+  background: var(--teal);
+  box-shadow: 0 0 0 3px var(--bg);
+}
+
+[data-look="night"] .tl .tl-dot.amber {
+  background: var(--amber);
+}
+
+[data-look="night"] .tl .tl-dot.hollow {
+  border: 2px solid var(--ink-soft);
+  background: var(--bg);
+}
+
+[data-look="night"] .tl .tl-dot.unknown {
+  border: 2px solid var(--amber);
+  background: var(--bg);
+}
+
+[data-look="night"] .tl .tl-dot.faint {
+  border: 2px solid var(--line-strong);
+  background: var(--bg);
+}
+
+[data-look="night"] .tl-body {
+  display: block;
+  min-width: 0;
+}
+
+/* The point's words on the left, its number on the right; the number moves under the words
+   when the line is too narrow for both. */
+[data-look="night"] .tl-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0 10px;
+}
+
+[data-look="night"] .tl-side {
+  margin-left: auto;
+  color: var(--ink-soft);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+[data-look="night"] .tl-side.not-logged,
+[data-look="night"] .tl-main.not-logged {
+  color: var(--amber-ink);
+}
+
+[data-look="night"] .tl-note {
+  color: var(--ink-soft);
+}
+
+/* A meal's name wraps beside its calories; the calories stay on the right. */
+[data-look="night"] .tl .meal-open .tl-line {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+[data-look="night"] .tl .meal-name {
+  font-weight: 500;
+}
+
+[data-look="night"] .tl .meal-kcal {
+  color: var(--ink-soft);
+  font-size: 14px;
+  font-weight: 400;
+  text-align: right;
+  white-space: nowrap;
+}
+
+[data-look="night"] .tl .meal-kcal.unknown {
+  color: var(--amber-ink);
+}
+
+[data-look="night"] .tl-meta {
+  display: block;
+  margin-top: 1px;
+  color: var(--ink-soft);
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+[data-look="night"] .tl-meta .meal-score {
+  display: inline;
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: inherit;
+}
+
+[data-look="night"] .tl-biggest {
+  color: var(--amber-ink);
+  font-weight: 600;
+}
+
+[data-look="night"] .tl-empty .tl-main {
+  font-weight: 600;
+}
+
+/* The biggest uncertainty sits on its own meal: an amber-tinted box behind the point, with the
+   words "biggest uncertainty" and Improve. */
+[data-look="night"] .tl .meal-row.biggest {
+  isolation: isolate;
+  margin: 4px 0;
+  padding-bottom: 6px;
+}
+
+[data-look="night"] .tl .meal-row.biggest::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  top: 0;
+  bottom: 0;
+  left: calc(var(--tl-time) + 2px);
+  right: -8px;
+  border-radius: var(--radius);
+  background: var(--amber-bg);
+}
+
+/* The line runs behind the box, not across it. */
+[data-look="night"] .tl .meal-row.biggest::after {
+  z-index: -2;
+}
+
+[data-look="night"] .tl .meal-row.biggest .tl-dot {
+  box-shadow: 0 0 0 3px var(--amber-bg);
+}
+
+[data-look="night"] .tl-improve {
+  margin-top: -6px;
+  padding-left: calc(var(--tl-time) + var(--tl-dot));
+  font-size: 14px;
+}
+
+[data-look="night"] .tl-improve .improve-link {
+  display: inline-block;
+  padding: 4px 0;
+}
+
+[data-look="night"] .tl-improve .hint {
+  color: var(--amber-ink);
+}
+
+/* Each night, one tap deep, under the timeline. */
+[data-look="night"] .night-sleep {
+  padding-top: var(--s2);
+}
+
+[data-look="night"] .night-sleep .sleep-nights {
+  margin-top: 0;
+}
+
+[data-look="night"] .action-bar .btn {
+  min-height: 48px;
+}
+
+[data-look="night"] .action-bar .log-btn {
+  font-weight: 700;
+}
+
+@media (min-width: 640px) {
+  [data-look="night"] .night-hero .headline-number {
+    font-size: 76px;
+  }
+
+  [data-look="night"] .night-timeline {
+    --tl-time: 76px;
+    --tl-dot: 28px;
+  }
+
+  [data-look="night"] .tl-side {
+    font-size: 14px;
+  }
+}
+
+/* Wide screens: one centred column. A timeline across the screen would squeeze a long day's
+   names and times together, so it stays vertical, under the headline. */
+@media (min-width: 960px) {
+  [data-look="night"] .dash-page {
+    max-width: 720px;
+  }
+
+  [data-look="night"] .dash-body {
+    display: block;
+  }
+}
+
+/* Night: a dark page, a big thin number, a short line of chips, the timeline with an amber dot,
+   and the Log a meal bar. */
+.look-preview-night {
+  background: #15191B; /* --bg */
+}
+
+.look-preview-night .lp-head {
+  left: 8px;
+  top: 6px;
+  width: 22px;
+  height: 3px;
+  border-radius: 2px;
+  background: #B8B2AA; /* --ink-soft */
+}
+
+.look-preview-night .lp-num {
+  left: 8px;
+  top: 12px;
+  width: 34px;
+  height: 7px;
+  border-radius: 2px;
+  background: #ECE8E1; /* --ink */
+}
+
+/* The timeline's line, with the biggest uncertainty's amber dot on it. */
+.look-preview-night .lp-bar {
+  left: 13px;
+  top: 25px;
+  width: 2px;
+  height: 22px;
+  background: #7A8388; /* --line-strong */
+}
+
+.look-preview-night .lp-band {
+  left: -2px;
+  top: 9px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #E3AE5B; /* --amber */
+}
+
+.look-preview-night .lp-line {
+  left: 21px;
+  top: 27px;
+  width: 44px;
+  height: 3px;
+  border-radius: 2px;
+  background: #B8B2AA; /* --ink-soft */
+}
+
+.look-preview-night .lp-line + .lp-line {
+  top: 41px;
+  width: 34px;
+}
+
+.look-preview-night .lp-dock {
+  left: 8px;
+  right: 8px;
+  bottom: 4px;
+  height: 7px;
+  border-radius: 4px;
+  background: #6CC2BA; /* --teal */
 }
 
 @media (prefers-reduced-motion: reduce) {
