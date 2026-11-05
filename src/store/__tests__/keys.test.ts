@@ -42,7 +42,7 @@ describe('namespaced keys', () => {
 
   it('never equal a default key or one of its backups, whatever the namespace', () => {
     const defaults = Object.values(DEFAULT_KEYS)
-    for (const ns of ['demo', 'mine', 'active', 'v1', 'probe', 'e2e', 'dev-ahmed-2']) {
+    for (const ns of ['demo', 'mine', 'active', 'v1', 'probe', 'e2e', 'dev-sam-2']) {
       for (const k of Object.values(storageKeys(ns))) {
         expect(defaults).not.toContain(k)
         expect(k.startsWith(`${DEFAULT_KEYS.demo}.`) || k.startsWith(`${DEFAULT_KEYS.mine}.`)).toBe(false)

@@ -1,5 +1,5 @@
-// Export, Import and Delete for your own log (build-out item 1.2: slice 13's core, plus Import,
-// which no slice owned). prd.md > Privacy Panel, spec.md > Store (Export / Delete).
+// Export, Import and Delete for your own log (checklist slice 13, with Import added).
+// prd.md > Privacy Panel, spec.md > Store (Export / Delete).
 //
 // - Export downloads the stored document, version included, as one JSON file. It always works:
 //   when the saved copy can't be read by this version (unreadable, or from a newer version), the
