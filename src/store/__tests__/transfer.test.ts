@@ -48,6 +48,7 @@ const SAM_SUMMARY = {
   nights: 3,
   workouts: 1,
   plates: 1,
+  savedMeals: 0,
   first: '2026-10-28T07:40:00-04:00',
   last: '2026-11-03T23:30:00+00:00',
 }
@@ -223,7 +224,7 @@ describe('summarize', () => {
   })
 
   it('an empty log has no times', () => {
-    expect(summarize(emptyLog())).toEqual({ name: '', meals: 0, nights: 0, workouts: 0, plates: 0, first: null, last: null })
+    expect(summarize(emptyLog())).toEqual({ name: '', meals: 0, nights: 0, workouts: 0, plates: 0, savedMeals: 0, first: null, last: null })
   })
 })
 
@@ -388,5 +389,64 @@ describe('export, delete, import returns the identical log (item 1.2 done-when)'
     expect(JSON.parse(store.getItem(K.mine) as string)).toStrictEqual(V1_MINE)
     const again = loadLog('mine', store)
     expect(again).toStrictEqual({ status: 'ok', doc: loaded.doc })
+  })
+})
+
+describe('saved meals (build-out item 2.3) travel with the log', () => {
+  /** Sam's own log with two saved meals: invented names and values. */
+  function withSaved(): LogDoc {
+    return {
+      ...mineDoc(),
+      savedMeals: [
+        { id: 'saved-1', name: 'Usual oats', source: 'weighed', kcal: 410, protein: 14, carbs: 66, fat: 9, savedAt: '2026-10-28T20:00:00-04:00' },
+        {
+          id: 'saved-2',
+          name: 'Office samosa',
+          source: null,
+          kcal: null,
+          protein: null,
+          carbs: null,
+          fat: null,
+          note: 'Size varies',
+          savedAt: '2026-10-28T20:05:00-04:00',
+        },
+      ],
+    }
+  }
+
+  it('a log saved before saved meals existed loads with none, and saves back unchanged', () => {
+    const store = storeWith({ [K.mine]: V1_MINE_TEXT })
+    const loaded = loadLog('mine', store)
+    if (loaded.status !== 'ok') throw new Error('fixture did not load')
+    expect('savedMeals' in loaded.doc).toBe(false)
+    expect(JSON.parse(serializeLog(loaded.doc))).toStrictEqual(V1_MINE)
+  })
+
+  it('export, delete, import keeps every saved meal, field for field', () => {
+    const store = new MemoryStore()
+    expect(saveLog(withSaved(), store)).toBe(true)
+    const file = exportOwnLog(withSaved(), null, store)
+    expect(JSON.parse(file).savedMeals).toHaveLength(2)
+    expect(deleteOwnLog(store).ok).toBe(true)
+    const read = readImport(file)
+    if (read.status !== 'ok') throw new Error('export did not import')
+    expect(read.doc.savedMeals).toStrictEqual(withSaved().savedMeals)
+    expect(read.summary.savedMeals).toBe(2)
+    expect(replaceOwnLog(read.doc, store)).toEqual({ ok: true })
+    expect(loadLog('mine', store)).toStrictEqual({ status: 'ok', doc: withSaved() })
+  })
+
+  it('refuses a saved meal with known calories and no source, as it does a logged meal', () => {
+    const bad = { ...V1_MINE, savedMeals: [{ id: 's', name: 'Oats', source: null, kcal: 300, protein: null, carbs: null, fat: null, savedAt: '2026-10-28T20:00:00-04:00' }] }
+    const read = readImport(JSON.stringify(bad))
+    expect(read).toMatchObject({ status: 'refused', problem: 'unreadable' })
+    if (read.status === 'refused') expect(read.detail).toContain('savedMeals.0.source')
+  })
+
+  it('refuses a saved meal with no name or a time with no offset', () => {
+    const one = withSaved().savedMeals![0]
+    for (const s of [{ ...one, name: '' }, { ...one, savedAt: '2026-10-28T20:00:00' }]) {
+      expect(readImport(JSON.stringify({ ...V1_MINE, savedMeals: [s] }))).toMatchObject({ status: 'refused', problem: 'unreadable' })
+    }
   })
 })

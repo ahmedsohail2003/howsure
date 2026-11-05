@@ -12,11 +12,12 @@ export function joinList(items: readonly string[]): string {
   return `${items.slice(0, -1).join(', ')} ${copy.privacy.and} ${items[items.length - 1]}`
 }
 
-/** Meals and nights always; workouts and plates when there are any (they arrive in later items). */
+/** Meals and nights always; workouts, plates and saved meals when there are any (later items). */
 export function contentItems(s: LogSummary): string[] {
   const items = [copy.privacy.meals(s.meals), copy.privacy.nights(s.nights)]
   if (s.workouts > 0) items.push(copy.privacy.workouts(s.workouts))
   if (s.plates > 0) items.push(copy.privacy.plates(s.plates))
+  if (s.savedMeals > 0) items.push(copy.privacy.savedMeals(s.savedMeals))
   return items
 }
 
@@ -31,9 +32,9 @@ export function spanText(s: LogSummary): string {
   return copy.privacy.span(fmtDate(s.first), fmtDate(s.last))
 }
 
-/** True when the log holds any meals, sleep, workouts or plates. */
+/** True when the log holds any meals, sleep, workouts, plates or saved meals. */
 export function hasContent(s: LogSummary): boolean {
-  return s.meals > 0 || s.nights > 0 || s.workouts > 0 || s.plates > 0
+  return s.meals > 0 || s.nights > 0 || s.workouts > 0 || s.plates > 0 || s.savedMeals > 0
 }
 
 /**

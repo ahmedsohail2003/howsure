@@ -177,6 +177,8 @@ export interface LogSummary {
   nights: number
   workouts: number
   plates: number
+  /** Meals saved as usual (build-out item 2.3). */
+  savedMeals: number
   /** The earliest and latest time in the log (meals and sleep), as stored; null when it has none. */
   first: string | null
   last: string | null
@@ -204,6 +206,7 @@ export function summarize(doc: LogDoc): LogSummary {
     nights: doc.sleeps.length,
     workouts: doc.workouts.length,
     plates: doc.plates.length,
+    savedMeals: doc.savedMeals?.length ?? 0,
     first,
     last,
   }

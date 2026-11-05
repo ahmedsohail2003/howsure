@@ -27,6 +27,10 @@ Open http://127.0.0.1:5273. **Start my log** opens your own empty log; for this 
 
 The demo person, Sam, is fictional, and so is every meal, sleep time and target in the demo.
 
+### Log a usual meal again
+
+**Log a meal** opens with **Saved** (meals you saved as usual) and **Recent** (the last different meals you logged, newest first) at the top. Tap one and it is logged at once, as a new meal with its own time and the same source and values, so a usual meal takes two taps. A short **Logged** line with **Undo** follows, just above **Log a meal**. **Amount** (×0.5, ×1, ×1.5, ×2 or a number from 0.1 to 10 that you type) scales the calories, macros and both ranges; the source stays the same, so the typical error stays the same percentage. To save a meal as usual, open it and choose **Save as a usual meal**. If you edit a meal after saving it, its details say what the saved meal still holds, and saving it again under that name updates the saved meal. **More** › **Saved meals** renames or deletes them; meals already logged never change. Saved meals are part of your log, so Export and Import carry them.
+
 ## How the numbers work
 
 - **Typical error per source.** Each way of knowing a meal's calories has a typical error: weighed 8%, nutrition label 10%, published menu 21%, description 41%, photo estimate 46%.
@@ -65,7 +69,7 @@ In your own log, tap your name at the top (or "Your log") to open **Profile and 
 
 ### More: targets, look and full screen
 
-**More**, at the top of the dashboard, lists the app's other places: Profile and privacy (your own log), **Targets**, **Look** and **Show full screen**.
+**More**, at the top of the dashboard, lists the app's other places: Profile and privacy (your own log), **Targets**, **Saved meals**, **Look** and **Show full screen**.
 
 - **Targets** holds your daily calories, protein, carbs and fat. A blank box means no target; 0 and negative numbers are refused. A target shows as a plain line beside the estimate score and under its macro. In the demo these are Sam's made-up targets, and a change stays in the demo.
 - **Look** chooses how the dashboard is drawn. Every look shows the same numbers, details and actions. **Journal**, the default, is light and warm: the two ranges sit on one labelled bar with every number also written as text, Log a meal and the sleep button stay pinned to the bottom on a phone, and a wide screen shows the day on the left and the meals and sleep on the right. The choice applies at once and is kept on this device, apart from both logs, so Export, Import and Delete leave it alone.

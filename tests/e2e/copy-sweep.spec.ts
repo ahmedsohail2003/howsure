@@ -12,6 +12,9 @@
 //
 // Build-out item 1.5.2: the whole sweep runs once in each look this build offers (looks.ts), as
 // each look may draw different words around the same numbers.
+//
+// Build-out item 2.3: Save as a usual meal, Log a meal's Recent and Saved with the amount, the
+// Logged line with Undo, and the Saved meals sheet, each with its messages.
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { expect, test, type Page } from '@playwright/test'
@@ -149,6 +152,54 @@ for (const { id: look, name: lookName } of LOOKS) {
       await sweep.take('log a meal, with its messages')
       await closeWithEsc(page, 'log-meal-sheet')
 
+      // Build-out item 2.3: Save as a usual meal, Recent and Saved with the amount, Logged with
+      // Undo, and the Saved meals sheet with its messages.
+      await page.getByTestId('meal-row').filter({ hasText: 'Chicken, rice and broccoli' }).getByTestId('meal-open').click()
+      const chicken = await opened(page, 'meal-details')
+      await chicken.getByTestId('save-usual-open').click()
+      await chicken.getByTestId('save-usual-name').fill('')
+      await chicken.getByTestId('save-usual-confirm').click()
+      await expect(chicken.getByTestId('save-usual-error')).toBeVisible()
+      await sweep.take('save as a usual meal, with its message')
+      await chicken.getByTestId('save-usual-name').fill('Usual chicken bowl')
+      await chicken.getByTestId('save-usual-confirm').click()
+      await expect(chicken.getByTestId('saved-as')).toBeVisible()
+      await sweep.take('saved as a usual meal')
+      await closeWithEsc(page, 'meal-details')
+      await page.getByTestId('log-meal').click()
+      const quick = await opened(page, 'log-meal-sheet')
+      await quick.getByTestId('amount-1.5').check()
+      await expect(quick.getByTestId('quick-times').first()).toBeVisible()
+      await sweep.take('log a meal: Recent, Saved and the amount')
+      await quick.getByTestId('amount-other').check()
+      await expect(quick.getByTestId('amount-needed')).toBeVisible()
+      await sweep.take('log a meal: Other, still blank, with its hint')
+      await quick.getByTestId('amount-other-input').fill('0')
+      await expect(quick.getByTestId('amount-error')).toBeVisible()
+      await sweep.take('log a meal: a typed amount, with its message')
+      await quick.getByTestId('amount-1').check()
+      await quick.getByTestId('quick-saved').getByTestId('quick-log-item').first().click()
+      await expect(page.getByTestId('status-undo')).toBeVisible()
+      await sweep.take('Logged, with Undo')
+      await page.getByTestId('status-undo').click()
+      await expect(page.getByTestId('status-undo')).toHaveCount(0)
+      await sweep.take('after Undo')
+      await page.getByTestId('open-more').click()
+      await (await opened(page, 'more-menu')).getByTestId('more-savedMeals').click()
+      const savedSheet = await opened(page, 'saved-meals-sheet')
+      await sweep.take('Saved meals')
+      await savedSheet.getByTestId('saved-rename').click()
+      await savedSheet.getByTestId('saved-rename-input').fill('')
+      await savedSheet.getByTestId('saved-rename-save').click()
+      await expect(savedSheet.getByTestId('saved-rename-error')).toBeVisible()
+      await sweep.take('Saved meals: rename, with its message')
+      await savedSheet.getByTestId('saved-rename-cancel').click()
+      await savedSheet.getByTestId('saved-delete').click()
+      await expect(savedSheet.getByTestId('saved-delete-confirm')).toBeVisible()
+      await sweep.take('Saved meals: delete confirmation')
+      await savedSheet.getByTestId('saved-delete-keep').click()
+      await closeWithEsc(page, 'saved-meals-sheet')
+
       await page.getByTestId('sleep-action').click()
       await opened(page, 'sleep-sheet')
       await sweep.take('sleep sheet')
@@ -207,7 +258,7 @@ for (const { id: look, name: lookName } of LOOKS) {
       await expect(page.getByTestId('status-note')).toHaveText(copy.resetDemo.done)
       await sweep.take('demo after Reset demo')
 
-      sweep.check(22)
+      sweep.check(31)
     })
 
     test('your own log: dashboard, Profile and privacy, Delete and Import', async ({ page }) => {
@@ -263,6 +314,10 @@ for (const { id: look, name: lookName } of LOOKS) {
       // A meal logged before the wake time is set, then the regroup preview.
       await page.getByTestId('log-meal').click()
       const logSheet = await opened(page, 'log-meal-sheet')
+      // Build-out item 2.3: nothing to log again yet, so the sheet opens on the form alone.
+      await expect(logSheet.getByTestId('meal-name-input')).toBeVisible()
+      await expect(logSheet.getByTestId('quick-log')).toHaveCount(0)
+      await sweep.take('log a meal in an empty log')
       await logSheet.getByTestId('meal-name-input').fill('Rice cake')
       await logSheet.getByTestId('source-label').check()
       await logSheet.getByTestId('meal-kcal-input').fill('35')
@@ -274,7 +329,7 @@ for (const { id: look, name: lookName } of LOOKS) {
       await sweep.take('regroup preview')
       await closeWithEsc(page, 'regroup-preview')
 
-      sweep.check(5)
+      sweep.check(6)
     })
 
     test('the saved-log notices: newer version and unreadable', async ({ page }) => {

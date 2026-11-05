@@ -81,6 +81,7 @@ export const copy = {
     mealsDeleted: (n: number) => (n === 1 ? '1 meal deleted' : `${n} meals deleted`),
     sleepChanged: 'Sleep times changed',
     targetsChanged: 'Sam’s targets changed',
+    savedMealsChanged: 'Saved meals changed',
     otherChanged: 'Other demo details changed',
     discards: 'Resetting puts back Sam’s week as it started and discards these changes. Your own log is not affected.',
     confirm: 'Reset demo',
@@ -252,6 +253,8 @@ export const copy = {
     nights: (n: number) => (n === 1 ? '1 night of sleep' : `${n} nights of sleep`),
     workouts: (n: number) => (n === 1 ? '1 workout' : `${n} workouts`),
     plates: (n: number) => (n === 1 ? '1 saved plate' : `${n} saved plates`),
+    // Build-out item 2.3: meals saved as usual.
+    savedMeals: (n: number) => (n === 1 ? '1 saved meal' : `${n} saved meals`),
     span: (from: string, to: string) => (from === to ? `On ${from}` : `From ${from} to ${to}`),
     noTimes: 'No meals or sleep logged yet.',
 
@@ -329,6 +332,9 @@ export const copy = {
     targets: 'Targets',
     targetsHint: 'Your daily calories, protein, carbs and fat.',
     targetsHintDemo: 'Sam’s daily targets, which are made up.',
+    // Build-out item 2.3: saved meals, in both logs (the demo's stay in the demo).
+    savedMeals: 'Saved meals',
+    savedMealsHint: 'Rename or delete the meals you saved as usual.',
     // Build-out item 2.1: in the demo only.
     resetDemo: 'Reset demo',
     resetDemoHint: 'Puts back Sam’s week as it started. Your own log is not affected.',
@@ -470,6 +476,74 @@ export const copy = {
     note: 'Source or assumptions note',
     save: 'Save',
     cancel: 'Cancel',
+  },
+
+  // Build-out item 2.3: log a recent or saved meal again from the top of Log a meal. Tap 1 opens
+  // the sheet, tap 2 logs the meal as a fresh entry with its own time, source and values.
+  quickLog: {
+    title: 'Log again',
+    introNow: 'Tap a meal to log it again now, with the same source and values.',
+    introOn: (when: string) => `Tap a meal to log it again on ${when}, with the same source and values.`,
+    when: (weekday: string, time: string) => `${weekday} at ${time}`,
+    amountLegend: 'Amount',
+    amountTimes: (factor: string) => `×${factor}`,
+    amountOther: 'Other',
+    amountOtherLabel: 'Times the usual amount',
+    amountError: 'Type a number from 0.1 to 10, such as 1.25 or 0.5.',
+    // Shown while Other is chosen and its box is still blank: the meals can't be tapped until then.
+    amountNeeded: 'Type an amount, then tap a meal to log it at that amount.',
+    amountHint:
+      'Calories, macros and both ranges scale with the amount. The source stays the same, so the typical error stays the same percentage.',
+    recent: 'Recent',
+    saved: 'Saved',
+    savedEmpty: 'No saved meals yet. Open a meal and choose Save as a usual meal.',
+    manageSaved: 'Rename or delete',
+    manageSavedLabel: 'Rename or delete saved meals',
+    // A non-breaking space, so the number and its unit stay on one line.
+    kcal: (n: string) => `${n}\u00a0kcal`,
+    kcalUnknown: 'Calories unknown',
+    times: (factor: string, kcal: string) => `×${factor} of ${kcal}`,
+    likely: (range: string) => `likely ${range}`,
+    // Read out before the row's own words, so the button says what tapping it does.
+    logPrefix: 'Log again:',
+    orNew: 'Or fill in a new meal',
+    logged: (meal: string, kcal: string) => `Logged ${meal}, ${kcal}.`,
+    loggedUnknown: (meal: string) => `Logged ${meal}, calories unknown.`,
+    undo: 'Undo',
+    undoLabel: (meal: string) => `Undo logging ${meal}`,
+    undone: (meal: string) => `Undone. ${meal} is no longer logged.`,
+  },
+
+  // Build-out item 2.3: meals saved as usual. Saved from a meal's details; renamed and deleted in
+  // the Saved meals sheet (from More, or from Log a meal). Logged meals are never changed by it.
+  usualMeals: {
+    save: 'Save as a usual meal',
+    saveHint: 'Keeps its name, source and values, so you can log it again from the top of Log a meal.',
+    nameLabel: 'Name for the usual meal',
+    confirm: 'Save',
+    cancel: 'Cancel',
+    nameNeeded: 'Give it a name.',
+    nameTaken: (name: string) => `You already have a saved meal called ${name}. Pick another name.`,
+    savedAs: (name: string) => `Saved as a usual meal: ${name}.`,
+    // The meal was edited after it was saved: the saved meal still holds the values it had then.
+    savedEarlier: (name: string, kcal: string) => `Saved earlier as ${name}, with the values this meal had then (${kcal}).`,
+    updates: (name: string) => `Saving under this name updates ${name} to this meal’s values now.`,
+    updated: (name: string) => `Saved meal updated: ${name}.`,
+    manage: 'See saved meals',
+    title: 'Saved meals',
+    intro: 'The meals under Saved at the top of Log a meal. Renaming or deleting one leaves the meals you already logged as they are.',
+    empty: 'No saved meals yet. Open a meal and choose Save as a usual meal.',
+    rename: 'Rename',
+    renameLabel: (name: string) => `Rename ${name}`,
+    newName: 'New name',
+    delete: 'Delete',
+    deleteLabel: (name: string) => `Delete ${name}`,
+    confirmDelete: (name: string) => `Delete the saved meal ${name}? Meals you already logged stay in your log.`,
+    keep: 'Keep it',
+    deleteConfirm: 'Delete saved meal',
+    renamed: (from: string, to: string) => `Renamed ${from} to ${to}.`,
+    deleted: (name: string) => `Deleted the saved meal ${name}. Meals you already logged are unchanged.`,
+    meta: (kcal: string, source: string) => `${kcal} · ${source}`,
   },
 
   preview: {

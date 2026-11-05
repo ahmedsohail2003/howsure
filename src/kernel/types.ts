@@ -209,6 +209,8 @@ export type Parsed =
 //              combineDay(meals: Meal[]): DayEstimate
 //              improve(meals: Meal[], mealId: string): Improvement | null
 //              macroTotals(meals: Meal[]): Record<MacroKey, MacroTotal>
+// portion.ts   MAX_FACTOR = 10; isFactor(factor): boolean
+//              scaleAmounts(meal, factor): same shape, kcal/macros/foods/lookup grams x factor (item 2.3)
 // parse.ts     parseAmount(input: string): Parsed
 // sleepday.ts  wakingDayStart(sleeps: SleepRecord[], at: string): string | null   // latest wake <= at
 //              nextWakeAfter(sleeps: SleepRecord[], dayStart: string): string | null

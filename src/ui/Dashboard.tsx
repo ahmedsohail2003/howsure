@@ -25,7 +25,7 @@
 // deep. On a wide screen the page stays one centred column: a timeline across the screen would
 // squeeze a long day's labels together.
 
-import { useLayoutEffect, useRef } from 'react'
+import { useEffect, useLayoutEffect, useRef } from 'react'
 import type { LogKind } from '../clock'
 import type { Profile } from '../store/log'
 import { copy } from './copy'
@@ -50,6 +50,14 @@ interface DashboardProps {
   onSetWake?: () => void
   /** A one-line confirmation of the last action that changes nothing on screen by itself (Reset demo). */
   statusNote?: string | null
+  /**
+   * Build-out item 2.3: "Logged", after a meal is logged again from Recent or Saved (and "Undone"
+   * after its Undo). It sits in the action bar, just above Log a meal, which is pinned to the
+   * bottom on a phone, so it is in view however far the page was scrolled. `onUndo` adds Undo.
+   */
+  barNote?: string | null
+  onUndo?: () => void
+  undoLabel?: string
   onOpen: (mode: ExplainMode) => void
   /** Opens the meal's edit sheet in improve mode (prd.md > Improve That Entry). */
   onImprove: (mealId: string) => void
@@ -91,6 +99,15 @@ export function Dashboard(props: DashboardProps) {
   const biggestShare = biggest ? day.contributions.find((c) => c.mealId === biggest.id)?.share : undefined
   const asleep = sleep.status.kind === 'asleep'
   const actionBarRef = useActionBarHeight()
+  const logBtnRef = useRef<HTMLButtonElement>(null)
+  const barNoteRef = useRef<HTMLDivElement>(null)
+  // On a wider screen the bar is in the layout: bring a new Logged line into view if the page was
+  // scrolled past it (on a phone the bar is pinned, so this moves nothing).
+  useEffect(() => {
+    if (!props.barNote) return
+    const frame = requestAnimationFrame(() => barNoteRef.current?.scrollIntoView({ block: 'nearest' }))
+    return () => cancelAnimationFrame(frame)
+  }, [props.barNote])
   const { look } = useLook()
   const panel = look === 'panel'
   const night = look === 'night'
@@ -229,17 +246,41 @@ export function Dashboard(props: DashboardProps) {
           {/* One log button at a time ("Log your first meal" on an empty day) and the one sleep
               button that fits now (I'm going to sleep, or I woke up). */}
           <div className="action-bar" ref={actionBarRef} data-testid="action-bar">
-            <button type="button" className="btn btn-primary log-btn" onClick={onLogMeal} data-testid="log-meal">
-              {day.status === 'empty' ? copy.dashboard.logFirstMeal : copy.dashboard.logMeal}
-            </button>
-            <button
-              type="button"
-              className="btn sleep-btn"
-              onClick={() => onSleepAction(asleep ? 'wake' : 'sleep')}
-              data-testid="sleep-action"
-            >
-              {asleep ? copy.sleep.wokeUp : copy.sleep.goingToSleep}
-            </button>
+            {/* Always in the page as a live region, so a screen reader reads "Logged" when it
+                appears; empty, it takes no room. */}
+            <div className={props.barNote ? 'bar-note on' : 'bar-note'} ref={barNoteRef} data-testid="bar-note">
+              <p className="bar-note-text" role="status" data-testid="logged-note">
+                {props.barNote ?? ''}
+              </p>
+              {props.barNote && props.onUndo && (
+                <button
+                  type="button"
+                  className="btn btn-quiet bar-undo"
+                  onClick={() => {
+                    props.onUndo?.()
+                    // The button goes with the meal; focus moves to Log a meal, which stays.
+                    logBtnRef.current?.focus()
+                  }}
+                  aria-label={props.undoLabel}
+                  data-testid="status-undo"
+                >
+                  {copy.quickLog.undo}
+                </button>
+              )}
+            </div>
+            <div className="action-row">
+              <button type="button" className="btn btn-primary log-btn" ref={logBtnRef} onClick={onLogMeal} data-testid="log-meal">
+                {day.status === 'empty' ? copy.dashboard.logFirstMeal : copy.dashboard.logMeal}
+              </button>
+              <button
+                type="button"
+                className="btn sleep-btn"
+                onClick={() => onSleepAction(asleep ? 'wake' : 'sleep')}
+                data-testid="sleep-action"
+              >
+                {asleep ? copy.sleep.wokeUp : copy.sleep.goingToSleep}
+              </button>
+            </div>
           </div>
 
           {night ? (

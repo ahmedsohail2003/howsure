@@ -762,9 +762,44 @@ button {
    --action-bar-h (it grows when a narrow screen wraps a label); until then a one-row bar is
    assumed. */
 .action-bar {
+  padding: var(--s3) 0 0;
+}
+
+.action-row {
   display: flex;
   gap: var(--s1);
-  padding: var(--s3) 0 0;
+}
+
+/* Build-out item 2.3: "Logged ..." with Undo, after a meal is logged again from Recent or Saved.
+   It sits in the bar just above Log a meal, so on a phone it is pinned with the bar and always in
+   view, and the bar's measured height (and with it the page's bottom room) takes it in. One band:
+   the wrapper draws the border and fill; the text and Undo sit on it. Empty, it takes no room. */
+.bar-note.on {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px var(--s1);
+  margin-bottom: var(--s1);
+  padding: 4px var(--s1) 4px 12px;
+  border: 1px solid var(--teal);
+  border-left-width: 3px;
+  border-radius: var(--radius);
+  background: var(--teal-bg);
+}
+
+.bar-note-text {
+  flex: 1 1 12em;
+  min-width: 0;
+  color: var(--ink);
+  font-size: 14px;
+}
+
+.bar-note.on .bar-note-text {
+  padding: 6px 0;
+}
+
+.bar-undo {
+  flex: none;
 }
 
 .action-bar .log-btn {
@@ -1514,6 +1549,287 @@ details.more > summary {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--s1);
+}
+
+/* ---------- repeat a usual meal: Recent, Saved and the amount (build-out item 2.3) ---------- */
+
+.quick-log > * + * {
+  margin-top: 12px;
+}
+
+/* The line under Log again ends that section; "Or fill in a new meal" sits under it, with the form. */
+.quick-log {
+  padding-bottom: var(--s2);
+  border-bottom: 1px solid var(--line);
+}
+
+.quick-log > .section-title {
+  margin-bottom: 0;
+}
+
+/* Only the inline and bottom margins: the top one is the section's spacing, a little wider here so
+   the intro and the Amount control read as separate parts. */
+.amount-field {
+  margin-inline: 0;
+  margin-bottom: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.quick-log > .amount-field {
+  margin-top: var(--s2);
+}
+
+.amount-field > legend {
+  padding: 0;
+  margin-bottom: 6px;
+}
+
+/* One row of five, so the amount takes one line even on a 320 px phone and Saved stays in view. */
+.amount-options {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+}
+
+/* Each amount is a radio drawn as a button with its words; the checked one is outlined twice,
+   filled and bold, not colour alone. The radio itself lies over the whole button, unseen, so a
+   tap anywhere on it picks it, and the keyboard moves between the five as in any radio group. */
+.amount-option {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 6px 4px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.amount-option.checked {
+  border-color: var(--teal);
+  background: var(--teal-bg);
+  color: var(--teal-ink);
+  font-weight: 700;
+  box-shadow: inset 0 0 0 1px var(--teal);
+}
+
+.amount-option:has(.amount-input:focus-visible) {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
+}
+
+.amount-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.amount-other-field {
+  margin-top: var(--s1);
+  max-width: 16em;
+}
+
+.amount-other-field input[type="text"] {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+}
+
+.amount-other-field [aria-invalid="true"] {
+  border-color: var(--amber);
+  box-shadow: inset 0 0 0 1px var(--amber);
+}
+
+.quick-group-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s1);
+}
+
+/* Amount, Saved and Recent: one level under the section's small-caps title, in the ink colour
+   and sentence case, so the three read as its parts. */
+.quick-group-title {
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.quick-group-head + *,
+.quick-group-title + .quick-list {
+  margin-top: 4px;
+}
+
+.quick-row {
+  border-bottom: 1px solid var(--line);
+}
+
+.quick-row:last-child {
+  border-bottom: 0;
+}
+
+/* Each row is one button: tapping it logs the meal again (the second of two taps). */
+.quick-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 2px var(--s2);
+  width: 100%;
+  min-height: 56px;
+  padding: 10px var(--s1);
+  border: 0;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--t);
+}
+
+.quick-item:hover:not(:disabled) {
+  background: var(--teal-bg);
+}
+
+.quick-item:disabled {
+  cursor: not-allowed;
+  color: var(--ink-soft);
+}
+
+.quick-main,
+.quick-name,
+.quick-meta,
+.quick-kcal,
+.quick-times {
+  display: block;
+}
+
+.quick-name {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.quick-item:hover:not(:disabled) .quick-name {
+  color: var(--teal-ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.quick-meta,
+.quick-times {
+  color: var(--ink-soft);
+  font-size: 14px;
+}
+
+.quick-right {
+  text-align: right;
+}
+
+.quick-meta .nowrap,
+.quick-times {
+  white-space: nowrap;
+}
+
+.quick-kcal {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.quick-kcal.unknown {
+  color: var(--amber-ink);
+  font-weight: 400;
+}
+
+.quick-or {
+  margin-bottom: 0;
+}
+
+/* Save as a usual meal, at the end of a meal's details. */
+.save-usual {
+  border-top: 1px solid var(--line);
+  padding-top: var(--s2);
+}
+
+.save-usual.meal-form > * + * {
+  margin-top: 12px;
+}
+
+.save-usual-done {
+  color: var(--ink);
+}
+
+.save-usual-earlier {
+  margin-bottom: var(--s1);
+  color: var(--ink);
+}
+
+/* The Saved meals sheet: each saved meal with Rename and Delete, and the form or confirmation
+   that opens under it. */
+.saved-row {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.saved-row:last-child {
+  border-bottom: 0;
+}
+
+.saved-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s1) var(--s2);
+}
+
+.saved-main {
+  min-width: 0;
+  flex: 1 1 12em;
+}
+
+.saved-name,
+.saved-meta {
+  display: block;
+}
+
+.saved-name {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.saved-meta {
+  color: var(--ink-soft);
+  font-size: 14px;
+}
+
+.saved-actions {
+  display: flex;
+  gap: var(--s1);
+}
+
+.saved-row .meal-form,
+.saved-row .delete-confirm {
+  margin-top: 12px;
+}
+
+.saved-rename-form > * + * {
+  margin-top: 12px;
 }
 
 /* ---------- before/after preview ---------- */
@@ -2474,6 +2790,41 @@ details.more > summary {
   }
 }
 
+/* Panel: Log a meal's Recent and Saved (build-out item 2.3) as small tiles, and the amounts as
+   pill buttons, like the dashboard's tiles and chips. */
+[data-look="panel"] .quick-list {
+  display: grid;
+  gap: var(--s1);
+}
+
+[data-look="panel"] .quick-row,
+[data-look="panel"] .quick-row:last-child {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+[data-look="panel"] .quick-item {
+  padding: 10px 12px;
+  border-radius: 12px;
+}
+
+[data-look="panel"] .amount-option {
+  border-radius: 999px;
+}
+
+[data-look="panel"] .saved-row {
+  margin-top: var(--s1);
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+[data-look="panel"] .bar-note.on {
+  border-left-width: 1px;
+  border-radius: 12px;
+}
+
 /* ---------- Night (direction C, night timeline; build-out item 1.5.2c) ---------- */
 
 /* A full dark palette: every screen and sheet reads its colours from these tokens, so all of
@@ -2962,4 +3313,20 @@ details.more > summary {
   [data-look="panel"] .action-bar .btn:active {
     transform: none;
   }
+}
+
+/* Night: Log a meal's amounts (build-out item 2.3) as outlined pills like the dashboard's chips,
+   the checked one filled. Recent and Saved keep the plain rows, on the dark surface. */
+[data-look="night"] .amount-option {
+  border-radius: 999px;
+}
+
+[data-look="night"] .quick-item {
+  padding-left: 12px;
+  border-left: 2px solid transparent;
+  border-radius: 0 var(--radius) var(--radius) 0;
+}
+
+[data-look="night"] .quick-item:hover:not(:disabled) {
+  border-left-color: var(--teal);
 }

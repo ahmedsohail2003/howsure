@@ -12,12 +12,34 @@ import {
   type LogKind,
 } from '../clock'
 import { SOURCES } from '../kernel/sources'
-import type { Meal, MealSourceId, SleepRecord } from '../kernel/types'
+import type { Meal, MealFood, MealLookup, MealSourceId, SleepRecord } from '../kernel/types'
 
 export interface Profile {
   name: string
   kind: 'guest' | 'demo'
   targets?: { kcal?: number; protein?: number; carbs?: number; fat?: number }
+}
+
+/**
+ * A meal saved as usual (build-out item 2.3): its name, source and values, with no time of its own.
+ * Logging it makes a fresh meal with its own id and time; the two are not linked, so renaming or
+ * deleting a saved meal leaves the meals already logged as they are.
+ */
+export interface SavedMeal {
+  id: string
+  name: string
+  source: MealSourceId | null
+  kcal: number | null // null = unknown, never 0
+  protein: number | null
+  carbs: number | null
+  fat: number | null
+  note?: string
+  foods?: MealFood[]
+  lookup?: MealLookup
+  /** When it was saved, ISO 8601 with offset. */
+  savedAt: string
+  /** The logged meal it was saved from, so that meal's details can say it is saved. Not a link: nothing follows it. */
+  fromMealId?: string
 }
 
 export interface LogDoc {
@@ -29,6 +51,8 @@ export interface LogDoc {
   workouts: unknown[]
   plates: unknown[]
   settings?: Record<string, unknown>
+  /** Meals saved as usual (build-out item 2.3). Optional: a log saved before it has none. */
+  savedMeals?: SavedMeal[]
   /** The demo clock's anchor (spec.md > Clock). Demo document only, so a reload continues the timeline. */
   clock?: DemoClockState
 }

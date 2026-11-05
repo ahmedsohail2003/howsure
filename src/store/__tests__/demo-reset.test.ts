@@ -1,5 +1,5 @@
 // Build-out item 2.1: Reset demo asks first only when the demo was edited (spec.md > Store). The
-// projection { profile, meals, sleeps, workouts, plates } in a fixed key order is compared with a
+// projection { profile, meals, sleeps, workouts, plates, savedMeals } in a fixed key order is compared with a
 // fresh demo's; the clock and the order things are stored in don't count.
 import { describe, expect, it } from 'vitest'
 import { demoChanges, demoProjection, isDemoEdited, pristineDemo, stableJson, wallTime } from '../demoReset'
@@ -9,7 +9,7 @@ import { ACTIVE_KEY, saveActive, saveLog, serializeLog, STORAGE_KEYS } from '../
 import { MemoryStore } from './memoryStore'
 
 const R0 = Date.parse('2026-11-05T09:00:00-05:00')
-const NONE = { mealsAdded: 0, mealsChanged: 0, mealsDeleted: 0, sleepChanged: false, targetsChanged: false, otherChanged: false }
+const NONE = { mealsAdded: 0, mealsChanged: 0, mealsDeleted: 0, sleepChanged: false, targetsChanged: false, savedMealsChanged: false, otherChanged: false }
 
 describe('stableJson', () => {
   it('sorts keys at every level and leaves out undefined values', () => {
@@ -109,6 +109,17 @@ describe('is the demo edited?', () => {
       targetsChanged: true,
     })
     expect(isDemoEdited(edited, fresh)).toBe(true)
+  })
+
+  it('saved meals added, renamed or deleted count as their own change (build-out item 2.3)', () => {
+    const fresh = pristineDemo()
+    const usual = { id: 'saved-1', name: 'Usual soup', source: 'menu' as const, kcal: 330, protein: 18, carbs: 46, fat: 8, savedAt: '2026-10-22T01:30:00-04:00' }
+    const added: LogDoc = { ...fresh, savedMeals: [usual] }
+    expect(isDemoEdited(added, fresh)).toBe(true)
+    expect(demoChanges(added, fresh)).toEqual({ ...NONE, savedMealsChanged: true })
+    expect(demoChanges({ ...fresh, savedMeals: [{ ...usual, name: 'Soup' }] }, added)).toEqual({ ...NONE, savedMealsChanged: true })
+    // All of them deleted again: an empty list is the same as none.
+    expect(isDemoEdited({ ...fresh, savedMeals: [] }, fresh)).toBe(false)
   })
 
   it('a change to the plates or the profile name counts as another change', () => {

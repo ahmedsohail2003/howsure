@@ -5,10 +5,11 @@ import { BUILT_LOOKS, LOOKS } from '../looks'
 import { MORE_ENTRIES, moreEntries } from '../moreMenu'
 
 describe('More menu entries', () => {
-  it('lists Profile and privacy, Targets, Look and the full-screen switch in your own log', () => {
+  it('lists Profile and privacy, Targets, Saved meals, Look and the full-screen switch in your own log', () => {
     expect(moreEntries({ kind: 'mine', fullScreen: 'off', look: 'journal' })).toEqual([
       { id: 'profile', label: 'Profile and privacy', hint: copy.moreMenu.profileHint },
       { id: 'targets', label: 'Targets', hint: copy.moreMenu.targetsHint },
+      { id: 'savedMeals', label: 'Saved meals', hint: 'Rename or delete the meals you saved as usual.' },
       { id: 'look', label: 'Look', hint: 'How the dashboard is drawn. Now: Journal.' },
       { id: 'fullScreen', label: 'Show full screen', hint: copy.moreMenu.fullScreenHint },
     ])
@@ -16,7 +17,7 @@ describe('More menu entries', () => {
 
   it('leaves Profile and privacy out of the demo, and says the demo targets are made up', () => {
     const entries = moreEntries({ kind: 'demo', fullScreen: 'off', look: 'journal' })
-    expect(entries.map((e) => e.id)).toEqual(['targets', 'look', 'fullScreen', 'resetDemo'])
+    expect(entries.map((e) => e.id)).toEqual(['targets', 'savedMeals', 'look', 'fullScreen', 'resetDemo'])
     expect(entries[0].hint).toBe(copy.moreMenu.targetsHintDemo)
   })
 

@@ -1,6 +1,7 @@
 // Reset demo (spec.md > Store; prd.md > Demo and My Log): puts back Sam's fictional week as it
 // started and restarts the demo clock. It asks for confirmation only when the demo has been
-// edited. "Edited" means the projection { profile, meals, sleeps, workouts, plates }, written
+// edited. "Edited" means the projection { profile, meals, sleeps, workouts, plates, savedMeals }
+// (saved meals: build-out item 2.3; none counts the same as an empty list), written
 // with its keys in a fixed (sorted) order, differs from the same projection of a fresh demo
 // (converted from fixtures/demo-week.json as on demo start). The clock and anything else the
 // demo document holds do not count, so an untouched demo resets with no confirmation.
@@ -64,6 +65,7 @@ export function demoProjection(doc: LogDoc): string {
     sleeps: inIdOrder(doc.sleeps),
     workouts: inIdOrder(doc.workouts),
     plates: inIdOrder(doc.plates),
+    savedMeals: inIdOrder(doc.savedMeals ?? []),
   })
 }
 
@@ -87,6 +89,8 @@ export interface DemoChanges {
   mealsDeleted: number
   sleepChanged: boolean
   targetsChanged: boolean
+  /** Meals saved as usual were added, renamed or deleted (build-out item 2.3). */
+  savedMealsChanged: boolean
   /** The rest of the projection: the profile's other fields, workouts and plates. */
   otherChanged: boolean
 }
@@ -115,6 +119,7 @@ export function demoChanges(doc: LogDoc, pristine: LogDoc = pristineDemo()): Dem
     mealsDeleted,
     sleepChanged: sleepText(doc.sleeps) !== sleepText(pristine.sleeps),
     targetsChanged: demoJson(targetsNow ?? null) !== demoJson(targetsWas ?? null),
+    savedMealsChanged: demoJson(inIdOrder(doc.savedMeals ?? [])) !== demoJson(inIdOrder(pristine.savedMeals ?? [])),
     otherChanged:
       demoJson(profileNow) !== demoJson(profileWas) ||
       demoJson(inIdOrder(doc.workouts)) !== demoJson(inIdOrder(pristine.workouts)) ||

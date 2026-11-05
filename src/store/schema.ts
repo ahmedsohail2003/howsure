@@ -75,6 +75,30 @@ export const mealWithSourceSchema = mealSchema.refine((m) => m.kcal === null || 
   path: ['source'],
 })
 
+/**
+ * A meal saved as usual (build-out item 2.3; store/log.ts SavedMeal): a meal's values with no
+ * time. The same rule as a logged meal: known calories need their source.
+ */
+export const savedMealSchema = z
+  .looseObject({
+    id: z.string().min(1),
+    name: z.string().min(1),
+    source: z.enum(MEAL_SOURCES).nullable(),
+    kcal: amountOrUnknown,
+    protein: amountOrUnknown,
+    carbs: amountOrUnknown,
+    fat: amountOrUnknown,
+    note: z.string().optional(),
+    foods: z.array(mealFoodSchema).optional(),
+    lookup: mealLookupSchema.optional(),
+    savedAt: isoWithOffset,
+    fromMealId: z.string().optional(),
+  })
+  .refine((m) => m.kcal === null || m.source !== null, {
+    message: 'a saved meal with known calories needs its source',
+    path: ['source'],
+  })
+
 export const sleepSchema = z.looseObject({
   id: z.string().min(1),
   sleepStart: isoWithOffset.nullable(),
@@ -112,6 +136,8 @@ export const logDocSchema = z.looseObject({
   workouts: z.array(z.looseObject({ id: z.string() })),
   plates: z.array(z.looseObject({ id: z.string() })),
   settings: z.looseObject({}).optional(),
+  // Build-out item 2.3: optional, so a log saved before it loads unchanged (no version bump).
+  savedMeals: z.array(savedMealSchema).optional(),
   clock: clockSchema.optional(),
 })
 

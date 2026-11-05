@@ -48,6 +48,18 @@ import { buildSleepView, type SleepAction } from './sleepView'
 import { StorageNotice } from './StorageNotice'
 import { withTargets, type Targets } from './targets'
 import { TargetsSheet } from './TargetsSheet'
+import { SavedMealsSheet } from './SavedMealsSheet'
+import { fmtInt, fmtTime, fmtWeekday } from './format'
+import {
+  mealFromValues,
+  newSavedMealId,
+  savedFromMeal,
+  withSavedMeal,
+  withSavedMealRenamed,
+  withSavedMealUpdated,
+  withoutSavedMeal,
+  type MealValues,
+} from './usualMeals'
 import { canSetWake } from './wakeSet'
 
 type SheetState =
@@ -70,6 +82,19 @@ type SheetState =
   // confirmation, holding what the reset would discard.
   | { mode: 'setWake' }
   | { mode: 'resetDemo'; changes: DemoChanges }
+  // Build-out item 2.3: the Saved meals sheet. Opened from Log a meal, closing it goes back there.
+  | { mode: 'savedMeals'; from: 'more' | 'logMeal' | 'details'; mealId?: string }
+
+/**
+ * The one-line confirmation of the last action: under the header (Reset demo), or in the action
+ * bar just above Log a meal (`bar`, build-out item 2.3: Logged and Undone, after a meal is logged
+ * again from Recent or Saved). `undo` is the meal just logged, which its Undo button removes.
+ */
+interface StatusNote {
+  text: string
+  bar?: boolean
+  undo?: { kind: LogKind; mealId: string; name: string }
+}
 
 /** Re-render once a minute so "now" (and with it the current waking day) stays fresh. */
 function useMinuteTick(): number {
@@ -92,9 +117,9 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
   const [logs, setLogs] = useState<Logs>(initial.logs)
   const [storageOk, setStorageOk] = useState(initial.storageOk)
   const [sheet, setSheetState] = useState<SheetState | null>(null)
-  // A one-line confirmation under the header (Reset demo). Any next step clears it: opening a
-  // sheet, switching logs, or moving to another day.
-  const [statusNote, setStatusNote] = useState<string | null>(null)
+  // A one-line confirmation under the header (Reset demo; Logged, with Undo). Any next step clears
+  // it: opening a sheet, switching logs, or moving to another day.
+  const [statusNote, setStatusNote] = useState<StatusNote | null>(null)
   function setSheet(next: SheetState | null) {
     if (next !== null) setStatusNote(null)
     setSheetState(next)
@@ -173,6 +198,12 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
     setSheet(null)
   }
 
+  /** Put the changed log in place and write it to the device, keeping the open sheet open. */
+  function update(next: LogDoc) {
+    setLogs((l) => (next.kind === 'demo' ? { ...l, demo: next } : { ...l, mine: next }))
+    persist(next)
+  }
+
   /** Log, Edit and Improve all save through here: a new id is added, a known id replaced. */
   function saveMeal(meal: Meal) {
     if (doc) commit(withMeal(doc, meal))
@@ -232,7 +263,7 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
     const fresh = startDemo()
     setViewed(null)
     commit(fresh)
-    setStatusNote(copy.resetDemo.done)
+    setStatusNote({ text: copy.resetDemo.done })
   }
 
   /** Export: download your own log (the stored text as it is when this version can't read it). */
@@ -311,6 +342,9 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
       case 'targets':
         setSheet({ mode: 'targets' })
         return
+      case 'savedMeals':
+        setSheet({ mode: 'savedMeals', from: 'more' })
+        return
       case 'look':
         setSheet({ mode: 'look' })
         return
@@ -334,6 +368,53 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
   function openLogMeal() {
     if (!doc || !view || !at) return
     setSheet({ mode: 'new', meal: blankMeal(newMealId(), defaultMealTime(doc.sleeps, view.dayStart, at)) })
+  }
+
+  /**
+   * Build-out item 2.3, tap 2: log a recent or saved meal again as a fresh meal with its own id and
+   * time. On the current waking day the time is now (read at the tap); on another day it is the
+   * time the sheet offered for that day. Then a short Logged line with Undo.
+   */
+  function quickLog(values: MealValues, sheetTime: string, onToday: boolean) {
+    if (!doc || !view || !active) return
+    const eatenAt = onToday ? defaultMealTime(doc.sleeps, view.dayStart, nowIso(active)) : sheetTime
+    const meal = mealFromValues(values, newMealId(), eatenAt)
+    commit(withMeal(doc, meal))
+    const text =
+      meal.kcal === null
+        ? copy.quickLog.loggedUnknown(meal.name)
+        : copy.quickLog.logged(meal.name, copy.quickLog.kcal(fmtInt(meal.kcal)))
+    setStatusNote({ text, bar: true, undo: { kind: doc.kind, mealId: meal.id, name: meal.name } })
+  }
+
+  /** Undo after a quick log: the meal it added leaves the log, which is saved again. */
+  function undoQuickLog() {
+    const undo = statusNote?.undo
+    if (!undo) return
+    const target = undo.kind === 'demo' ? logs.demo : logs.mine
+    if (!target || !target.meals.some((m) => m.id === undo.mealId)) {
+      setStatusNote(null)
+      return
+    }
+    commit(withoutMeal(target, undo.mealId))
+    setStatusNote({ text: copy.quickLog.undone(undo.name), bar: true })
+  }
+
+  /**
+   * Save as a usual meal, from a meal's details. The details stay open and say it was saved. With
+   * `updateId`, the saved meal saved from this meal before it was edited takes its values now.
+   */
+  function saveUsual(meal: Meal, name: string, updateId?: string) {
+    if (!doc || !active) return
+    if (updateId !== undefined) update(withSavedMealUpdated(doc, savedFromMeal(meal, name, updateId, nowIso(active))))
+    else update(withSavedMeal(doc, savedFromMeal(meal, name, newSavedMealId(), nowIso(active))))
+  }
+
+  /** Closing Saved meals goes back to where it was opened from: Log a meal, a meal's details, or the dashboard. */
+  function closeSavedMeals(from: 'more' | 'logMeal' | 'details', mealId?: string) {
+    if (from === 'logMeal') openLogMeal()
+    else if (from === 'details' && mealId && doc?.meals.some((m) => m.id === mealId)) setSheet({ mode: 'details', mealId })
+    else setSheet(null)
   }
 
   const notice = (
@@ -378,7 +459,10 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
         view={view}
         onSwitch={demo ? openMine : openDemo}
         onSetWake={canSetWake(doc.sleeps, sleepStatus(doc.sleeps)) ? () => setSheet({ mode: 'setWake' }) : undefined}
-        statusNote={statusNote}
+        statusNote={statusNote && !statusNote.bar ? statusNote.text : null}
+        barNote={statusNote?.bar ? statusNote.text : null}
+        onUndo={statusNote?.undo && statusNote.undo.kind === active ? undoQuickLog : undefined}
+        undoLabel={statusNote?.undo ? copy.quickLog.undoLabel(statusNote.undo.name) : undefined}
         onOpen={setSheet}
         onImprove={(mealId) => setSheet({ mode: 'improve', mealId })}
         onLogMeal={openLogMeal}
@@ -425,6 +509,9 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
           onEdit={() => setSheet({ mode: 'edit', mealId: details.id })}
           onDelete={() => deleteMeal(details.id)}
           onOpenScore={() => setSheet({ mode: 'meal', mealId: details.id })}
+          saved={doc.savedMeals ?? []}
+          onSaveUsual={(name, updateId) => saveUsual(details, name, updateId)}
+          onManageSaved={() => setSheet({ mode: 'savedMeals', from: 'details', mealId: details.id })}
         />
       )}
       {editing && sheet && (sheet.mode === 'new' || sheet.mode === 'edit' || sheet.mode === 'improve') && (
@@ -438,6 +525,24 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
           demo={demo}
           onSave={saveMeal}
           onClose={() => setSheet(null)}
+          quick={
+            sheet.mode === 'new'
+              ? {
+                  logsOn: today ? null : copy.quickLog.when(fmtWeekday(editing.eatenAt), fmtTime(editing.eatenAt)),
+                  onLog: (values) => quickLog(values, editing.eatenAt, today),
+                  onManageSaved: () => setSheet({ mode: 'savedMeals', from: 'logMeal' }),
+                }
+              : undefined
+          }
+        />
+      )}
+      {sheet?.mode === 'savedMeals' && (
+        <SavedMealsSheet
+          saved={doc.savedMeals ?? []}
+          demo={demo}
+          onRename={(id, name) => update(withSavedMealRenamed(doc, id, name))}
+          onDelete={(id) => update(withoutSavedMeal(doc, id))}
+          onClose={() => closeSavedMeals(sheet.from, sheet.mealId)}
         />
       )}
       {sheet?.mode === 'profile' && !demo && (

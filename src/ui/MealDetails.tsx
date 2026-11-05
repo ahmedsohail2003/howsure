@@ -2,17 +2,21 @@
 // breakdown (calories and macros, evidence source, assumptions or note, its estimate score and
 // both ranges, what would improve it), with Edit and Delete. A meal with unknown calories gets
 // no invented number: it says so, and points at what would let HowSure count it.
+// Build-out item 2.3: Save as a usual meal, with a name, so it can be logged again from the top of
+// Log a meal. Once saved (same name and values), the details say so instead of offering it again.
 
-import { useState } from 'react'
+import { useId, useLayoutEffect, useRef, useState } from 'react'
 import { estimateMeal, improve } from '../kernel/estimate'
 import { getSource } from '../kernel/sources'
 import type { Meal } from '../kernel/types'
+import type { SavedMeal } from '../store/log'
 import { copy } from './copy'
 import type { DayView } from './dayView'
 import { fmtInt, fmtPct, fmtRange } from './format'
 import { mealSourceLabel, mealTimeLabel } from './MealList'
 import { Sheet } from './Sheet'
 import { BasisTag } from './SourceBasis'
+import { checkSavedName, nameKey, savedEarlier, savedMatch } from './usualMeals'
 
 interface MealDetailsProps {
   meal: Meal
@@ -23,14 +27,27 @@ interface MealDetailsProps {
   onEdit: () => void
   onDelete: () => void
   onOpenScore: () => void
+  /** The log's saved meals (build-out item 2.3), to name a match and refuse a taken name. */
+  saved: SavedMeal[]
+  /**
+   * Saves this meal as usual under a checked name, or with `updateId` updates the saved meal saved
+   * from it before it was edited. The sheet stays open and says it was saved.
+   */
+  onSaveUsual: (name: string, updateId?: string) => void
+  /** Opens the Saved meals sheet. */
+  onManageSaved: () => void
 }
 
 function amount(v: number | null): string {
   return v === null ? copy.details.unknown : copy.units.gramsValue(fmtInt(v))
 }
 
-export function MealDetails({ meal, view, demo, onClose, onEdit, onDelete, onOpenScore }: MealDetailsProps) {
+export function MealDetails(props: MealDetailsProps) {
+  const { meal, view, demo, onClose, onEdit, onDelete, onOpenScore } = props
   const [confirming, setConfirming] = useState(false)
+  // While the Save as a usual meal name form is open, its own Cancel and Save are the sheet's
+  // actions: Edit and Delete leave the footer, so two filled buttons are never stacked.
+  const [naming, setNaming] = useState(false)
   const est = estimateMeal(meal)
   const source = meal.source === null ? null : getSource(meal.source)
   // Worked out on the meal's own day, the same way the explanation sheet does it.
@@ -66,7 +83,7 @@ export function MealDetails({ meal, view, demo, onClose, onEdit, onDelete, onOpe
       demo={demo}
       onClose={onClose}
       testId="meal-details"
-      footer={footer}
+      footer={naming ? undefined : footer}
     >
       {est && meal.kcal !== null ? (
         <div className="details-head">
@@ -134,6 +151,154 @@ export function MealDetails({ meal, view, demo, onClose, onEdit, onDelete, onOpe
               : copy.explainMeal.noBetter}
         </p>
       </div>
+
+      <SaveUsual
+        meal={meal}
+        saved={props.saved}
+        onSave={props.onSaveUsual}
+        onManage={props.onManageSaved}
+        onFormOpen={setNaming}
+      />
     </Sheet>
+  )
+}
+
+interface SaveUsualProps {
+  meal: Meal
+  saved: SavedMeal[]
+  onSave: (name: string, updateId?: string) => void
+  onManage: () => void
+  /** Told when the name form opens and closes. */
+  onFormOpen: (open: boolean) => void
+}
+
+/** Save as a usual meal: a button, then a name field (the meal's name to start with) and Save. */
+function SaveUsual({ meal, saved, onSave, onManage, onFormOpen }: SaveUsualProps) {
+  const ids = useId()
+  const [name, setName] = useState<string | null>(null)
+  const [tried, setTried] = useState(false)
+  // The name it was saved under in this sheet: shown even when it differs from the meal's own.
+  const [savedName, setSavedName] = useState<string | null>(null)
+  // "updated" when saving under the earlier saved meal's name replaced its values.
+  const [savedHow, setSavedHow] = useState<'saved' | 'updated'>('saved')
+  const match = savedMatch(meal, saved)
+  const earlier = savedEarlier(meal, saved)
+  const done = savedName ?? match?.name ?? null
+  const doneRef = useRef<HTMLParagraphElement>(null)
+  const openRef = useRef<HTMLButtonElement>(null)
+  // When the form goes (saved, or cancelled), focus moves to what replaced it: the line that says
+  // it was saved, or the button again. It stays inside the sheet, where Esc and Tab keep working.
+  const refocus = useRef<'done' | 'open' | null>(null)
+  useLayoutEffect(() => {
+    const target = refocus.current
+    if (!target) return
+    refocus.current = null
+    ;(target === 'done' ? doneRef.current : openRef.current)?.focus()
+  })
+  // Typed as the earlier saved meal's name, Save updates that one, so its name is not "taken".
+  const updating = earlier !== undefined && name !== null && nameKey(name) === nameKey(earlier.name)
+  const error = name === null ? null : checkSavedName(name, saved, updating ? earlier.id : undefined)
+  // A taken name shows as it is typed; a blank one only after Save is tried.
+  const showError = error !== null && name !== null && (tried || name.trim() !== '')
+
+  if (done !== null) {
+    return (
+      <div className="save-usual" data-testid="save-usual">
+        <p className="save-usual-done" role="status" tabIndex={-1} ref={doneRef} data-testid="saved-as">
+          {savedHow === 'updated' ? copy.usualMeals.updated(done) : copy.usualMeals.savedAs(done)}{' '}
+          <button type="button" className="link-btn" onClick={onManage} data-testid="saved-as-manage">
+            {copy.usualMeals.manage}
+          </button>
+        </p>
+      </div>
+    )
+  }
+
+  if (name === null) {
+    return (
+      <div className="save-usual" data-testid="save-usual">
+        {earlier && (
+          <p className="save-usual-earlier" data-testid="saved-earlier">
+            {copy.usualMeals.savedEarlier(
+              earlier.name,
+              earlier.kcal === null ? copy.missing.unknownKcal : copy.quickLog.kcal(fmtInt(earlier.kcal)),
+            )}
+          </p>
+        )}
+        <button
+          type="button"
+          className="btn"
+          ref={openRef}
+          onClick={() => {
+            setName(meal.name)
+            onFormOpen(true)
+          }}
+          data-testid="save-usual-open"
+        >
+          {copy.usualMeals.save}
+        </button>
+        <p className="field-hint">{copy.usualMeals.saveHint}</p>
+      </div>
+    )
+  }
+
+  return (
+    <form
+      className="save-usual meal-form"
+      noValidate
+      data-testid="save-usual"
+      onSubmit={(e) => {
+        e.preventDefault()
+        setTried(true)
+        if (error !== null) return
+        refocus.current = 'done'
+        setSavedName(name.trim())
+        setSavedHow(updating ? 'updated' : 'saved')
+        onFormOpen(false)
+        onSave(name.trim(), updating ? earlier.id : undefined)
+      }}
+    >
+      <div className="field">
+        <label htmlFor={`${ids}-name`}>{copy.usualMeals.nameLabel}</label>
+        <input
+          id={`${ids}-name`}
+          type="text"
+          value={name}
+          autoFocus
+          onChange={(e) => setName(e.target.value)}
+          aria-invalid={showError ? true : undefined}
+          aria-describedby={showError ? `${ids}-error` : undefined}
+          data-testid="save-usual-name"
+        />
+        {showError && (
+          <p className="field-error" id={`${ids}-error`} data-testid="save-usual-error">
+            {error}
+          </p>
+        )}
+        {updating && !showError && (
+          <p className="field-hint" data-testid="save-usual-updates">
+            {copy.usualMeals.updates(earlier.name)}
+          </p>
+        )}
+      </div>
+      <div className="sheet-actions">
+        <button
+          type="button"
+          className="btn"
+          onClick={() => {
+            refocus.current = 'open'
+            setName(null)
+            setTried(false)
+            onFormOpen(false)
+          }}
+          data-testid="save-usual-cancel"
+        >
+          {copy.usualMeals.cancel}
+        </button>
+        <button type="submit" className="btn btn-primary" data-testid="save-usual-confirm">
+          {copy.usualMeals.confirm}
+        </button>
+      </div>
+    </form>
   )
 }

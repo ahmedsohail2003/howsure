@@ -4,6 +4,8 @@
 // a new meal. In improve mode the sheet highlights the evidence source, the meal's note (its
 // assumptions) and what would improve it. Edit and improve show a before/after preview of the
 // meal and the day. Nothing changes until Save (prd.md > Improve That Entry).
+// Build-out item 2.3: a new meal's sheet opens with Recent and Saved on top (QuickLog.tsx), so a
+// usual meal is logged in two taps: Log a meal, then the meal.
 
 import { useId, useMemo, useState } from 'react'
 import { estimateMeal, suggestedSource } from '../kernel/estimate'
@@ -15,7 +17,9 @@ import { copy } from './copy'
 import { checkDraft, draftFromMeal, fromLocalInput, previewEdit, type EditPreview, type MealDraft } from './editMeal'
 import { fmtInt, fmtPct, fmtRangeEnds, fmtTime, fmtWeekday } from './format'
 import { Sheet } from './Sheet'
+import { QuickLog } from './QuickLog'
 import { BasisTag } from './SourceBasis'
+import type { MealValues } from './usualMeals'
 
 export type MealSheetMode = 'new' | 'edit' | 'improve'
 
@@ -31,6 +35,11 @@ interface LogMealSheetProps {
   demo: boolean
   onSave: (meal: Meal) => void
   onClose: () => void
+  /**
+   * Build-out item 2.3, new meals only: Recent and Saved at the top, each logged again in one tap.
+   * `logsOn` is null when a tap logs the meal now, else the day and time it lands on.
+   */
+  quick?: { logsOn: string | null; onLog: (values: MealValues) => void; onManageSaved: () => void }
 }
 
 /** The "How do you know?" choices: the Tier 1 list, plus the meal's own source if it isn't in it. */
@@ -40,7 +49,7 @@ function sourceOptions(current: MealSourceId | null): MealSourceId[] {
   return ids
 }
 
-export function LogMealSheet({ mode, meal, doc, at, viewDayStart, demo, onSave, onClose }: LogMealSheetProps) {
+export function LogMealSheet({ mode, meal, doc, at, viewDayStart, demo, onSave, onClose, quick }: LogMealSheetProps) {
   const formId = useId()
   const [initial] = useState<MealDraft>(() => draftFromMeal(meal))
   const [draft, setDraft] = useState<MealDraft>(initial)
@@ -136,6 +145,8 @@ export function LogMealSheet({ mode, meal, doc, at, viewDayStart, demo, onSave, 
           )}
         </div>
       )}
+
+      {isNew && quick && <QuickLog doc={doc} logsOn={quick.logsOn} onLog={quick.onLog} onManageSaved={quick.onManageSaved} />}
 
       <form
         id={formId}

@@ -9,7 +9,7 @@ import { copy } from './copy'
 import type { FullScreenMode } from './fullScreen'
 import { lookDef } from './looks'
 
-export type MoreEntryId = 'profile' | 'targets' | 'look' | 'fullScreen' | 'resetDemo'
+export type MoreEntryId = 'profile' | 'targets' | 'savedMeals' | 'look' | 'fullScreen' | 'resetDemo'
 
 /** What an entry may depend on: which log is open, the full-screen view's state, the look. */
 export interface MoreContext {
@@ -39,6 +39,13 @@ export const MORE_ENTRIES: readonly MoreEntryDef[] = [
     shows: () => true,
     label: () => copy.moreMenu.targets,
     hint: (ctx) => (ctx.kind === 'demo' ? copy.moreMenu.targetsHintDemo : copy.moreMenu.targetsHint),
+  },
+  {
+    // Build-out item 2.3: rename or delete the meals saved as usual. In both logs.
+    id: 'savedMeals',
+    shows: () => true,
+    label: () => copy.moreMenu.savedMeals,
+    hint: () => copy.moreMenu.savedMealsHint,
   },
   {
     // Build-out item 1.5.2: the Look sheet. A device setting, so it shows in both logs.
