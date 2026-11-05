@@ -248,6 +248,49 @@ export const copy = {
     deleteFailed: "Couldn't delete everything on this device right now. Try again. The fictional demo is not affected.",
   },
 
+  // Build-out item 1.3: the dashboard's More menu (spec.md > Screens: Tier 3 screens are reached
+  // from it). Each entry has a label and one line saying what it opens.
+  moreMenu: {
+    button: 'More',
+    title: 'More',
+    profile: 'Profile and privacy',
+    profileHint: 'Export, import or delete your log.',
+    targets: 'Targets',
+    targetsHint: 'Your daily calories, protein, carbs and fat.',
+    targetsHintDemo: 'Sam’s daily targets, which are made up.',
+    fullScreenHint: 'Shows HowSure without the browser’s bars. On a wide screen the day sits in two columns.',
+    exitFullScreenHint: 'Back to the normal view. Esc also works.',
+    // The Fullscreen API was missing or refused: the page is widened instead.
+    exitFallbackHint: 'Your browser kept its own bars, so HowSure widened the page instead. Esc also goes back.',
+  },
+
+  // Build-out item 1.3: the full-screen view switch. Its label names the view it goes to.
+  fullScreen: {
+    enter: 'Show full screen',
+    exit: 'Exit full screen',
+  },
+
+  // Build-out item 1.3: the targets editor (spec.md > Data Model: profile.targets).
+  // Blank means no target, never 0.
+  targets: {
+    title: 'Targets',
+    subDemo: 'Sam’s targets are made up, like the rest of the demo.',
+    intro: 'Daily numbers for calories, protein, carbs and fat. Leave a box blank for no target.',
+    kcal: 'Calories (kcal)',
+    protein: 'Protein (g)',
+    carbs: 'Carbs (g)',
+    fat: 'Fat (g)',
+    save: 'Save targets',
+    cancel: 'Cancel',
+    errors: {
+      negative: 'A target can’t be below 0. Type a number, or leave it blank for no target.',
+      zero: 'A target of 0 isn’t used. Type a number above 0, or leave it blank for no target.',
+    },
+    // Shown on the dashboard where a target is set.
+    headline: (kcal: string) => `Daily target ${kcal} kcal`,
+    macro: (grams: string) => `Target ${grams} g`,
+  },
+
   logMeal: {
     titleNew: 'Log a meal',
     titleEdit: (meal: string) => `Edit: ${meal}`,

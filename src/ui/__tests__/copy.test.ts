@@ -164,6 +164,32 @@ describe('required wording', () => {
   })
 })
 
+describe('More menu, targets and full-screen wording (build-out item 1.3)', () => {
+  it('names the menu More, as spec.md > Screens does', () => {
+    expect(copy.moreMenu.button).toBe('More')
+  })
+
+  it('the full-screen switch names the view it goes to', () => {
+    expect(copy.fullScreen.enter).toBe('Show full screen')
+    expect(copy.fullScreen.exit).toBe('Exit full screen')
+  })
+
+  it('targets say blank means no target, and each refusal offers the way forward without blaming', () => {
+    expect(copy.targets.intro).toContain('blank for no target')
+    for (const [name, text] of Object.entries(copy.targets.errors)) {
+      expect(text, name).toContain('leave it blank for no target')
+      expect(text, name).not.toMatch(/\b(invalid|wrong|mistake)\b/i)
+    }
+    expect(copy.targets.headline('2,400')).toBe('Daily target 2,400 kcal')
+    expect(copy.targets.macro('130')).toBe('Target 130 g')
+  })
+
+  it('target lines carry no verdict (no deficit, surplus, over or under)', () => {
+    const lines = [copy.targets.headline('X'), copy.targets.macro('X'), copy.targets.intro, copy.targets.subDemo]
+    for (const line of lines) expect(line).not.toMatch(/deficit|surplus|\bover\b|\bunder\b|room left/i)
+  })
+})
+
 describe('Profile and privacy wording (prd.md > Privacy Panel, build-out item 1.2)', () => {
   it('uses the names prd.md gives', () => {
     expect(copy.privacy.savedHere).toBe('Saved on this device only')

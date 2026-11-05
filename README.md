@@ -62,6 +62,13 @@ In your own log, tap your name at the top (or "Your log") to open **Profile and 
 - **Import a log** reads a file made by Export, shows what it holds and what it replaces, and changes nothing until you confirm. Files from an older format are updated as they are imported. A file from a newer version, a file that isn't a HowSure log, and a file holding the fictional demo are refused, and nothing changes.
 - **Delete my data** lists what it removes, asks first, and then removes your own log from this browser, including older copies kept by format updates. The fictional demo is not affected.
 
+### More: targets and full screen
+
+**More**, at the top of the dashboard, lists the app's other places: Profile and privacy (your own log), **Targets** and **Show full screen**.
+
+- **Targets** holds your daily calories, protein, carbs and fat. A blank box means no target; 0 and negative numbers are refused. A target shows as a plain line under the headline and under its macro. In the demo these are Sam's made-up targets, and a change stays in the demo.
+- **Show full screen** shows HowSure without the browser's bars, and on a wide screen puts the day's numbers and the meal list side by side. Where the browser can't or won't go full screen (for example Safari on an iPhone), the page widens instead and says so. **Exit full screen** at the top, or Esc, goes back. Nothing about it is saved.
+
 ## Run the checks
 
 ```bash

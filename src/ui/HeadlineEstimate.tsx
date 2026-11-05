@@ -5,20 +5,24 @@
 // with no known calories (every meal unknown, or nothing logged) says "Not available yet" for
 // calories, ranges and score, never a zero or a perfect score. A typed 0 is known, so a day of
 // 0 kcal meals shows 0 kcal, with ranges and score not available (there is nothing to divide by).
+// A daily calorie target, when set, is a plain line under the score (build-out item 1.3): no
+// verdict and no room-left sum, which come with their own slices.
 
 import type { DayEstimate } from '../kernel/types'
 import { copy } from './copy'
 import type { ExplainMode } from './ExplainSheet'
-import { fmtInt, fmtRange } from './format'
+import { fmtAmount, fmtInt, fmtRange } from './format'
 
 interface HeadlineEstimateProps {
   day: DayEstimate
   onOpen: (mode: ExplainMode) => void
   /** False on an earlier waking day (prd.md > Previous Days), so the label doesn't say "today". */
   today?: boolean
+  /** The daily calorie target, when one is set (build-out item 1.3). Shown as a plain line. */
+  targetKcal?: number
 }
 
-export function HeadlineEstimate({ day, onOpen, today = true }: HeadlineEstimateProps) {
+export function HeadlineEstimate({ day, onOpen, today = true, targetKcal }: HeadlineEstimateProps) {
   const hasKnown = day.status === 'complete' || day.status === 'partial'
   const partial = day.status === 'partial'
   const unknownCount = day.unknownMealIds.length
@@ -95,6 +99,12 @@ export function HeadlineEstimate({ day, onOpen, today = true }: HeadlineEstimate
       ) : (
         <p className="score-na" data-testid="day-score-na">
           {copy.headline.estimateScoreNotAvailable}
+        </p>
+      )}
+
+      {targetKcal !== undefined && (
+        <p className="headline-target num" data-testid="headline-target">
+          {copy.targets.headline(fmtAmount(targetKcal))}
         </p>
       )}
     </section>

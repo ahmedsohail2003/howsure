@@ -28,13 +28,18 @@ import { blankMeal, defaultMealTime, newMealId, toLocalInput, withMeal, withoutM
 import { ExplainSheet, type ExplainMode } from './ExplainSheet'
 import { FictionalBanner } from './FictionalBanner'
 import { FirstOpen } from './FirstOpen'
+import { useFullScreenView } from './fullScreen'
 import { LogMealSheet } from './LogMealSheet'
 import { downloadText } from './download'
 import { MealDetails } from './MealDetails'
+import { MoreMenu } from './MoreMenu'
+import { moreEntries, type MoreEntryId } from './moreMenu'
 import { ProfilePrivacy, type DeleteOutcome, type ImportOutcome } from './ProfilePrivacy'
 import { SleepTimeSheet } from './SleepTimeSheet'
 import { buildSleepView, type SleepAction } from './sleepView'
 import { StorageNotice } from './StorageNotice'
+import { withTargets, type Targets } from './targets'
+import { TargetsSheet } from './TargetsSheet'
 
 type SheetState =
   | ExplainMode
@@ -47,6 +52,9 @@ type SheetState =
   | { mode: 'sleepTime'; action: SleepAction }
   // Profile and privacy: Export, Import and Delete for your own log (build-out item 1.2).
   | { mode: 'profile' }
+  // The More menu and the targets editor (build-out item 1.3).
+  | { mode: 'more' }
+  | { mode: 'targets' }
 
 /** Re-render once a minute so "now" (and with it the current waking day) stays fresh. */
 function useMinuteTick(): number {
@@ -70,6 +78,8 @@ export function App() {
   const tick = useMinuteTick()
   // Per log, why its saved copy is left as it is. Delete and Import clear your own log's problem.
   const [problems, setProblems] = useState<Record<LogKind, LogProblem | null>>(initial.problems)
+  // The full-screen view (build-out item 1.3). Not saved: a reload opens the normal view.
+  const fullScreen = useFullScreenView()
 
   /**
    * Write the whole document, synchronously. A log whose saved copy couldn't be read, came from
@@ -209,6 +219,35 @@ export function App() {
     return res.ok ? 'ok' : 'failed'
   }
 
+  /** Targets editor Save: the open log's targets (Sam's in the demo, which stay in the demo). */
+  function saveTargets(targets: Targets) {
+    if (doc) commit(withTargets(doc, targets))
+  }
+
+  /**
+   * A More menu entry: the menu closes, then the entry opens. A new entry in moreMenu.ts needs a
+   * case here; TypeScript flags a missing one.
+   */
+  function chooseMore(id: MoreEntryId) {
+    switch (id) {
+      case 'profile':
+        setSheet({ mode: 'profile' })
+        return
+      case 'targets':
+        setSheet({ mode: 'targets' })
+        return
+      case 'fullScreen':
+        setSheet(null)
+        if (fullScreen.mode === 'off') fullScreen.enter()
+        else fullScreen.exit()
+        return
+      default: {
+        const unhandled: never = id
+        throw new Error(`More menu entry with no action: ${String(unhandled)}`)
+      }
+    }
+  }
+
   /** Log a meal: a blank meal dated now, or on the viewed waking day when that isn't today's. */
   function openLogMeal() {
     if (!doc || !view || !at) return
@@ -269,7 +308,23 @@ export function App() {
         onToday={() => setViewed(null)}
         ownName={logs.mine.profile.name}
         onOpenProfile={() => setSheet({ mode: 'profile' })}
+        targets={doc.profile.targets}
+        onOpenMore={() => setSheet({ mode: 'more' })}
+        moreOpen={sheet?.mode === 'more'}
+        fullScreenOn={fullScreen.mode !== 'off'}
+        onExitFullScreen={fullScreen.exit}
       />
+      {sheet?.mode === 'more' && (
+        <MoreMenu
+          entries={moreEntries({ kind: active, fullScreen: fullScreen.mode })}
+          demo={demo}
+          onChoose={chooseMore}
+          onClose={() => setSheet(null)}
+        />
+      )}
+      {sheet?.mode === 'targets' && (
+        <TargetsSheet targets={doc.profile.targets} demo={demo} onSave={saveTargets} onClose={() => setSheet(null)} />
+      )}
       {explain && <ExplainSheet mode={explain} view={view} demo={demo} onClose={() => setSheet(null)} />}
       {details && (
         <MealDetails

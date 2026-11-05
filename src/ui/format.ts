@@ -12,6 +12,13 @@ export function fmtInt(n: number): string {
   return group.format(Math.round(n))
 }
 
+const amount = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2, useGrouping: true })
+
+/** A typed amount as typed, grouped, with up to 2 decimals: 2400 -> "2,400", 62.5 -> "62.5". */
+export function fmtAmount(n: number): string {
+  return amount.format(n)
+}
+
 /** A range's ends rounded with Math.round, joined by an en dash: "1,870–2,780". */
 export function fmtRangeEnds(r: Range): { lo: string; hi: string } {
   return { lo: fmtInt(Math.max(0, r.lo)), hi: fmtInt(r.hi) }
