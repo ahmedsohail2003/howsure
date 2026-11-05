@@ -17,9 +17,17 @@
 // className can take) in every mix of states, hover and disabled together included, and works
 // out which color and background win, as the browser does. Text a rule sets inside another
 // rule's fill (".a .b { color }") is checked against that fill too.
+//
+// Every look (build-out item 1.5.2) is checked with all of the above. Journal, the default, is
+// theme.css without any look-scoped rule. Another look is Journal's rules plus the rules scoped
+// to it ([data-look="night"] ...), with its token overrides ([data-look="night"] { --bg: ... })
+// applied on top of the :root palette, and without the rules of any other look. Each look named
+// in theme.css, and each look src/ui/looks.ts offers, is found and checked automatically.
 import { readdirSync, readFileSync } from 'node:fs'
 import { parseSync } from 'vite'
 import { describe, expect, it } from 'vitest'
+import type { Look } from '../../store/look'
+import { BUILT_LOOKS } from '../looks'
 
 // Read from disk: vitest stubs CSS imports, even with ?raw.
 const css = readFileSync(new URL('../theme.css', import.meta.url), 'utf8')
@@ -52,6 +60,8 @@ const isDark = (hex: string) => ratio(hex, WHITE) > ratio(hex, BLACK)
 interface Rule {
   selector: string
   decls: Map<string, string>
+  /** Specificity a look scope added before it was taken off the selector: [data-look] is (0,1,0). */
+  bonus?: number
 }
 
 /** Blocks parseRules could not look inside. Must stay empty (see the "never skip" test). */
@@ -99,17 +109,27 @@ function parseRules(text: string, skipped: string[] = skippedAtRules): Rule[] {
   return rules
 }
 
-const rules = parseRules(css.replace(/\/\*[\s\S]*?\*\//g, ''))
-const root = rules.find((r) => r.selector === ':root')
-const tokens = new Map([...(root?.decls ?? [])].filter(([k]) => k.startsWith('--')))
+const allRules = parseRules(css.replace(/\/\*[\s\S]*?\*\//g, ''))
+
+type Tokens = Map<string, string>
+
+/** The custom properties set in a list of rules' :root blocks, later ones winning. */
+function rootTokens(ruleList: Rule[]): Tokens {
+  const out: Tokens = new Map()
+  for (const r of ruleList) {
+    if (r.selector !== ':root') continue
+    for (const [k, v] of r.decls) if (k.startsWith('--')) out.set(k, v)
+  }
+  return out
+}
 
 /** A solid colour as "#RRGGBB", or null for a value that has none (none, transparent, inherit). */
-function solid(value: string): string | null | 'unreadable' {
+function solid(value: string, tokens: Tokens): string | null | 'unreadable' {
   const v = value.trim()
   const ref = /^var\((--[\w-]+)\)$/.exec(v)
   if (ref) {
     const t = tokens.get(ref[1])
-    return t === undefined ? 'unreadable' : solid(t)
+    return t === undefined ? 'unreadable' : solid(t, tokens)
   }
   const hex = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(v)
   if (hex) {
@@ -120,14 +140,64 @@ function solid(value: string): string | null | 'unreadable' {
   return 'unreadable'
 }
 
-function bgOf(r: Rule): string | null | 'unreadable' {
+function bgOf(r: Rule, tokens: Tokens): string | null | 'unreadable' {
   const v = r.decls.get('background-color') ?? r.decls.get('background')
-  return v === undefined ? null : solid(v)
+  return v === undefined ? null : solid(v, tokens)
 }
 
-function colourOf(r: Rule): string | null | 'unreadable' {
+function colourOf(r: Rule, tokens: Tokens): string | null | 'unreadable' {
   const v = r.decls.get('color')
-  return v === undefined ? null : solid(v)
+  return v === undefined ? null : solid(v, tokens)
+}
+
+// ---------- looks: each look's rules and palette ----------
+
+/** A look scope: [data-look="night"], on its own or after :root or html. */
+const LOOK_SCOPE = /\[data-look="([a-z][a-z0-9-]*)"\]/
+const LEADING_SCOPE = /^(?::root|html)?\[data-look="[a-z][a-z0-9-]*"\]/
+
+/** Journal first (it has no scope), then every look named in a selector, in the order found. */
+function looksIn(ruleList: Rule[]): string[] {
+  const out = ['journal']
+  for (const r of ruleList) {
+    const m = LOOK_SCOPE.exec(r.selector)
+    if (m && !out.includes(m[1])) out.push(m[1])
+  }
+  return out
+}
+
+interface LookRules {
+  look: string
+  rules: Rule[]
+  tokens: Tokens
+  /** Selectors whose look scope is not at the start, so it can't be read. Must stay empty. */
+  misplaced: string[]
+}
+
+/**
+ * The rules a page in `look` uses: every unscoped rule, plus the rules scoped to this look with
+ * the scope taken off (and its specificity kept as `bonus`). "[data-look=x] { }" becomes a :root
+ * block, so its custom properties override the :root palette.
+ */
+function forLook(ruleList: Rule[], look: string): LookRules {
+  const rules: Rule[] = []
+  const misplaced: string[] = []
+  for (const r of ruleList) {
+    const m = LOOK_SCOPE.exec(r.selector)
+    if (!m) {
+      rules.push(r)
+      continue
+    }
+    if (!LEADING_SCOPE.test(r.selector)) {
+      misplaced.push(r.selector)
+      continue
+    }
+    if (m[1] !== look) continue
+    const rest = r.selector.replace(LEADING_SCOPE, '')
+    const selector = rest.trim() === '' ? ':root' : rest.startsWith(' ') ? rest.trim() : `:root${rest}`
+    rules.push({ selector, decls: r.decls, bonus: 100 })
+  }
+  return { look, rules, tokens: rootTokens(rules), misplaced }
 }
 
 const PSEUDO_NAMES = 'hover|focus|focus-visible|focus-within|active|disabled|checked|visited'
@@ -140,7 +210,17 @@ const stripStates = (sel: string) => sel.replace(/:not\([^)]*\)/g, '').replace(A
 const NO_TEXT: Record<string, string> = {
   '.contrib-bar': 'the aria-hidden contribution bar holds no text; its share is printed beside it',
   '.contrib-bar span': 'the amber fill of that bar, also no text',
+  '.range-summary .range-track':
+    'the track of the aria-hidden range bar (Journal look) holds no text; every number is in the legend beside it',
+  '.range-summary .likely-band': 'the likely band of that bar and its legend key, no text (the legend names it)',
+  '.range-summary .range-best': 'the best-estimate marker of that bar and its legend key, no text (the legend names it)',
 }
+/** Selector starts whose rules hold no text, with why. Each must still match a rule. */
+const NO_TEXT_PREFIXES: Record<string, string> = {
+  '.look-preview-':
+    "each look's small aria-hidden preview in the Look sheet and its parts, drawn in that look's own colours; the look's name and description sit beside it",
+}
+const holdsNoText = (sel: string) => sel in NO_TEXT || Object.keys(NO_TEXT_PREFIXES).some((p) => sel.startsWith(p))
 /** Backgrounds that only ever hold their own rule's text colour, with why. */
 const ONLY_OWN_TEXT: Record<string, string> = {
   '.btn:disabled':
@@ -157,48 +237,61 @@ interface Pair {
   where: string
 }
 
-const ownPairs: Pair[] = []
-const surfaces = new Map<string, string>() // hex -> first selector that uses it
-const darkUnpaired: string[] = []
-const unreadable: string[] = []
-
-for (const r of rules) {
-  const bg = bgOf(r)
-  const fg = colourOf(r)
-  if (bg === 'unreadable' && !(r.selector in OVERLAYS)) unreadable.push(`${r.selector} background`)
-  if (fg === 'unreadable') unreadable.push(`${r.selector} color`)
-  if (typeof bg !== 'string' || bg === 'unreadable' || r.selector in NO_TEXT) continue
-
-  let text = typeof fg === 'string' && fg !== 'unreadable' ? fg : null
-  if (!text && HAS_PSEUDO.test(r.selector)) {
-    // A state rule keeps its base rule's text colour (e.g. .btn-primary:hover keeps white).
-    const base = stripStates(r.selector)
-    const baseRule = rules.filter((b) => b.selector === base && typeof colourOf(b) === 'string').pop()
-    const c = baseRule ? colourOf(baseRule) : null
-    if (c && c !== 'unreadable') text = c
-  }
-
-  if (text) ownPairs.push({ text, bg, where: r.selector })
-  if (isDark(bg)) {
-    if (!text) darkUnpaired.push(r.selector)
-  } else if (!(r.selector in ONLY_OWN_TEXT) && !surfaces.has(bg)) {
-    surfaces.set(bg, r.selector)
-  }
+interface RulePairs {
+  ownPairs: Pair[]
+  /** Light backgrounds any text may sit on: hex -> first selector that uses it. */
+  surfaces: Map<string, string>
+  darkUnpaired: string[]
+  unreadable: string[]
+  /** Every text colour set in a rule that doesn't put it on a dark fill of its own. */
+  lightTextColours: Map<string, string>
+  surfacePairs: Pair[]
 }
 
-/** Every text colour set in a rule that doesn't put it on a dark fill of its own. */
-const lightTextColours = new Map<string, string>()
-for (const r of rules) {
-  const fg = colourOf(r)
-  const bg = bgOf(r)
-  if (typeof fg !== 'string' || fg === 'unreadable') continue
-  if (typeof bg === 'string' && bg !== 'unreadable' && isDark(bg)) continue
-  if (!lightTextColours.has(fg)) lightTextColours.set(fg, r.selector)
-}
+function rulePairs(rules: Rule[], tokens: Tokens): RulePairs {
+  const ownPairs: Pair[] = []
+  const surfaces = new Map<string, string>()
+  const darkUnpaired: string[] = []
+  const unreadable: string[] = []
 
-const surfacePairs: Pair[] = []
-for (const [text, textWhere] of lightTextColours) {
-  for (const [bg, bgWhere] of surfaces) surfacePairs.push({ text, bg, where: `${textWhere} on ${bgWhere}` })
+  for (const r of rules) {
+    const bg = bgOf(r, tokens)
+    const fg = colourOf(r, tokens)
+    if (bg === 'unreadable' && !(r.selector in OVERLAYS)) unreadable.push(`${r.selector} background`)
+    if (fg === 'unreadable') unreadable.push(`${r.selector} color`)
+    if (typeof bg !== 'string' || bg === 'unreadable' || holdsNoText(r.selector)) continue
+
+    let text = typeof fg === 'string' && fg !== 'unreadable' ? fg : null
+    if (!text && HAS_PSEUDO.test(r.selector)) {
+      // A state rule keeps its base rule's text colour (e.g. .btn-primary:hover keeps white).
+      const base = stripStates(r.selector)
+      const baseRule = rules.filter((b) => b.selector === base && typeof colourOf(b, tokens) === 'string').pop()
+      const c = baseRule ? colourOf(baseRule, tokens) : null
+      if (c && c !== 'unreadable') text = c
+    }
+
+    if (text) ownPairs.push({ text, bg, where: r.selector })
+    if (isDark(bg)) {
+      if (!text) darkUnpaired.push(r.selector)
+    } else if (!(r.selector in ONLY_OWN_TEXT) && !surfaces.has(bg)) {
+      surfaces.set(bg, r.selector)
+    }
+  }
+
+  const lightTextColours = new Map<string, string>()
+  for (const r of rules) {
+    const fg = colourOf(r, tokens)
+    const bg = bgOf(r, tokens)
+    if (typeof fg !== 'string' || fg === 'unreadable') continue
+    if (typeof bg === 'string' && bg !== 'unreadable' && isDark(bg)) continue
+    if (!lightTextColours.has(fg)) lightTextColours.set(fg, r.selector)
+  }
+
+  const surfacePairs: Pair[] = []
+  for (const [text, textWhere] of lightTextColours) {
+    for (const [bg, bgWhere] of surfaces) surfacePairs.push({ text, bg, where: `${textWhere} on ${bgWhere}` })
+  }
+  return { ownPairs, surfaces, darkUnpaired, unreadable, lightTextColours, surfacePairs }
 }
 
 // ---------- the cascade: every state of every element the screens draw ----------
@@ -251,9 +344,12 @@ interface CascadeResult {
   bareText: Pair[]
 }
 
-function cascade(ruleList: Rule[], elements: Element[], surfaceMap: Map<string, string>): CascadeResult {
+function cascade(ruleList: Rule[], elements: Element[], surfaceMap: Map<string, string>, tokens: Tokens): CascadeResult {
   const compounds = ruleList
-    .map((r, index) => ({ r, index, c: parseCompound(r.selector) }))
+    .map((r, index) => {
+      const c = parseCompound(r.selector)
+      return { r, index, c: c && { ...c, specificity: c.specificity + (r.bonus ?? 0) } }
+    })
     .filter((x): x is { r: Rule; index: number; c: Compound } => x.c !== null)
   const stateNames = [...new Set(compounds.flatMap((x) => [...x.c.states, ...x.c.notStates]))].filter((n) =>
     new RegExp(`^(${PSEUDO_NAMES})$`).test(n),
@@ -277,8 +373,8 @@ function cascade(ruleList: Rule[], elements: Element[], surfaceMap: Map<string, 
       const winner = (has: (r: Rule) => boolean) => matching.filter((x) => has(x.r)).pop()?.r
       const fgRule = winner((r) => r.decls.has('color'))
       const bgRule = winner((r) => r.decls.has('background') || r.decls.has('background-color'))
-      const fg = fgRule ? colourOf(fgRule) : null
-      const bg = bgRule ? bgOf(bgRule) : null
+      const fg = fgRule ? colourOf(fgRule, tokens) : null
+      const bg = bgRule ? bgOf(bgRule, tokens) : null
       const label = `<${el.tag ?? 'component'} class="${el.classes.join(' ')}">${states.length ? ` :${states.join(' :')}` : ''} (${el.where})`
       const add = (list: Pair[] | string[], key: string, item: Pair | string) => {
         if (seen.has(key)) return
@@ -366,24 +462,23 @@ const CODE_CLASSES: Element[] = [{ tag: 'html', classes: ['full-view'], where: '
 
 const unreadClassNames: string[] = []
 const uiElements = [...elementsInUi(unreadClassNames), ...CODE_CLASSES]
-const resolved = cascade(rules, uiElements, surfaces)
 
 // ---------- text set inside a fill: ".a .b { color }" sits on ".a"'s background ----------
 
-function descendantPairs(ruleList: Rule[]): Pair[] {
+function descendantPairs(ruleList: Rule[], tokens: Tokens): Pair[] {
   const out: Pair[] = []
   for (const r of ruleList) {
-    const fg = colourOf(r)
+    const fg = colourOf(r, tokens)
     if (typeof fg !== 'string' || fg === 'unreadable') continue
-    if (typeof bgOf(r) === 'string') continue // its own fill is what it sits on (checked above)
-    const tokens = r.selector.split(' ')
-    for (let k = 0; k < tokens.length - 1; k += 1) {
-      if (['>', '+', '~'].includes(tokens[k])) continue
+    if (typeof bgOf(r, tokens) === 'string') continue // its own fill is what it sits on (checked above)
+    const parts = r.selector.split(' ')
+    for (let k = 0; k < parts.length - 1; k += 1) {
+      if (['>', '+', '~'].includes(parts[k])) continue
       // Only ancestors: the next combinator must be a space or ">", not "+" or "~".
-      if (tokens[k + 1] === '+' || tokens[k + 1] === '~') continue
-      const ancestor = stripStates(tokens[k])
+      if (parts[k + 1] === '+' || parts[k + 1] === '~') continue
+      const ancestor = stripStates(parts[k])
       for (const b of ruleList) {
-        const bg = bgOf(b)
+        const bg = bgOf(b, tokens)
         if (typeof bg !== 'string' || bg === 'unreadable' || stripStates(b.selector) !== ancestor) continue
         out.push({ text: fg, bg, where: `${r.selector} inside ${b.selector}` })
       }
@@ -391,8 +486,6 @@ function descendantPairs(ruleList: Rule[]): Pair[] {
   }
   return out
 }
-
-const insidePairs = descendantPairs(rules)
 
 // ---------- signal colours (non-text) ----------
 
@@ -406,60 +499,90 @@ interface SignalUse {
   where: string
 }
 
-const signalUses: SignalUse[] = []
-for (const r of rules) {
-  if (r.selector === ':root') continue
-  for (const [prop, value] of r.decls) {
-    if (!SIGNAL_PROPS.test(prop)) continue
-    for (const token of SIGNALS) {
-      if (!value.includes(`var(${token})`)) continue
-      const hex = solid(`var(${token})`) as string
-      const where = `${r.selector} { ${prop} }`
-      const own = bgOf(r)
-      const isFill = prop === 'background' || prop === 'background-color'
-      // A border or outline sits on the element's own fill, unless it is the same colour as
-      // that fill (then it is just the fill's edge, checked against the surroundings below).
-      if (!isFill && typeof own === 'string' && own !== 'unreadable' && own !== hex) {
-        signalUses.push({ token, hex, against: own, where: `${where} on its own background` })
-      }
-      // And on whatever is behind the element: its parent's fill if the selector names one,
-      // otherwise any surface.
-      const parts = r.selector.split(' ')
-      const parentRule =
-        parts.length > 1
-          ? rules.filter((p) => p.selector === parts.slice(0, -1).join(' ') && typeof bgOf(p) === 'string').pop()
-          : undefined
-      const parentBg = parentRule ? bgOf(parentRule) : null
-      if (typeof parentBg === 'string' && parentBg !== 'unreadable') {
-        signalUses.push({ token, hex, against: parentBg, where: `${where} on ${parentRule!.selector}` })
-      } else {
-        for (const [bg, bgWhere] of surfaces) signalUses.push({ token, hex, against: bg, where: `${where} on ${bgWhere}` })
+function signalUsesIn(rules: Rule[], tokens: Tokens, surfaces: Map<string, string>): SignalUse[] {
+  const signalUses: SignalUse[] = []
+  for (const r of rules) {
+    if (r.selector === ':root') continue
+    for (const [prop, value] of r.decls) {
+      if (!SIGNAL_PROPS.test(prop)) continue
+      for (const token of SIGNALS) {
+        if (!value.includes(`var(${token})`)) continue
+        const hex = solid(`var(${token})`, tokens) as string
+        const where = `${r.selector} { ${prop} }`
+        const own = bgOf(r, tokens)
+        const isFill = prop === 'background' || prop === 'background-color'
+        // A border or outline sits on the element's own fill, unless it is the same colour as
+        // that fill (then it is just the fill's edge, checked against the surroundings below).
+        if (!isFill && typeof own === 'string' && own !== 'unreadable' && own !== hex) {
+          signalUses.push({ token, hex, against: own, where: `${where} on its own background` })
+        }
+        // And on whatever is behind the element: its parent's fill if the selector names one,
+        // otherwise any surface.
+        const parts = r.selector.split(' ')
+        const parentRule =
+          parts.length > 1
+            ? rules.filter((p) => p.selector === parts.slice(0, -1).join(' ') && typeof bgOf(p, tokens) === 'string').pop()
+            : undefined
+        const parentBg = parentRule ? bgOf(parentRule, tokens) : null
+        if (typeof parentBg === 'string' && parentBg !== 'unreadable') {
+          signalUses.push({ token, hex, against: parentBg, where: `${where} on ${parentRule!.selector}` })
+        } else {
+          for (const [bg, bgWhere] of surfaces) signalUses.push({ token, hex, against: bg, where: `${where} on ${bgWhere}` })
+        }
       }
     }
   }
+  return signalUses
 }
 
 const fmt = (n: number) => n.toFixed(2)
 
+// ---------- every look, analysed the same way ----------
+
+interface LookAnalysis extends RulePairs {
+  look: string
+  rules: Rule[]
+  tokens: Tokens
+  misplaced: string[]
+  resolved: CascadeResult
+  insidePairs: Pair[]
+  signalUses: SignalUse[]
+}
+
+function analyse(lr: LookRules, elements: Element[]): LookAnalysis {
+  const pairs = rulePairs(lr.rules, lr.tokens)
+  return {
+    ...lr,
+    ...pairs,
+    resolved: cascade(lr.rules, elements, pairs.surfaces, lr.tokens),
+    insidePairs: descendantPairs(lr.rules, lr.tokens),
+    signalUses: signalUsesIn(lr.rules, lr.tokens, pairs.surfaces),
+  }
+}
+
+/** Every look named in theme.css, and every look src/ui/looks.ts offers. Journal comes first. */
+const LOOK_IDS = [...new Set([...looksIn(allRules), ...BUILT_LOOKS])]
+const analyses = LOOK_IDS.map((look) => analyse(forLook(allRules, look), uiElements))
+const journal = analyses[0]
+// Journal's rules and palette, for the checks below that are about the reader itself.
+const rules = journal.rules
+const tokens = journal.tokens
+const surfaces = journal.surfaces
+
 // ---------- tests ----------
+
+const textFailures = (pairs: Pair[]) =>
+  pairs.filter((p) => ratio(p.text, p.bg) < 4.5).map((p) => `${p.where}: ${p.text} on ${p.bg} is ${fmt(ratio(p.text, p.bg))}:1`)
 
 describe('reading theme.css', () => {
   it('finds the colour tokens and the rules that use them', () => {
     for (const t of ['--bg', '--surface', '--ink', '--ink-soft', '--teal', '--teal-ink', '--amber', '--amber-ink', '--amber-bg']) {
       expect(tokens.has(t), t).toBe(true)
     }
-    expect(lightTextColours.size).toBeGreaterThanOrEqual(4)
+    expect(journal.lightTextColours.size).toBeGreaterThanOrEqual(4)
     expect(surfaces.size).toBeGreaterThanOrEqual(4)
-    expect(ownPairs.length).toBeGreaterThanOrEqual(5)
-    expect(signalUses.length).toBeGreaterThanOrEqual(20)
-  })
-
-  it('can read every color and background value (add new forms to the parser, never skip them)', () => {
-    expect(unreadable).toEqual([])
-  })
-
-  it('every dark fill names the colour of the text on it', () => {
-    expect(darkUnpaired).toEqual([])
+    expect(journal.ownPairs.length).toBeGreaterThanOrEqual(5)
+    expect(journal.signalUses.length).toBeGreaterThanOrEqual(20)
   })
 
   it('looks inside every at-rule block that can hold colour rules (no block is skipped)', () => {
@@ -483,11 +606,82 @@ describe('reading theme.css', () => {
     for (const sel of [...Object.keys(NO_TEXT), ...Object.keys(ONLY_OWN_TEXT), ...Object.keys(OVERLAYS)]) {
       expect(rules.some((r) => r.selector === sel), sel).toBe(true)
     }
+    for (const prefix of Object.keys(NO_TEXT_PREFIXES)) {
+      expect(rules.some((r) => r.selector.startsWith(prefix)), prefix).toBe(true)
+    }
+  })
+})
+
+describe('the looks (build-out item 1.5.2)', () => {
+  it('checks Journal and every look src/ui/looks.ts offers', () => {
+    expect(LOOK_IDS[0]).toBe('journal')
+    for (const look of BUILT_LOOKS) expect(LOOK_IDS).toContain(look)
+  })
+
+  it('every look scope starts its selector, so it can be read', () => {
+    for (const a of analyses) expect(a.misplaced, a.look).toEqual([])
+  })
+
+  // Each look's preview in the Look sheet is drawn in that look's own colours, written out as
+  // hex because the preview must keep them whatever look is on. Every one must be a token of
+  // that look's palette, so a palette change that forgets the preview fails here.
+  it("each look's preview in the Look sheet uses only that look's palette colours", () => {
+    for (const a of analyses) {
+      if (!BUILT_LOOKS.includes(a.look as Look)) continue
+      const palette = new Set([...a.tokens.values()].map((v) => v.trim().toUpperCase()))
+      const used = allRules
+        .filter((r) => r.selector.split(',').some((part) => part.trim().startsWith(`.look-preview-${a.look}`)))
+        .flatMap((r) => [...r.decls.values()].flatMap((value) => value.match(/#[0-9A-Fa-f]{3,8}\b/g) ?? []))
+      expect(used.length, `${a.look} preview colours`).toBeGreaterThan(0)
+      for (const hex of used) expect(palette.has(hex.toUpperCase()), `${a.look} preview ${hex}`).toBe(true)
+    }
+  })
+
+  it("Journal's palette is the :root palette, with no look-scoped rule in it", () => {
+    expect(journal.tokens).toEqual(rootTokens(allRules.filter((r) => r.selector === ':root')))
+    expect(journal.rules.filter((r) => r.bonus !== undefined)).toEqual([])
+  })
+
+  // A small sheet with a made-up look, to show a new look is found and held to the same rules.
+  const SAMPLE = `
+    :root { --bg: #FAF7F2; --ink: #2B2B2B; --teal: #2F7F7A; }
+    body { background: var(--bg); color: var(--ink); }
+    .chip { border: 1px solid var(--teal); }
+    [data-look="dusk"] { --bg: #1E2226; --ink: #3A3F44; }
+    [data-look="dusk"] .note { color: var(--ink); }
+    [data-look="other"] .note { color: #FFFFFF; }
+  `
+  const sampleRules = parseRules(SAMPLE)
+  const body: Element[] = [{ tag: 'body', classes: [], where: 'sample' }]
+
+  it('finds a look added to theme.css without any change to this test', () => {
+    expect(looksIn(sampleRules)).toEqual(['journal', 'dusk', 'other'])
+  })
+
+  it("applies a look's token overrides and its own rules, and leaves out other looks' rules", () => {
+    const dusk = forLook(sampleRules, 'dusk')
+    expect(dusk.tokens.get('--bg')).toBe('#1E2226')
+    expect(dusk.tokens.get('--teal')).toBe('#2F7F7A')
+    expect(dusk.rules.map((r) => r.selector)).toEqual([':root', 'body', '.chip', ':root', '.note'])
+    expect(dusk.rules.find((r) => r.selector === '.note')?.bonus).toBe(100)
+    expect(forLook(sampleRules, 'journal').rules.map((r) => r.selector)).toEqual([':root', 'body', '.chip'])
+  })
+
+  it('fails a look whose palette breaks the rules, while Journal passes', () => {
+    const j = analyse(forLook(sampleRules, 'journal'), body)
+    const d = analyse(forLook(sampleRules, 'dusk'), body)
+    expect(textFailures(j.resolved.pairs)).toEqual([])
+    // --ink #3A3F44 on --bg #1E2226 (Python, WCAG 2.x, 2026-11-05: 1.50:1).
+    expect(textFailures(d.resolved.pairs)).toEqual([expect.stringContaining('#3A3F44 on #1E2226 is 1.50:1')])
+  })
+
+  it('reports a look scope that is not at the start of its selector', () => {
+    expect(forLook(parseRules('.a [data-look="dusk"] .b { color: #000000 }'), 'dusk').misplaced).toEqual(['.a [data-look="dusk"] .b'])
   })
 })
 
 describe('agrees with the ratios spec.md lists (computed in Python, 2026-10-26)', () => {
-  const t = (name: string) => solid(`var(${name})`) as string
+  const t = (name: string) => solid(`var(${name})`, tokens) as string
   it.each([
     ['--amber', '--bg', 3.41],
     ['--teal', '--bg', 4.43],
@@ -513,70 +707,65 @@ describe('agrees with the ratios spec.md lists (computed in Python, 2026-10-26)'
   })
 })
 
-describe('text contrast: at least 4.5:1', () => {
-  it('each rule that sets both a text colour and a background', () => {
-    const bad = ownPairs
-      .filter((p) => ratio(p.text, p.bg) < 4.5)
-      .map((p) => `${p.where}: ${p.text} on ${p.bg} is ${fmt(ratio(p.text, p.bg))}:1`)
-    expect(bad).toEqual([])
+describe.each(analyses.map((a) => [a.look, a] as const))('the %s look', (_look, a) => {
+  describe('reading its palette', () => {
+    it('can read every color and background value (add new forms to the parser, never skip them)', () => {
+      expect(a.unreadable).toEqual([])
+    })
+
+    it('every dark fill names the colour of the text on it', () => {
+      expect(a.darkUnpaired).toEqual([])
+    })
   })
 
-  it('every element, in every mix of states, with the color and background the cascade gives it', () => {
-    expect(resolved.pairs.length).toBeGreaterThanOrEqual(5)
-    const bad = resolved.pairs
-      .filter((p) => ratio(p.text, p.bg) < 4.5)
-      .map((p) => `${p.where}: ${p.text} on ${p.bg} is ${fmt(ratio(p.text, p.bg))}:1`)
-    expect(bad).toEqual([])
-    expect(resolved.darkWithoutText).toEqual([])
+  describe('text contrast: at least 4.5:1', () => {
+    it('each rule that sets both a text colour and a background', () => {
+      expect(textFailures(a.ownPairs)).toEqual([])
+    })
+
+    it('every element, in every mix of states, with the color and background the cascade gives it', () => {
+      expect(a.resolved.pairs.length).toBeGreaterThanOrEqual(5)
+      expect(textFailures(a.resolved.pairs)).toEqual([])
+      expect(a.resolved.darkWithoutText).toEqual([])
+    })
+
+    it('a disabled button stays readable while the mouse is over it, in every variant', () => {
+      for (const variant of ['btn-primary', 'btn-ink', 'btn-plain', 'btn-quiet']) {
+        // cascade() tries every mix of states, :hover with :disabled included.
+        const one = cascade(a.rules, [{ tag: 'button', classes: ['btn', variant], where: 'test' }], a.surfaces, a.tokens)
+        expect(one.pairs.length, variant).toBeGreaterThanOrEqual(2)
+        expect(Math.min(...one.pairs.map((p) => ratio(p.text, p.bg))), variant).toBeGreaterThanOrEqual(4.5)
+      }
+    })
+
+    it('text a rule sets inside a fill, checked against that fill', () => {
+      expect(textFailures(a.insidePairs)).toEqual([])
+    })
+
+    it('a text colour with no background of its own, on every light surface', () => {
+      expect(textFailures(a.resolved.bareText)).toEqual([])
+    })
+
+    it('every text colour on every light surface', () => {
+      expect(a.surfacePairs.length).toBeGreaterThanOrEqual(16)
+      expect(textFailures(a.surfacePairs)).toEqual([])
+    })
+
+    it('--teal and --amber are never used as text colours (the -ink tokens are)', () => {
+      const misuse = a.rules.filter((r) => /^var\(--(teal|amber)\)$/.test(r.decls.get('color') ?? '')).map((r) => r.selector)
+      expect(misuse).toEqual([])
+    })
   })
 
-  it('a disabled button stays readable while the mouse is over it, in every variant', () => {
-    for (const variant of ['btn-primary', 'btn-ink', 'btn-plain', 'btn-quiet']) {
-      // cascade() tries every mix of states, :hover with :disabled included.
-      const one = cascade(rules, [{ tag: 'button', classes: ['btn', variant], where: 'test' }], surfaces)
-      expect(one.pairs.length, variant).toBeGreaterThanOrEqual(2)
-      expect(Math.min(...one.pairs.map((p) => ratio(p.text, p.bg))), variant).toBeGreaterThanOrEqual(4.5)
-    }
-  })
-
-  it('text a rule sets inside a fill, checked against that fill', () => {
-    const bad = insidePairs
-      .filter((p) => ratio(p.text, p.bg) < 4.5)
-      .map((p) => `${p.where}: ${p.text} on ${p.bg} is ${fmt(ratio(p.text, p.bg))}:1`)
-    expect(bad).toEqual([])
-  })
-
-  it('a text colour with no background of its own, on every light surface', () => {
-    const bad = resolved.bareText
-      .filter((p) => ratio(p.text, p.bg) < 4.5)
-      .map((p) => `${p.where}: ${p.text} on ${p.bg} is ${fmt(ratio(p.text, p.bg))}:1`)
-    expect(bad).toEqual([])
-  })
-
-  it('every text colour on every light surface', () => {
-    expect(surfacePairs.length).toBeGreaterThanOrEqual(16)
-    const bad = surfacePairs
-      .filter((p) => ratio(p.text, p.bg) < 4.5)
-      .map((p) => `${p.where}: ${p.text} on ${p.bg} is ${fmt(ratio(p.text, p.bg))}:1`)
-    expect(bad).toEqual([])
-  })
-
-  it('--teal and --amber are never used as text colours (the -ink tokens are)', () => {
-    const misuse = rules
-      .filter((r) => /^var\(--(teal|amber)\)$/.test(r.decls.get('color') ?? ''))
-      .map((r) => r.selector)
-    expect(misuse).toEqual([])
-  })
-})
-
-describe('signal colours: at least 3:1 against what surrounds them', () => {
-  it.each(SIGNALS)('%s', (token) => {
-    const uses = signalUses.filter((u) => u.token === token)
-    expect(uses.length, `${token} is used somewhere`).toBeGreaterThan(0)
-    const bad = uses
-      .filter((u) => ratio(u.hex, u.against) < 3)
-      .map((u) => `${u.where}: ${u.hex} on ${u.against} is ${fmt(ratio(u.hex, u.against))}:1`)
-    expect(bad).toEqual([])
+  describe('signal colours: at least 3:1 against what surrounds them', () => {
+    it.each(SIGNALS)('%s', (token) => {
+      const uses = a.signalUses.filter((u) => u.token === token)
+      expect(uses.length, `${token} is used somewhere`).toBeGreaterThan(0)
+      const bad = uses
+        .filter((u) => ratio(u.hex, u.against) < 3)
+        .map((u) => `${u.where}: ${u.hex} on ${u.against} is ${fmt(ratio(u.hex, u.against))}:1`)
+      expect(bad).toEqual([])
+    })
   })
 })
 
@@ -595,7 +784,7 @@ describe('the cascade check itself', () => {
   const AFTER = BEFORE.replace(/:hover/g, ':hover:not(:disabled)')
   const button: Element[] = [{ tag: 'button', classes: ['btn', 'btn-primary'], where: 'sample' }]
   const failing = (css: string) =>
-    cascade(parseRules(css), button, surfaces)
+    cascade(parseRules(css), button, surfaces, tokens)
       .pairs.filter((p) => ratio(p.text, p.bg) < 4.5)
       .map((p) => `${p.text} on ${p.bg} ${fmt(ratio(p.text, p.bg))}`)
 
@@ -608,8 +797,17 @@ describe('the cascade check itself', () => {
   })
 
   it('pairs text set inside a dark fill with that fill', () => {
-    const pairs = descendantPairs(parseRules('.btn-primary { background: var(--teal); color: #FFFFFF; } .btn-primary .sub { color: var(--ink-soft); }'))
+    const pairs = descendantPairs(
+      parseRules('.btn-primary { background: var(--teal); color: #FFFFFF; } .btn-primary .sub { color: var(--ink-soft); }'),
+      tokens,
+    )
     // --ink-soft #5E5A55 on --teal #2F7F7A: 1.45:1 (Python, WCAG 2.x, 2026-11-05).
     expect(pairs.map((p) => `${p.where}: ${fmt(ratio(p.text, p.bg))}`)).toEqual(['.btn-primary .sub inside .btn-primary: 1.45'])
+  })
+
+  it('a look-scoped rule wins over an unscoped one of the same selector, as [data-look] adds specificity', () => {
+    const scoped = forLook(parseRules('[data-look="dusk"] .x { color: #FFFFFF; background: #000000 } .x { color: #000000; background: #FFFFFF }'), 'dusk')
+    const res = cascade(scoped.rules, [{ tag: 'p', classes: ['x'], where: 'sample' }], surfaces, scoped.tokens)
+    expect(res.pairs.map((p) => `${p.text} on ${p.bg}`)).toEqual(['#FFFFFF on #000000'])
   })
 })

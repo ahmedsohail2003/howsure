@@ -80,7 +80,9 @@ test.describe('slice 1: the demo day says how sure it is', () => {
     const pasta = rows.filter({ hasText: 'Pasta bake (ready meal)' })
     await expect(pasta).toContainText('760 kcal')
     await expect(pasta).toContainText('Photo estimate')
-    await expect(pasta).toContainText('Estimate score 54')
+    // The score is plain text on the row; the row's accessible name says it in full.
+    await expect(pasta.getByTestId('meal-score')).toHaveText('Score 54')
+    await expect(pasta.getByTestId('meal-open')).toHaveAccessibleName(/Estimate score 54\./)
     await expect(page.getByTestId('meal-list')).not.toContainText('–')
 
     // Protein / carbs / fat known totals.
@@ -95,11 +97,9 @@ test.describe('slice 1: the demo day says how sure it is', () => {
     const offHost = watchOffHostRequests(page)
     await openDemo(page)
 
-    await page
-      .getByTestId('meal-row')
-      .filter({ hasText: 'Kefir with oats and blueberries' })
-      .getByTestId('meal-score')
-      .click()
+    // The row opens the meal's details, whose score opens the explanation.
+    await page.getByTestId('meal-row').filter({ hasText: 'Kefir with oats and blueberries' }).getByTestId('meal-open').click()
+    await page.getByTestId('meal-details').getByTestId('details-score').click()
     const sheet = page.getByRole('dialog')
     await expect(sheet).toBeVisible()
     await expectBanner(sheet)
@@ -116,7 +116,8 @@ test.describe('slice 1: the demo day says how sure it is', () => {
     await expect(sheet).toBeHidden()
 
     // The pasta bake's own numbers.
-    await page.getByTestId('meal-row').filter({ hasText: 'Pasta bake (ready meal)' }).getByTestId('meal-score').click()
+    await page.getByTestId('meal-row').filter({ hasText: 'Pasta bake (ready meal)' }).getByTestId('meal-open').click()
+    await page.getByTestId('meal-details').getByTestId('details-score').click()
     await expect(sheet.getByTestId('explain-score')).toHaveText('Estimate score 54')
     await expect(sheet.getByTestId('meal-score-sentence')).toHaveText(
       'A 54% estimate score means this source is assigned a typical error of about 46%. It does not mean there is a 54% chance this meal is correct. The actual error could be larger.',

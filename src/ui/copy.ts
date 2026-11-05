@@ -13,6 +13,8 @@ export const copy = {
   tagline: 'Food estimates, explained.',
   fictionalBanner: 'Sample person — fictional',
   sep: ' · ',
+  /** After a short link's words ("Improve ›"); hidden from screen readers. */
+  arrow: ' ›',
 
   firstOpen: {
     lede: 'A food log where every calorie number says how sure it is, what that rests on, and what would make it better.',
@@ -57,8 +59,11 @@ export const copy = {
     rangeValue: (lo: string, hi: string) => `${lo}–${hi} kcal`,
     estimateScore: (score: string) => `Estimate score ${score}`,
     estimateScoreNotAvailable: 'Estimate score: Not available yet',
-    openRangesLabel: (name: string, value: string) => `${name} range ${value}. Opens the range explanation.`,
-    openScoreLabel: (score: string) => `Estimate score ${score}. Opens the explanation.`,
+    // Build-out item 1.5.2, Journal look: the range bar's text legend. Every number on the bar is
+    // also written here as text; the bar itself is drawn for the eye only.
+    bestEstimate: 'Best estimate',
+    target: 'Target',
+    rangesKnownOnly: 'These ranges cover the known meals only, so no bar is drawn until every meal has calories.',
   },
 
   macros: {
@@ -75,6 +80,9 @@ export const copy = {
     mostFromKnownOnly: (meal: string) => `Among the known meals, most uncertainty comes from ${meal}.`,
     alreadyBest: 'It already uses the most reliable source.',
     improveEntry: 'Improve that entry',
+    // Build-out item 1.5.2, Journal look: the short link after the line. Its accessible name is
+    // improveEntry, which starts with the same word.
+    improveShort: 'Improve',
   },
 
   missing: {
@@ -92,7 +100,11 @@ export const copy = {
     unknownKcal: 'unknown',
     noScore: 'No estimate score',
     rowScore: (score: string) => `Estimate score ${score}`,
-    rowScoreLabel: (score: string, meal: string) => `Estimate score ${score} for ${meal}. Opens the explanation.`,
+    // Build-out item 1.5.2, Journal look: the whole row opens the meal's details. The score shows
+    // as plain text; the row's accessible name says it in full.
+    rowScoreShort: (score: string) => `Score ${score}`,
+    rowLabel: (meal: string, meta: string, kcal: string, score: string) =>
+      `${meal}, ${meta}, ${kcal}, ${score}. Opens the meal details.`,
     meta: (time: string, source: string) => `${time} · ${source}`,
     // A meal saved with blank calories may have no source picked (prd.md > Logging a Meal).
     sourceNotPicked: 'source not picked',
@@ -258,10 +270,25 @@ export const copy = {
     targets: 'Targets',
     targetsHint: 'Your daily calories, protein, carbs and fat.',
     targetsHintDemo: 'Sam’s daily targets, which are made up.',
-    fullScreenHint: 'Shows HowSure without the browser’s bars. On a wide screen the day sits in two columns.',
+    fullScreenHint: 'Shows HowSure without the browser’s bars, using the whole screen.',
+    // Build-out item 1.5.2: the Look sheet.
+    look: 'Look',
+    lookHint: (name: string) => `How the dashboard is drawn. Now: ${name}.`,
     exitFullScreenHint: 'Back to the normal view. Esc also works.',
     // The Fullscreen API was missing or refused: the page is widened instead.
     exitFallbackHint: 'Your browser kept its own bars, so HowSure widened the page instead. Esc also goes back.',
+  },
+
+  // Build-out item 1.5.2: the looks. Each one shows the same numbers, details and actions; only the
+  // presentation differs. A look's name and one-line description show in the Look sheet.
+  looks: {
+    title: 'Look',
+    intro: 'How the dashboard is drawn. The numbers, the details and what you can do are the same in every look.',
+    legend: 'Choose a look',
+    journal: {
+      name: 'Journal',
+      description: 'Light and warm, with the day’s ranges on one labelled bar.',
+    },
   },
 
   // Build-out item 1.3: the full-screen view switch. Its label names the view it goes to.

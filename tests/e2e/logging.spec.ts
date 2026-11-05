@@ -160,7 +160,8 @@ test.describe('slice 3: Logging a Meal', () => {
     await expect(ramen).toContainText('Thu 1:30 AM')
     await expect(ramen).toContainText('900 kcal')
     await expect(ramen).toContainText('Photo estimate')
-    await expect(ramen).toContainText('Estimate score 54')
+    await expect(ramen.getByTestId('meal-score')).toHaveText('Score 54')
+    await expect(ramen.getByTestId('meal-open')).toHaveAccessibleName(/Estimate score 54\./)
     await expect(page.getByTestId('fictional-banner')).toBeVisible()
 
     // prd.md > Saving: a reload shows the same data.
@@ -477,7 +478,8 @@ test.describe('slice 3: Meal Details, Edit and Delete', () => {
 
     await expectDay(page, PASTA_900)
     await expect(row(page, 'Pasta bake (ready meal)')).toContainText('900 kcal')
-    await expect(row(page, 'Pasta bake (ready meal)')).toContainText('Estimate score 54')
+    await expect(row(page, 'Pasta bake (ready meal)').getByTestId('meal-score')).toHaveText('Score 54')
+    await expect(row(page, 'Pasta bake (ready meal)').getByTestId('meal-open')).toHaveAccessibleName(/Estimate score 54\./)
     await expect(page.getByTestId('meal-row')).toHaveCount(5)
 
     await page.reload()

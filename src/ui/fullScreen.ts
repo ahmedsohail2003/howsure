@@ -2,7 +2,8 @@
 // bars, using the Fullscreen API on the whole page (document.documentElement), so sheets that
 // open over the dashboard stay visible. Where the API is missing (for example Safari on an
 // iPhone) or the browser refuses, the same view is shown inside the page instead: the column
-// widens, and on a wide screen the day sits in two columns. Esc leaves either one.
+// widens. (On a wide screen the day sits in two columns in either view, theme.css > wide
+// screens.) Esc leaves either one.
 // Nothing about it is saved: a reload opens the normal view.
 
 import { useCallback, useEffect, useState } from 'react'

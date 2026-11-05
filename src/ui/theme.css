@@ -1,7 +1,14 @@
 /* spec.md > Look and Feel. Calm, journal-like, light theme.
    Teal = primary actions; amber = uncertainty and incomplete information.
    Text in teal or amber always uses the -ink tokens, and every colour signal
-   carries a text label too. */
+   carries a text label too.
+
+   Looks (build-out item 1.5.2). The look is set as data-look on <html> before the first render
+   (src/main.tsx). Journal, the default, is everything not scoped to a look: its palette is :root
+   below and its layout the unscoped rules. Another look puts its palette overrides in
+   [data-look="<id>"] { --token: ... } and its own layout rules under [data-look="<id>"] .x { },
+   at the end of this file (see "looks"). src/ui/__tests__/contrast.test.ts finds every look named
+   in a [data-look="..."] selector and checks its palette with the same rules as Journal's. */
 
 :root {
   --bg: #FAF7F2;
@@ -103,7 +110,9 @@ button {
 .page {
   max-width: var(--col);
   margin: 0 auto;
-  padding: 0 var(--s2) var(--s5);
+  /* index.html asks for the whole screen (viewport-fit=cover), so the page keeps its own sides
+     clear of a notch or rounded corner, as when a phone is turned sideways. */
+  padding: 0 max(var(--s2), env(safe-area-inset-right)) var(--s5) max(var(--s2), env(safe-area-inset-left));
 }
 
 /* ---------- fictional banner ---------- */
@@ -115,7 +124,7 @@ button {
   font-size: 14px;
   font-weight: 600;
   text-align: center;
-  padding: 6px var(--s2);
+  padding: 6px max(var(--s2), env(safe-area-inset-right)) 6px max(var(--s2), env(safe-area-inset-left));
   letter-spacing: .01em;
 }
 
@@ -324,6 +333,9 @@ button {
 
 /* ---------- headline estimate ---------- */
 
+/* Journal look (build-out item 1.5.2): a 52 px headline, the score as a small pill beside the
+   target, and both ranges on one labelled range bar with a text legend. No framed boxes. */
+
 .headline {
   padding: var(--s3) 0 var(--s2);
 }
@@ -334,15 +346,17 @@ button {
 }
 
 .headline-number {
-  font-size: 44px;
+  font-size: 52px;
   font-weight: 600;
-  line-height: 1.1;
+  line-height: 1.05;
+  letter-spacing: -.01em;
   margin-top: 4px;
 }
 
 .headline-number .unit {
   font-size: 20px;
   font-weight: 400;
+  letter-spacing: 0;
   color: var(--ink-soft);
   margin-left: 6px;
 }
@@ -376,95 +390,204 @@ button {
   font-size: 14px;
 }
 
-.ranges {
-  margin-top: var(--s2);
-  display: grid;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--surface);
-  overflow: hidden;
-}
-
-.range-btn {
+/* The score pill and the daily target, side by side under the number. */
+.headline-meta {
   display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: var(--s2);
-  width: 100%;
-  min-height: 44px;
-  padding: 10px 12px;
-  border: 0;
-  background: transparent;
-  text-align: left;
-  cursor: pointer;
-  transition: background-color var(--t);
-}
-
-.range-btn + .range-btn {
-  border-top: 1px solid var(--line);
-}
-
-.range-btn:hover {
-  background: var(--teal-bg);
-}
-
-.range-btn:focus-visible {
-  outline-offset: -2px;
-}
-
-.range-btn .range-name,
-.range-row .range-name {
-  color: var(--ink-soft);
-  font-size: 14px;
-}
-
-.range-btn .range-value {
-  font-size: 16px;
-}
-
-.range-btn.very-likely .range-value {
-  color: var(--ink-soft);
-}
-
-/* No known calories yet: the same rows, not tappable, saying "Not available yet". */
-.range-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: var(--s2);
-  min-height: 44px;
-  padding: 10px 12px;
-}
-
-.range-row + .range-row {
-  border-top: 1px solid var(--line);
-}
-
-.range-row .range-value {
-  color: var(--ink-soft);
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s1) 12px;
+  margin-top: 12px;
 }
 
 .score-na {
-  margin-top: var(--s2);
   color: var(--ink-soft);
   font-size: 14px;
 }
 
-/* Third in emphasis after the number and the ranges (prd.md > Dashboard): a quiet,
-   still-tappable chip rather than a full teal button. */
+/* Third in emphasis after the number and the ranges (prd.md > Dashboard): a small,
+   still-tappable pill rather than a full teal button. It looks 32 px tall, but its tap area
+   reaches the 44 px of every other button (the invisible ::after). */
 .score-btn {
-  margin-top: var(--s2);
-  padding: 6px 12px;
-  border-color: var(--line);
+  position: relative;
+  min-height: 32px;
+  padding: 3px 12px;
+  border-color: var(--teal);
+  border-radius: 999px;
+  background: var(--teal-bg);
   font-size: 14px;
-  font-weight: 400;
+}
+
+.score-btn::after {
+  content: "";
+  position: absolute;
+  inset: -7px -4px;
+}
+
+.score-btn:hover:not(:disabled) {
+  background: var(--surface);
 }
 
 /* A daily calorie target, when one is set (build-out item 1.3). */
 .headline-target {
   color: var(--ink-soft);
   font-size: 14px;
-  margin-top: var(--s1);
+}
+
+/* The bar and its legend are one tap target that opens the range explanation. */
+.range-summary {
+  display: block;
+  width: calc(100% + 2 * var(--s1));
+  margin: 12px calc(-1 * var(--s1)) 0;
+  padding: 4px var(--s1) 6px;
+  border: 0;
+  border-radius: var(--radius);
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--t);
+}
+
+.range-summary:hover {
+  background: var(--teal-bg);
+}
+
+/* Drawn for the eye only (aria-hidden): every number on it is in the legend as text. The bands
+   and markers are positioned by rangeBar.ts; their colours are set further down. */
+.range-bar {
+  position: relative;
+  display: block;
+  height: 34px;
+  margin-bottom: 6px;
+}
+
+.range-bar > span {
+  position: absolute;
+  display: block;
+}
+
+.range-bar .range-track {
+  left: 0;
+  right: 0;
+  top: 14px;
+  height: 6px;
+  border-radius: 3px;
+}
+
+.range-bar .very-likely-band {
+  top: 10px;
+  height: 14px;
+  border-radius: 7px;
+}
+
+.range-bar .likely-band {
+  top: 13px;
+  height: 8px;
+  border-radius: 4px;
+}
+
+.range-bar .range-best {
+  top: 3px;
+  width: 3px;
+  height: 28px;
+  margin-left: -1px;
+  border-radius: 2px;
+}
+
+/* Taller than the best-estimate marker, which is drawn over it: when the two values are close,
+   the dashed target still shows above and below the solid line. */
+.range-bar .range-target {
+  top: -3px;
+  height: 40px;
+  margin-left: -1px;
+}
+
+/* Colours of the bands, the markers and their legend keys. Very likely: --amber-bg with an
+   --amber edge; likely: --teal; best estimate: --ink; target: a dashed --ink-soft line. Each is
+   named in words in the legend, so colour is never the only signal. */
+.range-summary .range-track {
+  background: var(--line);
+}
+
+.range-summary .very-likely-band {
+  background: var(--amber-bg);
+  border: 1px solid var(--amber);
+}
+
+.range-summary .likely-band {
+  background: var(--teal);
+}
+
+.range-summary .range-best {
+  background: var(--ink);
+}
+
+.range-summary .range-target {
+  border-left: 2px dashed var(--ink-soft);
+}
+
+.range-legend {
+  display: grid;
+  gap: 2px;
+  font-size: 15px;
+}
+
+.range-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--s2);
+}
+
+.range-name {
+  color: var(--ink-soft);
+}
+
+/* A legend key: the same colour and shape as what it names on the bar. */
+.range-swatch {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  margin-right: var(--s1);
+  border-radius: 3px;
+  vertical-align: -1px;
+}
+
+.range-swatch.likely-band {
+  height: 8px;
+  vertical-align: 1px;
+}
+
+.range-swatch.range-best {
+  width: 3px;
+  height: 14px;
+  margin: 0 12px 0 4px;
+  border-radius: 1px;
+  vertical-align: -2px;
+}
+
+.range-swatch.range-target {
+  width: 0;
+  height: 14px;
+  margin: 0 13px 0 5px;
+  border-radius: 0;
+  vertical-align: -2px;
+}
+
+/* No known calories yet: the same rows, not tappable, saying "Not available yet". */
+.range-legend.na {
+  margin-top: var(--s2);
+}
+
+.range-legend.na .range-value {
+  color: var(--ink-soft);
+}
+
+/* An incomplete day: the ranges cover the known meals only, so no bar is drawn. */
+.range-note {
+  display: block;
+  margin-top: 6px;
+  color: var(--amber-ink);
+  font-size: 14px;
 }
 
 /* ---------- macro row ---------- */
@@ -473,8 +596,10 @@ button {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: var(--s1);
-  padding: var(--s2) 0;
+  margin-top: var(--s1);
+  padding: 12px 0;
   border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
 }
 
 .macro-name {
@@ -499,25 +624,28 @@ button {
 
 /* ---------- sections ---------- */
 
+/* Sections are set apart by space and a small heading, not by boxes or rules. */
 .section {
-  padding: var(--s2) 0;
-  border-top: 1px solid var(--line);
+  padding: var(--s3) 0 0;
 }
 
 .section-title {
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 13px;
+  font-weight: 700;
   color: var(--ink-soft);
   text-transform: uppercase;
   letter-spacing: .06em;
-  margin-bottom: var(--s1);
+  margin-bottom: 6px;
+}
+
+/* Biggest uncertainty: one line and a short Improve link. The amber heading words carry the
+   signal; there is no amber box. */
+.uncertainty-title {
+  color: var(--amber-ink);
 }
 
 .uncertainty-line {
-  padding: 12px var(--s2);
-  border-left: 3px solid var(--amber);
-  background: var(--amber-bg);
-  border-radius: 0 var(--radius) var(--radius) 0;
+  overflow-wrap: anywhere;
 }
 
 .uncertainty-line .hint {
@@ -527,11 +655,21 @@ button {
   margin-top: 4px;
 }
 
+.improve-link {
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+.improve-link:hover {
+  text-decoration: underline;
+}
+
 .missing-list li {
   display: flex;
   justify-content: space-between;
   gap: var(--s2);
   padding: 6px 0;
+  overflow-wrap: anywhere;
 }
 
 .missing-list .unknown {
@@ -558,31 +696,78 @@ button {
   margin-top: var(--s2);
 }
 
-/* ---------- log a meal ---------- */
+/* ---------- action bar: Log a meal and the sleep button ---------- */
 
-.log-row {
-  padding: var(--s2) 0;
-  border-top: 1px solid var(--line);
+/* In the layout on a wider screen. On a phone it is pinned to the bottom of the window, clear of
+   the home indicator (safe-area inset), and the page gets the same room at its bottom, so the bar
+   never covers the last of the content. Dashboard.tsx measures the pinned bar into
+   --action-bar-h (it grows when a narrow screen wraps a label); until then a one-row bar is
+   assumed. */
+.action-bar {
+  display: flex;
+  gap: var(--s1);
+  padding: var(--s3) 0 0;
 }
 
-.log-btn {
-  width: 100%;
+.action-bar .log-btn {
+  flex: 1 1 auto;
+}
+
+.action-bar .sleep-btn {
+  flex: none;
+}
+
+@media (max-width: 639.98px) {
+  /* A control reached with Tab is scrolled clear of the pinned bar, never left under it
+     (WCAG 2.4.11). */
+  html:has(.action-bar) {
+    scroll-padding-bottom: calc(var(--action-bar-h, calc(60px + max(12px, env(safe-area-inset-bottom)))) + 12px);
+  }
+
+  .action-bar {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 4;
+    padding: 12px max(var(--s2), env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom))
+      max(var(--s2), env(safe-area-inset-left));
+    background: var(--bg);
+    border-top: 1px solid var(--line);
+  }
+
+  /* On the smallest phones both labels may not fit on one row. Log a meal keeps at least half
+     the bar, so the main action never ends up the narrower button, and the sleep button wraps
+     its label rather than squeezing it. */
+  .action-bar .btn {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .action-bar .log-btn {
+    min-width: calc(50% - var(--s1) / 2);
+  }
+
+  .action-bar .sleep-btn {
+    flex: 0 1 auto;
+  }
+
+  .dash-page {
+    padding-bottom: calc(var(--s5) + var(--action-bar-h, calc(60px + max(12px, env(safe-area-inset-bottom)))));
+  }
 }
 
 @media (min-width: 640px) {
-  .log-btn {
-    width: auto;
+  .action-bar .log-btn {
+    flex: 0 1 auto;
     min-width: 220px;
   }
 }
 
 /* ---------- meal list ---------- */
 
+/* Each row is one button (name, time, source, calories, score) that opens the meal's details. */
 .meal-row {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 4px var(--s2);
-  padding: 12px 0;
   border-bottom: 1px solid var(--line);
 }
 
@@ -590,11 +775,14 @@ button {
   border-bottom: 0;
 }
 
-/* The name and meta open the meal's details; the score opens its explanation. */
 .meal-open {
-  display: block;
-  min-width: 0;
-  padding: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 4px var(--s2);
+  width: 100%;
+  min-height: 56px;
+  padding: 10px 0;
   border: 0;
   background: none;
   text-align: left;
@@ -602,8 +790,11 @@ button {
   border-radius: 4px;
 }
 
-.meal-open .meal-name,
-.meal-open .meal-meta {
+.meal-main,
+.meal-name,
+.meal-meta,
+.meal-kcal,
+.meal-score {
   display: block;
 }
 
@@ -615,6 +806,8 @@ button {
 
 .meal-name {
   font-weight: 600;
+  /* A very long name with no spaces breaks rather than pushing the page sideways. */
+  overflow-wrap: anywhere;
 }
 
 .meal-meta {
@@ -636,12 +829,13 @@ button {
 }
 
 .meal-score {
-  margin-top: 4px;
+  margin-top: 2px;
+  color: var(--teal-ink);
   font-size: 14px;
 }
 
-.meal-score .link-btn {
-  font-weight: 400;
+.meal-score.none {
+  color: var(--ink-soft);
 }
 
 /* ---------- sheet ---------- */
@@ -666,8 +860,11 @@ button {
   background: var(--surface);
   border-radius: 12px 12px 0 0;
   box-shadow: var(--shadow-sheet);
-  padding: 0 var(--sheet-pad) var(--s4);
-  animation: rise var(--t) ease-out;
+  /* Clear of the home indicator at the bottom of a phone screen (viewport-fit=cover). */
+  padding: 0 var(--sheet-pad) calc(var(--s4) + env(safe-area-inset-bottom));
+  /* A slight depth tilt as it opens (Journal look), 150 ms; off under reduced motion. */
+  transform-origin: 50% 100%;
+  animation: sheet-in var(--t) ease-out;
 }
 
 @media (min-width: 720px) {
@@ -989,12 +1186,6 @@ details.more > summary {
   flex-wrap: wrap;
 }
 
-/* ---------- improve that entry ---------- */
-
-.improve-btn {
-  margin-top: 12px;
-}
-
 /* ---------- sheet footer ---------- */
 
 .sheet.has-footer {
@@ -1009,7 +1200,7 @@ details.more > summary {
   bottom: 0;
   z-index: 1;
   margin: var(--s3) calc(-1 * var(--sheet-pad)) 0;
-  padding: 12px var(--sheet-pad);
+  padding: 12px var(--sheet-pad) max(12px, env(safe-area-inset-bottom));
   background: var(--surface);
   border-top: 1px solid var(--line);
 }
@@ -1246,22 +1437,18 @@ details.more > summary {
 .sleep-head {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: baseline;
   gap: var(--s2);
-  margin-bottom: var(--s1);
+  margin-bottom: 4px;
 }
 
 .sleep-head .section-title {
-  margin-bottom: 2px;
+  margin-bottom: 0;
 }
 
 .sleep-status {
   color: var(--ink-soft);
   font-size: 14px;
-}
-
-.sleep-btn {
-  flex: none;
 }
 
 .sleep-facts li:last-child {
@@ -1289,6 +1476,7 @@ details.more > summary {
 /* ---------- previous / next (prd.md > Screens and Layout, item 10) ---------- */
 
 .day-nav {
+  margin-top: var(--s3);
   padding: var(--s2) 0 var(--s4);
   border-top: 1px solid var(--line);
   text-align: center;
@@ -1316,9 +1504,26 @@ details.more > summary {
   margin-top: var(--s1);
 }
 
-@keyframes rise {
+/* The smallest phones: tighter buttons and date box, so the whole date shows between them. */
+@media (max-width: 359.98px) {
+  .day-nav-row {
+    gap: 6px;
+  }
+
+  .day-nav-row .btn-quiet {
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+
+  .day-date {
+    padding: 6px;
+    font-size: 15px;
+  }
+}
+
+@keyframes sheet-in {
   from {
-    transform: translateY(12px);
+    transform: perspective(900px) translateY(16px) rotateX(6deg);
     opacity: 0;
   }
 
@@ -1384,20 +1589,165 @@ details.more > summary {
 
 /* ---------- full-screen view (build-out item 1.3) ---------- */
 
-/* The column widens; on a wide screen the day's numbers and the meal list sit side by side.
-   The same layout serves the browser's full screen and the in-page fallback. */
+/* The column widens a little more. The same layout serves the browser's full screen and the
+   in-page fallback. */
 .full-view .page {
   max-width: 1120px;
 }
 
+/* ---------- wide screens: two columns (Journal look, build-out item 1.5.2) ---------- */
+
+/* The day (headline, range bar, macros, biggest uncertainty) on the left; the action bar, meals,
+   sleep and day controls on the right. Below 960 px they stack in the one column. */
 @media (min-width: 960px) {
-  .full-view .dash-body {
+  .dash-page {
+    max-width: 1040px;
+  }
+
+  .dash-body {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     column-gap: var(--s5);
     align-items: start;
   }
 }
+
+/* ---------- the Look sheet (build-out item 1.5.2) ---------- */
+
+.look-options {
+  display: grid;
+  gap: var(--s1);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.look-option {
+  display: grid;
+  grid-template-columns: auto 88px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  cursor: pointer;
+}
+
+.look-option.checked {
+  border-color: var(--teal);
+  background: var(--teal-bg);
+}
+
+.look-option input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--teal);
+}
+
+.look-name {
+  display: block;
+  font-weight: 600;
+}
+
+.look-desc {
+  display: block;
+  color: var(--ink-soft);
+  font-size: 14px;
+}
+
+/* A small drawing of each look's dashboard, in that look's own colours whatever look is on, so
+   the colours are written here rather than taken from the tokens; each names its token, and
+   contrast.test.ts fails if one is not in that look's palette. It holds no text (aria-hidden):
+   the name and description beside it say what it is. */
+.look-preview {
+  position: relative;
+  display: block;
+  width: 88px;
+  height: 64px;
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+}
+
+.look-preview i {
+  position: absolute;
+  display: block;
+}
+
+.look-preview-journal {
+  background: #FAF7F2; /* --bg */
+}
+
+.look-preview-journal .lp-head {
+  left: 8px;
+  top: 7px;
+  width: 26px;
+  height: 3px;
+  border-radius: 2px;
+  background: #5E5A55; /* --ink-soft */
+}
+
+.look-preview-journal .lp-num {
+  left: 8px;
+  top: 14px;
+  width: 34px;
+  height: 9px;
+  border-radius: 2px;
+  background: #2B2B2B; /* --ink */
+}
+
+.look-preview-journal .lp-bar {
+  left: 8px;
+  right: 8px;
+  top: 28px;
+  height: 6px;
+  border: 1px solid #B7791F; /* --amber */
+  border-radius: 3px;
+  background: #FBF1E1; /* --amber-bg */
+}
+
+.look-preview-journal .lp-band {
+  left: 22%;
+  width: 50%;
+  top: 1px;
+  height: 2px;
+  border-radius: 1px;
+  background: #2F7F7A; /* --teal */
+}
+
+.look-preview-journal .lp-line {
+  left: 8px;
+  right: 8px;
+  top: 39px;
+  height: 1px;
+  background: #E6E0D6; /* --line */
+}
+
+.look-preview-journal .lp-line + .lp-line {
+  top: 45px;
+}
+
+.look-preview-journal .lp-dock {
+  left: 8px;
+  right: 8px;
+  bottom: 5px;
+  height: 7px;
+  border-radius: 2px;
+  background: #2F7F7A; /* --teal */
+}
+
+/* ---------- looks (build-out item 1.5.2) ---------- */
+
+/* Journal is the unscoped rules above and the :root palette. Each other look adds its palette
+   overrides and its layout here, scoped by the attribute main.tsx sets on <html>:
+     [data-look="panel"] { --bg: ...; }            palette (tokens only)
+     [data-look="panel"] .headline { ... }          layout
+   Panel (item 1.5.2b) and Night (item 1.5.2c) go here when they are built, each with one line in
+   src/ui/looks.ts. contrast.test.ts checks every look it finds here, so a new palette is held to
+   the same contrast rules as Journal's without any change to the test. */
 
 @media (prefers-reduced-motion: reduce) {
   *,

@@ -3,40 +3,31 @@
 // 7-night average with its night count. Each night sits one tap deep. A night with a missing
 // sleep or wake time reads "not logged", never 0 h, and is left out of the average.
 // The sleep/wake editor (**Edit**) arrives in slice 6.
+// Build-out item 1.5.2: the sleep button sits in the dashboard's action bar beside Log a meal
+// (Dashboard.tsx), so it stays in reach on a phone; this section shows the status and the nights.
 
 import { copy } from './copy'
 import { fmtWeekday, fmtWeekdayTime } from './format'
-import { fmtClockMinutes, fmtDuration, type SleepAction, type SleepView } from './sleepView'
+import { fmtClockMinutes, fmtDuration, type SleepView } from './sleepView'
 
 interface SleepSectionProps {
   sleep: SleepView
   /** True when the current waking day is on screen ("Last night"); false on an earlier day. */
   today: boolean
-  onAction: (action: SleepAction) => void
 }
 
-export function SleepSection({ sleep, today, onAction }: SleepSectionProps) {
+export function SleepSection({ sleep, today }: SleepSectionProps) {
   const { status, lastNight, stats } = sleep
   const asleep = status.kind === 'asleep'
   return (
     <section className="section sleep-section" aria-labelledby="sleep-title" data-testid="sleep-section">
       <div className="sleep-head">
-        <div>
-          <h2 className="section-title" id="sleep-title">
-            {copy.sleep.title}
-          </h2>
-          <p className="sleep-status num" data-testid="sleep-status">
-            {asleep ? copy.sleep.asleepSince(fmtWeekdayTime(status.since)) : copy.sleep.awake}
-          </p>
-        </div>
-        <button
-          type="button"
-          className="btn sleep-btn"
-          onClick={() => onAction(asleep ? 'wake' : 'sleep')}
-          data-testid="sleep-action"
-        >
-          {asleep ? copy.sleep.wokeUp : copy.sleep.goingToSleep}
-        </button>
+        <h2 className="section-title" id="sleep-title">
+          {copy.sleep.title}
+        </h2>
+        <p className="sleep-status num" data-testid="sleep-status">
+          {asleep ? copy.sleep.asleepSince(fmtWeekdayTime(status.since)) : copy.sleep.awake}
+        </p>
       </div>
 
       <ul className="fact-list sleep-facts">

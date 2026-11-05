@@ -4,15 +4,18 @@
 // the order on screen. Pure: no React.
 
 import type { LogKind } from '../clock'
+import type { Look } from '../store/look'
 import { copy } from './copy'
 import type { FullScreenMode } from './fullScreen'
+import { lookDef } from './looks'
 
-export type MoreEntryId = 'profile' | 'targets' | 'fullScreen'
+export type MoreEntryId = 'profile' | 'targets' | 'look' | 'fullScreen'
 
-/** What an entry may depend on: which log is open, and the full-screen view's state. */
+/** What an entry may depend on: which log is open, the full-screen view's state, the look. */
 export interface MoreContext {
   kind: LogKind
   fullScreen: FullScreenMode
+  look: Look
 }
 
 interface MoreEntryDef {
@@ -36,6 +39,13 @@ export const MORE_ENTRIES: readonly MoreEntryDef[] = [
     shows: () => true,
     label: () => copy.moreMenu.targets,
     hint: (ctx) => (ctx.kind === 'demo' ? copy.moreMenu.targetsHintDemo : copy.moreMenu.targetsHint),
+  },
+  {
+    // Build-out item 1.5.2: the Look sheet. A device setting, so it shows in both logs.
+    id: 'look',
+    shows: () => true,
+    label: () => copy.moreMenu.look,
+    hint: (ctx) => copy.moreMenu.lookHint(lookDef(ctx.look).name),
   },
   {
     id: 'fullScreen',

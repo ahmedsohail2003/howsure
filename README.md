@@ -63,12 +63,13 @@ In your own log, tap your name at the top (or "Your log") to open **Profile and 
 - **Import a log** reads a file made by Export, shows what it holds and what it replaces, and changes nothing until you confirm. Files from an older format are updated as they are imported. A file from a newer version, a file that isn't a HowSure log, and a file holding the fictional demo are refused, and nothing changes.
 - **Delete my data** lists what it removes, asks first, and then removes your own log from this browser, including older copies kept by format updates. The fictional demo is not affected.
 
-### More: targets and full screen
+### More: targets, look and full screen
 
-**More**, at the top of the dashboard, lists the app's other places: Profile and privacy (your own log), **Targets** and **Show full screen**.
+**More**, at the top of the dashboard, lists the app's other places: Profile and privacy (your own log), **Targets**, **Look** and **Show full screen**.
 
-- **Targets** holds your daily calories, protein, carbs and fat. A blank box means no target; 0 and negative numbers are refused. A target shows as a plain line under the headline and under its macro. In the demo these are Sam's made-up targets, and a change stays in the demo.
-- **Show full screen** shows HowSure without the browser's bars, and on a wide screen puts the day's numbers and the meal list side by side. Where the browser can't or won't go full screen (for example Safari on an iPhone), the page widens instead and says so. **Exit full screen** at the top, or Esc, goes back. Nothing about it is saved.
+- **Targets** holds your daily calories, protein, carbs and fat. A blank box means no target; 0 and negative numbers are refused. A target shows as a plain line beside the estimate score and under its macro. In the demo these are Sam's made-up targets, and a change stays in the demo.
+- **Look** chooses how the dashboard is drawn. Every look shows the same numbers, details and actions. **Journal**, the default, is light and warm: the two ranges sit on one labelled bar with every number also written as text, Log a meal and the sleep button stay pinned to the bottom on a phone, and a wide screen shows the day on the left and the meals and sleep on the right. The choice applies at once and is kept on this device, apart from both logs, so Export, Import and Delete leave it alone.
+- **Show full screen** shows HowSure without the browser's bars, using the whole screen. Where the browser can't or won't go full screen (for example Safari on an iPhone), the page widens instead and says so. **Exit full screen** at the top, or Esc, goes back. Nothing about it is saved.
 
 ## Run the checks
 
@@ -83,7 +84,7 @@ The browser tests use your installed Chrome (`channel: 'chrome'`) at 390×844 an
 
 ### Test storage
 
-Logs are kept per browser origin, so a test run on http://127.0.0.1:5273 would share storage with a log you use there. To keep them apart, set a storage namespace when you start the server: `VITE_HOWSURE_STORAGE_NS=dev npm run dev:app` keeps that session's logs under `howsure.dev.*` keys and never reads or writes the normal `howsure.demo.v1`, `howsure.mine.v1` and `howsure.active.v1`. The browser tests do this for you (namespace `e2e`). The namespace uses lower-case letters, digits and dashes. Saved logs from an older format are upgraded when they load, and the original text is kept under a `….backup-vN` key first.
+Logs are kept per browser origin, so a test run on http://127.0.0.1:5273 would share storage with a log you use there. To keep them apart, set a storage namespace when you start the server: `VITE_HOWSURE_STORAGE_NS=dev npm run dev:app` keeps that session's logs under `howsure.dev.*` keys and never reads or writes the normal `howsure.demo.v1`, `howsure.mine.v1`, `howsure.active.v1` and `howsure.look.v1` (the chosen look). The browser tests do this for you (namespace `e2e`). The namespace uses lower-case letters, digits and dashes. Saved logs from an older format are upgraded when they load, and the original text is kept under a `….backup-vN` key first.
 
 ## Honest limitations
 

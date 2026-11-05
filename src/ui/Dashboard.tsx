@@ -4,8 +4,15 @@
 // and Boundaries). The sleep section (item 9) and previous/next with a date picker (item 10)
 // sit at the bottom (slice 4). The header (DashboardHeader.tsx) shows the viewed waking day and
 // its wake time, the guest name that opens Profile and privacy, and the More menu (item 1.3).
-// Targets set in the targets editor show under the headline and the macros (item 1.3).
+// Targets set in the targets editor show beside the score and under the macros (item 1.3).
+//
+// Build-out item 1.5.2, Journal look: no framed boxes on the dashboard surface. The biggest
+// uncertainty is one line with a short Improve link (its heading words carry the amber signal).
+// Log a meal and the sleep button sit together in one action bar: pinned to the bottom of the
+// window on a phone (theme.css > action bar), in the layout on a wider screen. On a wide screen
+// the day sits on the left and the meals, sleep and day controls on the right.
 
+import { useLayoutEffect, useRef } from 'react'
 import type { LogKind } from '../clock'
 import type { Profile } from '../store/log'
 import { copy } from './copy'
@@ -41,7 +48,7 @@ interface DashboardProps {
   ownName: string
   /** Opens Profile and privacy (build-out item 1.2). Your own log only. */
   onOpenProfile: () => void
-  /** The open log's targets (build-out item 1.3), shown under the headline and the macros. */
+  /** The open log's targets (build-out item 1.3), shown beside the score and under the macros. */
   targets: Profile['targets']
   /** Opens the More menu (build-out item 1.3). */
   onOpenMore: () => void
@@ -56,9 +63,11 @@ export function Dashboard(props: DashboardProps) {
   const { dayStart, meals, day, biggest, improvement } = view
   const unknownMeals = meals.filter((m) => day.unknownMealIds.includes(m.id))
   const knownOnly = day.status === 'partial'
+  const asleep = sleep.status.kind === 'asleep'
+  const actionBarRef = useActionBarHeight()
 
   return (
-    <main className="page" data-testid="dashboard">
+    <main className="page dash-page" data-testid="dashboard">
       <DashboardHeader
         kind={kind}
         dayStart={dayStart}
@@ -99,63 +108,96 @@ export function Dashboard(props: DashboardProps) {
           )}
 
           {biggest && (
-            <section className="section" aria-labelledby="uncertainty-title">
-              <h2 className="section-title" id="uncertainty-title">
+            <section className="section uncertainty" aria-labelledby="uncertainty-title">
+              <h2 className="section-title uncertainty-title" id="uncertainty-title">
                 {copy.uncertainty.sectionTitle}
               </h2>
-              <p className="uncertainty-line" data-testid="biggest-line">
-                {knownOnly ? copy.uncertainty.mostFromKnownOnly(biggest.name) : copy.uncertainty.mostFrom(biggest.name)}
-                {improvement === null && (
+              <p className="uncertainty-line">
+                <span data-testid="biggest-line">
+                  {knownOnly ? copy.uncertainty.mostFromKnownOnly(biggest.name) : copy.uncertainty.mostFrom(biggest.name)}
+                  {improvement === null && (
+                    <>
+                      {' '}
+                      <span className="hint">{copy.uncertainty.alreadyBest}</span>
+                    </>
+                  )}
+                </span>
+                {/* Hidden when improve() is null: the meal already uses the most reliable source (G12). */}
+                {improvement !== null && (
                   <>
                     {' '}
-                    <span className="hint">{copy.uncertainty.alreadyBest}</span>
+                    <button
+                      type="button"
+                      className="link-btn improve-link"
+                      onClick={() => onImprove(biggest.id)}
+                      aria-label={copy.uncertainty.improveEntry}
+                      data-testid="improve-entry"
+                    >
+                      {copy.uncertainty.improveShort}
+                      <span aria-hidden="true">{copy.arrow}</span>
+                    </button>
                   </>
                 )}
               </p>
-              {/* Hidden when improve() is null: the meal already uses the most reliable source (G12). */}
-              {improvement !== null && (
-                <button
-                  type="button"
-                  className="btn improve-btn"
-                  onClick={() => onImprove(biggest.id)}
-                  data-testid="improve-entry"
-                >
-                  {copy.uncertainty.improveEntry}
-                </button>
-              )}
             </section>
           )}
         </div>
 
         <div className="dash-col" data-testid="dash-col-list">
+          {/* One log button at a time ("Log your first meal" on an empty day) and the one sleep
+              button that fits now (I'm going to sleep, or I woke up). */}
+          <div className="action-bar" ref={actionBarRef} data-testid="action-bar">
+            <button type="button" className="btn btn-primary log-btn" onClick={onLogMeal} data-testid="log-meal">
+              {day.status === 'empty' ? copy.dashboard.logFirstMeal : copy.dashboard.logMeal}
+            </button>
+            <button
+              type="button"
+              className="btn sleep-btn"
+              onClick={() => onSleepAction(asleep ? 'wake' : 'sleep')}
+              data-testid="sleep-action"
+            >
+              {asleep ? copy.sleep.wokeUp : copy.sleep.goingToSleep}
+            </button>
+          </div>
+
           {day.status === 'empty' ? (
             <section className="section empty-day" data-testid="empty-day">
               <p className="empty-title">{copy.emptyDay.noMeals}</p>
-              <button type="button" className="btn btn-primary log-btn" onClick={onLogMeal} data-testid="log-meal">
-                {copy.dashboard.logFirstMeal}
-              </button>
             </section>
           ) : (
-            <>
-              <div className="log-row">
-                <button type="button" className="btn btn-primary log-btn" onClick={onLogMeal} data-testid="log-meal">
-                  {copy.dashboard.logMeal}
-                </button>
-              </div>
-              <MealList
-                meals={meals}
-                dayStart={dayStart}
-                onOpenScore={(mealId) => onOpen({ mode: 'meal', mealId })}
-                onOpenMeal={onOpenMeal}
-              />
-            </>
+            <MealList meals={meals} dayStart={dayStart} onOpenMeal={onOpenMeal} />
           )}
 
-          <SleepSection sleep={sleep} today={nav.today} onAction={onSleepAction} />
+          <SleepSection sleep={sleep} today={nav.today} />
 
           <DayNav nav={nav} onPrev={props.onPrev} onNext={props.onNext} onPickDate={props.onPickDate} onToday={props.onToday} />
         </div>
       </div>
     </main>
   )
+}
+
+/**
+ * Keeps --action-bar-h on <html> equal to the action bar's height. On a phone the bar is pinned
+ * to the bottom of the window (theme.css > action bar), and the page's bottom room and the scroll
+ * padding that keeps a focused control clear of the bar both read it. The bar grows when a narrow
+ * screen wraps a label, so it is measured rather than assumed. Removed when the dashboard closes.
+ */
+function useActionBarHeight() {
+  const ref = useRef<HTMLDivElement>(null)
+  useLayoutEffect(() => {
+    const bar = ref.current
+    const root = document.documentElement
+    if (!bar) return
+    const update = () => root.style.setProperty('--action-bar-h', `${Math.ceil(bar.getBoundingClientRect().height)}px`)
+    update()
+    if (typeof ResizeObserver === 'undefined') return () => root.style.removeProperty('--action-bar-h')
+    const observer = new ResizeObserver(update)
+    observer.observe(bar)
+    return () => {
+      observer.disconnect()
+      root.style.removeProperty('--action-bar-h')
+    }
+  }, [])
+  return ref
 }

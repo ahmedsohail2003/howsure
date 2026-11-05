@@ -17,6 +17,7 @@ describe('default keys', () => {
       mine: 'howsure.mine.v1',
       active: 'howsure.active.v1',
       probe: 'howsure.probe',
+      look: 'howsure.look.v1',
     })
   })
 
@@ -37,12 +38,13 @@ describe('namespaced keys', () => {
       mine: 'howsure.e2e.mine.v1',
       active: 'howsure.e2e.active.v1',
       probe: 'howsure.e2e.probe',
+      look: 'howsure.e2e.look.v1',
     })
   })
 
   it('never equal a default key or one of its backups, whatever the namespace', () => {
     const defaults = Object.values(DEFAULT_KEYS)
-    for (const ns of ['demo', 'mine', 'active', 'v1', 'probe', 'e2e', 'dev-sam-2']) {
+    for (const ns of ['demo', 'mine', 'active', 'v1', 'probe', 'look', 'e2e', 'dev-sam-2']) {
       for (const k of Object.values(storageKeys(ns))) {
         expect(defaults).not.toContain(k)
         expect(k.startsWith(`${DEFAULT_KEYS.demo}.`) || k.startsWith(`${DEFAULT_KEYS.mine}.`)).toBe(false)

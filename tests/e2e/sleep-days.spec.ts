@@ -73,7 +73,8 @@ test.describe('slice 4: Sleep and Waking Days', () => {
     await openDemo(page)
     const sleep = page.getByTestId('sleep-section')
     await expect(sleep.getByTestId('sleep-status')).toHaveText('Awake')
-    await expect(sleep.getByTestId('sleep-action')).toHaveText('I’m going to sleep')
+    // The sleep button sits in the action bar beside Log a meal (build-out item 1.5.2).
+    await expect(page.getByTestId('action-bar').getByTestId('sleep-action')).toHaveText('I’m going to sleep')
     await expect(sleep).toContainText('Last night')
     await expect(sleep.getByTestId('last-night')).toHaveText('8 h 45 min')
     await expect(sleep).toContainText('7-night average')

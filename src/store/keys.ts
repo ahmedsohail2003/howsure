@@ -17,6 +17,12 @@ export interface StorageKeys {
   active: string
   /** Written and removed again to check that the device will save. */
   probe: string
+  /**
+   * The chosen look (build-out item 1.5.2; src/store/look.ts). A device preference, kept apart
+   * from both log documents, so the demo and your own log share it and Export, Import and
+   * Delete of a log leave it alone.
+   */
+  look: string
 }
 
 export const DEFAULT_KEYS: Readonly<StorageKeys> = Object.freeze({
@@ -24,6 +30,7 @@ export const DEFAULT_KEYS: Readonly<StorageKeys> = Object.freeze({
   mine: 'howsure.mine.v1',
   active: 'howsure.active.v1',
   probe: 'howsure.probe',
+  look: 'howsure.look.v1',
 })
 
 /** Lower-case letters, digits and dashes, 1 to 32 long, starting with a letter or digit. No dots,
@@ -48,6 +55,7 @@ export function storageKeys(namespace?: string | null): StorageKeys {
     mine: `howsure.${ns}.mine.v1`,
     active: `howsure.${ns}.active.v1`,
     probe: `howsure.${ns}.probe`,
+    look: `howsure.${ns}.look.v1`,
   }
 }
 

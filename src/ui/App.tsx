@@ -8,6 +8,7 @@ import { nowIso, reanchorDemoClock, type LogKind } from '../clock'
 import { wakingDayStart } from '../kernel/sleepday'
 import type { Meal, SleepRecord } from '../kernel/types'
 import { emptyLog, startDemo, type LogDoc } from '../store/log'
+import { DEFAULT_LOOK, saveLook, type Look } from '../store/look'
 import { loadSession, type LogProblem, type Logs } from '../store/session'
 import { browserStore, KEYS, readRaw, saveActive, saveLog, storageWorks } from '../store/storage'
 import {
@@ -30,6 +31,9 @@ import { FictionalBanner } from './FictionalBanner'
 import { FirstOpen } from './FirstOpen'
 import { useFullScreenView } from './fullScreen'
 import { LogMealSheet } from './LogMealSheet'
+import { LookContext, type LookState } from './lookContext'
+import { applyLook } from './looks'
+import { LookSheet } from './LookSheet'
 import { downloadText } from './download'
 import { MealDetails } from './MealDetails'
 import { MoreMenu } from './MoreMenu'
@@ -55,6 +59,8 @@ type SheetState =
   // The More menu and the targets editor (build-out item 1.3).
   | { mode: 'more' }
   | { mode: 'targets' }
+  // The Look sheet (build-out item 1.5.2).
+  | { mode: 'look' }
 
 /** Re-render once a minute so "now" (and with it the current waking day) stays fresh. */
 function useMinuteTick(): number {
@@ -66,7 +72,12 @@ function useMinuteTick(): number {
   return tick
 }
 
-export function App() {
+interface AppProps {
+  /** The look main.tsx read and applied before the first render (build-out item 1.5.2). */
+  initialLook?: Look
+}
+
+export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
   const [initial] = useState(() => loadSession())
   const [active, setActive] = useState<LogKind | null>(initial.active)
   const [logs, setLogs] = useState<Logs>(initial.logs)
@@ -80,6 +91,20 @@ export function App() {
   const [problems, setProblems] = useState<Record<LogKind, LogProblem | null>>(initial.problems)
   // The full-screen view (build-out item 1.3). Not saved: a reload opens the normal view.
   const fullScreen = useFullScreenView()
+  // The chosen look: a device setting shared by both logs, saved apart from them (store/look.ts).
+  const [look, setLookState] = useState<Look>(initialLook)
+  const lookState = useMemo<LookState>(
+    () => ({
+      look,
+      setLook: (next: Look) => {
+        applyLook(next)
+        setLookState(next)
+        // When the device won't save, the look still applies until a reload, and the notice says so.
+        if (!saveLook(next)) setStorageOk(false)
+      },
+    }),
+    [look],
+  )
 
   /**
    * Write the whole document, synchronously. A log whose saved copy couldn't be read, came from
@@ -236,6 +261,9 @@ export function App() {
       case 'targets':
         setSheet({ mode: 'targets' })
         return
+      case 'look':
+        setSheet({ mode: 'look' })
+        return
       case 'fullScreen':
         setSheet(null)
         if (fullScreen.mode === 'off') fullScreen.enter()
@@ -260,10 +288,10 @@ export function App() {
 
   if (!active || !doc || !view || !at || !nav) {
     return (
-      <>
+      <LookContext.Provider value={lookState}>
         {notice}
         <FirstOpen onTryDemo={openDemo} onStartEmpty={openMine} />
-      </>
+      </LookContext.Provider>
     )
   }
 
@@ -288,7 +316,7 @@ export function App() {
   const sleepTime = sheet?.mode === 'sleepTime' ? sheet : null
   const explain = sheet?.mode === 'meal' || sheet?.mode === 'day' || sheet?.mode === 'ranges' ? sheet : null
   return (
-    <>
+    <LookContext.Provider value={lookState}>
       {demo && <FictionalBanner sticky />}
       {notice}
       <Dashboard
@@ -316,12 +344,13 @@ export function App() {
       />
       {sheet?.mode === 'more' && (
         <MoreMenu
-          entries={moreEntries({ kind: active, fullScreen: fullScreen.mode })}
+          entries={moreEntries({ kind: active, fullScreen: fullScreen.mode, look })}
           demo={demo}
           onChoose={chooseMore}
           onClose={() => setSheet(null)}
         />
       )}
+      {sheet?.mode === 'look' && <LookSheet demo={demo} onClose={() => setSheet(null)} />}
       {sheet?.mode === 'targets' && (
         <TargetsSheet targets={doc.profile.targets} demo={demo} onSave={saveTargets} onClose={() => setSheet(null)} />
       )}
@@ -375,6 +404,6 @@ export function App() {
           onClose={() => setSheet(null)}
         />
       )}
-    </>
+    </LookContext.Provider>
   )
 }
