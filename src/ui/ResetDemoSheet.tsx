@@ -24,6 +24,7 @@ export function changeLines(c: DemoChanges): string[] {
     c.mealsDeleted > 0 ? t.mealsDeleted(c.mealsDeleted) : null,
     c.sleepChanged ? t.sleepChanged : null,
     c.targetsChanged ? t.targetsChanged : null,
+    c.bodyChanged ? t.bodyChanged : null,
     c.savedMealsChanged ? t.savedMealsChanged : null,
     c.workoutsChanged ? t.workoutsChanged : null,
     c.otherChanged ? t.otherChanged : null,

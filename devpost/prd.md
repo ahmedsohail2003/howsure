@@ -266,14 +266,16 @@ Source: `scope.md > The POC Boundary` (meals grouped by waking day); Answer 4 ("
 **Why:** Ahmed (Sep 28): "the main calorie stat should be net calories", with "number of calories consumed" and "number of calories burned so far" in smaller text. Each one drills down: consumed → meals → the meal breakdown; burned → "the main workouts". He also wants net to show "if you're in a deficit or in a surplus" (resolved in `Open Questions`).
 - **Log a workout:** name, date and time, duration, calories burned, and **"How do you know?"**: a device or watch estimate, a machine's display, or a rough guess. A burned estimate has its own typical error and range, like food. Each typical error is marked "assumption" until `spec.md` cites a checked source. A workout belongs to the waking day it started in, like a meal.
 - **With at least one workout that day,** the headline is **net calories = eaten − logged workouts**, and its range combines both uncertainties. Eaten and burned show in smaller text underneath as single numbers. Tapping the net range opens its explanation, which shows eaten's and burned's ranges and how they combine. Tapping eaten opens the meal list; tapping burned opens the workout list, which shows burned's range.
-- **No deficit or surplus verdict** (Ahmed accepted the default, 2026-10-26). Net's explanation says: "Not your full energy balance: your body's resting burn isn't counted, so net alone can't show whether you ate more or less than you burned."
+- **Net itself gives no deficit or surplus verdict** (Ahmed accepted the default, 2026-10-26). Net's explanation says: "Not your full energy balance: your body's resting burn isn't counted, so net alone can't show whether you ate more or less than you burned."
+- **Estimated deficit or surplus** (build-out item 2.5b; the owner changed the default on 2026-11-05). With age, sex, height and weight in Profile, one line under the headline reads "Estimated deficit 350 kcal" or "Estimated surplus 120 kcal" with its likely range, from resting burn (Mifflin-St Jeor) times an everyday-activity factor, plus the logged workouts, counted once. It opens the equation, the inputs, the factor and what is not counted. Without those details nothing is shown and one line invites adding them; nothing is guessed. `spec.md > Maths Core: Energy Balance` has the maths.
 - **Scores:** the score under the headline is the eaten score, labelled "Eaten: estimate score N". Net shows its ranges but no score, because a percentage of a number near zero says nothing. Burned shows its own score in the workout list. The biggest-uncertainty line and **Improve that entry** cover meals only.
 - **With no workouts,** the headline stays calories eaten (Tier 1).
 - The demo's workout is on an earlier day, so the Tier 1 journey keeps its eaten headline; the presenter logs today's workout live (journey step 12).
 - [ ] Log a 300 kcal "rough guess" workout: the headline switches to net calories, eaten and burned appear underneath, and tapping burned shows the workout and burned's range.
 - [ ] The net range is wider than the eaten range alone.
 - [ ] With a workout logged, the score under the headline is labelled as the eaten score, and adding the workout doesn't change it.
-- [ ] (Ahmed accepted the default, 2026-10-26) With a workout logged, net's explanation shows the resting-burn note, and the app never says deficit or surplus.
+- [ ] (Ahmed accepted the default, 2026-10-26) With a workout logged, net's explanation shows the resting-burn note, and net itself never says deficit or surplus.
+- [ ] (Build-out item 2.5b) Without age, sex, height and weight, no deficit or surplus is shown and one line invites adding them; with them, "Estimated deficit N kcal" or "Estimated surplus N kcal" shows under the headline with its range and opens its explanation.
 - [ ] Deleting the only workout from the workout list brings back the eaten headline.
 
 ### Gut-Friendly Diet Score
@@ -539,7 +541,7 @@ Source: `scope.md > The POC Boundary` (meals grouped by waking day); Answer 4 ("
 - **A night with a missing sleep or wake time:** "not logged", never 0 h, and left out of sleep averages.
 - **(Tier 2) A live lookup that fails** (offline, not found, rate-limited): a plain message, and manual entry still works.
 - **(Tier 2) Untagged meals in the gut score:** counted as "untagged" in "based on N of M meals tagged", never as zero, and the components they affect show "not checked".
-- **(Tier 2) Net calories:** net's explanation carries the resting-burn note, and there is no deficit or surplus word (Ahmed accepted the default, 2026-10-26).
+- **(Tier 2) Net calories:** net's explanation carries the resting-burn note, and net carries no deficit or surplus word (Ahmed accepted the default, 2026-10-26); the separate estimated deficit or surplus line needs body details (build-out item 2.5b).
 - **Persistence:** everything stays on this device. Only lookups leave it: barcodes (Tier 2) and food searches (Tier 3), and the privacy panel counts each one. With the Claude connector on (Tier 2), what Claude reads through it goes to your own Claude account, as the privacy panel says. Groups (Tier 3) are a preview that sends nothing. There is no account unless the optional sign-up (Tier 3) is set up, and then only the guest name goes online (Ahmed accepted the default, 2026-10-26).
 
 ## Product Decisions
@@ -563,7 +565,7 @@ Source: `scope.md > The POC Boundary` (meals grouped by waking day); Answer 4 ("
 - **The demo is the primary first action,** so anyone can see the full journey with no setup.
 - **(Tier 2) Guests get a gamer-tag name,** saved on the device only. The demo's is fixed.
 - **(Tier 2) The gut score scores the diet, not the microbiome.** It has three separate meters with sources, coverage counts and evidence labels, and no % (Ahmed accepted the default, 2026-10-26).
-- **(Tier 2) The headline is net calories once workouts are logged** (Ahmed's Sep 28 note), with no deficit or surplus word (Ahmed accepted the default, 2026-10-26).
+- **(Tier 2) The headline is net calories once workouts are logged** (Ahmed's Sep 28 note), with no deficit or surplus word on net itself (Ahmed accepted the default, 2026-10-26; the estimated deficit or surplus line came with build-out item 2.5b).
 - **Live integrations:** the live integration today is the Open Food Facts barcode lookup (Tier 2), plus USDA food search (Tier 3) if Ahmed supplies a key. Sleep file import (Tier 3) is a manual file in HowSure's own documented CSV/JSON format, not a live connection or wearable sync. Wearable sync is designed for the roadmap.
 - **Visual direction:** light, journal-like, teal for actions, amber for uncertainty, colour always paired with text.
 
@@ -636,7 +638,7 @@ These are designed but not built today. Each names what it waits on. Deferring i
 **Resolved with Ahmed, 2026-10-26.** He accepted the defaults for the seven questions ("everything else looks good"):
 - tier order, with the very likely range and its studies in Tier 1;
 - two ranges with "count the top of the very-likely range";
-- net calories with the resting-burn note and no deficit or surplus word;
+- net calories with the resting-burn note and no deficit or surplus word on net itself (the estimated deficit or surplus needs body details, build-out item 2.5b);
 - a gut score with coverage counts instead of a %, named "Gut-Friendly Diet Score", with cheese and sweetened yogurt counting;
 - sign-up only if he creates the Supabase project; a USDA key in local runs only;
 - no friends' or relatives' names or health details in public docs;

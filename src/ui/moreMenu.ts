@@ -9,7 +9,7 @@ import { copy } from './copy'
 import type { FullScreenMode } from './fullScreen'
 import { lookDef } from './looks'
 
-export type MoreEntryId = 'profile' | 'targets' | 'savedMeals' | 'look' | 'fullScreen' | 'resetDemo'
+export type MoreEntryId = 'profile' | 'targets' | 'body' | 'savedMeals' | 'look' | 'fullScreen' | 'resetDemo'
 
 /** What an entry may depend on: which log is open, the full-screen view's state, the look. */
 export interface MoreContext {
@@ -39,6 +39,14 @@ export const MORE_ENTRIES: readonly MoreEntryDef[] = [
     shows: () => true,
     label: () => copy.moreMenu.targets,
     hint: (ctx) => (ctx.kind === 'demo' ? copy.moreMenu.targetsHintDemo : copy.moreMenu.targetsHint),
+  },
+  {
+    // Build-out item 2.5b: body details for the estimated deficit or surplus. In both logs (the
+    // demo's stay in the demo).
+    id: 'body',
+    shows: () => true,
+    label: () => copy.moreMenu.body,
+    hint: (ctx) => (ctx.kind === 'demo' ? copy.moreMenu.bodyHintDemo : copy.moreMenu.bodyHint),
   },
   {
     // Build-out item 2.3: rename or delete the meals saved as usual. In both logs.

@@ -87,7 +87,7 @@ test.describe('item 1.2: export, import and delete your own log', () => {
       '3 nights of sleep',
       '1 workout',
       '1 saved plate',
-      'your guest name, targets and settings',
+      'your guest name, targets, body details and settings',
     ])
     await expect(confirm).toContainText('The fictional demo is not affected.')
     await confirm.getByTestId('delete-data-confirm-btn').click()
@@ -117,7 +117,7 @@ test.describe('item 1.2: export, import and delete your own log', () => {
       'From 2026-10-28 to 2026-11-03',
     ])
     await expect(preview.getByTestId('import-preview-replaces')).toHaveText(
-      'Importing replaces your guest name, targets and settings on this device. Your log has no meals or sleep yet.',
+      'Importing replaces your guest name, targets, body details and settings on this device. Your log has no meals or sleep yet.',
     )
     expect(await read(page, E2E_KEYS.mine)).toBeNull()
     await preview.getByTestId('import-confirm').click()
@@ -169,7 +169,7 @@ test.describe('item 1.2: export, import and delete your own log', () => {
     await chooseFile(page, jsonFile('other.json', JSON.stringify(other)))
     const preview = panel.getByTestId('import-preview')
     await expect(preview.getByTestId('import-preview-replaces')).toHaveText(
-      `Importing replaces your log on this device, which holds ${HOLDS}, and your guest name, targets and settings. Export it first if you want to keep it.`,
+      `Importing replaces your log on this device, which holds ${HOLDS}, and your guest name, targets, body details and settings. Export it first if you want to keep it.`,
     )
     await preview.getByTestId('import-cancel').click()
     await expect(panel.getByTestId('import-data')).toBeFocused()

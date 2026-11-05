@@ -38,6 +38,7 @@ import { DashboardHeader } from './DashboardHeader'
 import type { DayView } from './dayView'
 import { DayNav, type DayNavState } from './DayNav'
 import { fmtSharePct } from './format'
+import type { BalanceView } from './balanceView'
 import { HeadlineEstimate } from './HeadlineEstimate'
 import type { HeadlineOpen } from './headlineView'
 import { useLook } from './lookContext'
@@ -90,6 +91,10 @@ interface DashboardProps {
   targets: Profile['targets']
   /** Opens the targets editor (the Panel ring offers it when no calorie target is set). */
   onOpenTargets: () => void
+  /** The estimated deficit or surplus under the headline, or what stands in for it (build-out item 2.5b). */
+  balance?: BalanceView
+  /** Opens Body details, from the line under the headline that invites adding them. */
+  onOpenBody?: () => void
   /** The open log's now, where the Night timeline's current day ends. */
   nowIso: string
   /** Opens the More menu (build-out item 1.3). */
@@ -155,6 +160,8 @@ export function Dashboard(props: DashboardProps) {
             dayKey={dayStart ?? 'provisional'}
             macros={night ? view.macros : undefined}
             targets={targets}
+            balance={props.balance}
+            onOpenBody={props.onOpenBody}
           />
 
           {day.status !== 'empty' && !night && <MacroRow macros={view.macros} targets={targets} />}

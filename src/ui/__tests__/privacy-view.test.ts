@@ -47,10 +47,10 @@ describe('privacy panel words', () => {
 
   it('says what an Import replaces, naming the guest name, targets and settings as Delete does', () => {
     expect(replacesText(SAM)).toBe(
-      'Importing replaces your log on this device, which holds 6 meals, 3 nights of sleep, 1 workout and 1 saved plate, and your guest name, targets and settings. Export it first if you want to keep it.',
+      'Importing replaces your log on this device, which holds 6 meals, 3 nights of sleep, 1 workout and 1 saved plate, and your guest name, targets, body details and settings. Export it first if you want to keep it.',
     )
     expect(replacesText(EMPTY)).toBe(
-      'Importing replaces your guest name, targets and settings on this device. Your log has no meals or sleep yet.',
+      'Importing replaces your guest name, targets, body details and settings on this device. Your log has no meals or sleep yet.',
     )
     expect(hasContent(EMPTY)).toBe(false)
     expect(hasContent({ ...EMPTY, plates: 1 })).toBe(true)
@@ -62,12 +62,12 @@ describe('privacy panel words', () => {
       '3 nights of sleep',
       '1 workout',
       '1 saved plate',
-      'your guest name, targets and settings',
+      'your guest name, targets, body details and settings',
     ])
     expect(deleteItems(EMPTY, null, { backups: 1, original: false })).toEqual([
       '0 meals',
       '0 nights of sleep',
-      'your guest name, targets and settings',
+      'your guest name, targets, body details and settings',
       '1 older copy kept when the saved format was updated',
     ])
   })
@@ -91,7 +91,7 @@ describe('privacy panel words', () => {
       '3 nights of sleep',
       '1 workout',
       '1 saved plate',
-      'your guest name, targets and settings',
+      'your guest name, targets, body details and settings',
       'the older-format copy of your saved log, which was never backed up',
       '1 older copy kept when the saved format was updated',
     ])

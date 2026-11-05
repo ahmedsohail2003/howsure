@@ -131,6 +131,21 @@ export const sleepSchema = z.looseObject({
   wake: isoWithOffset.nullable(),
 })
 
+/**
+ * Body details for the resting-burn estimate (build-out item 2.5b; store/log.ts BodyDetails).
+ * Optional, with every key optional, so a log saved before it loads unchanged (no version bump).
+ */
+export const bodySchema = z.looseObject({
+  age: z.number().positive().optional(),
+  ageSetOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  sex: z.enum(['female', 'male', 'unspecified']).optional(),
+  heightCm: z.number().positive().optional(),
+  heightUnit: z.enum(['cm', 'ftin']).optional(),
+  weightKg: z.number().positive().optional(),
+  weightUnit: z.enum(['kg', 'lb']).optional(),
+  activity: z.enum(['sitting', 'light', 'moderate']).optional(),
+})
+
 export const profileSchema = z.looseObject({
   name: z.string(),
   kind: z.enum(['guest', 'demo']),
@@ -142,6 +157,7 @@ export const profileSchema = z.looseObject({
       fat: amount.optional(),
     })
     .optional(),
+  body: bodySchema.optional(),
 })
 
 /** spec.md > Clock: demo now = demoEpochFixture + (Date.now() - demoEpochReal). Demo document only.

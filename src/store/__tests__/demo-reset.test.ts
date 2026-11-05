@@ -9,7 +9,7 @@ import { ACTIVE_KEY, saveActive, saveLog, serializeLog, STORAGE_KEYS } from '../
 import { MemoryStore } from './memoryStore'
 
 const R0 = Date.parse('2026-11-05T09:00:00-05:00')
-const NONE = { mealsAdded: 0, mealsChanged: 0, mealsDeleted: 0, sleepChanged: false, targetsChanged: false, savedMealsChanged: false, workoutsChanged: false, otherChanged: false }
+const NONE = { mealsAdded: 0, mealsChanged: 0, mealsDeleted: 0, sleepChanged: false, targetsChanged: false, bodyChanged: false, savedMealsChanged: false, workoutsChanged: false, otherChanged: false }
 
 describe('stableJson', () => {
   it('sorts keys at every level and leaves out undefined values', () => {

@@ -19,6 +19,11 @@
 // Build-out item 2.5a: Log a workout with its messages, the net headline, eaten's and burned's
 // details, a workout's details and delete confirmation, the net explanation, and a workout with
 // unknown calories.
+//
+// Build-out item 2.5b: the line inviting body details (demo and own log), Body details with its
+// messages, the estimated deficit or surplus under the eaten and the net headline, its
+// explanation, the lines for a day with no wake time and with no known calories, and Body details
+// in Profile and privacy.
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { expect, test, type Page } from '@playwright/test'
@@ -343,6 +348,105 @@ for (const { id: look, name: lookName } of LOOKS) {
       await closeWithEsc(page, 'profile-privacy')
 
       sweep.check(5)
+    })
+
+    test('body details and the estimated deficit or surplus, in the demo and in your own log', async ({ page }) => {
+      test.setTimeout(120_000)
+      const sweep = new Sweep(page)
+      await page.clock.setFixedTime(DEMO_NOW)
+      await page.goto('/')
+      await page.getByRole('button', { name: 'Try the fictional demo' }).click()
+      await expect(page.getByTestId('balance-invite')).toBeVisible()
+      await sweep.take('demo dashboard, inviting body details')
+
+      await page.getByTestId('balance-invite').click()
+      const body = await opened(page, 'body-sheet')
+      await sweep.take('Body details')
+      await body.getByTestId('body-age-input').fill('17')
+      await body.getByTestId('body-height-cm-input').fill('99')
+      await body.getByTestId('body-weight-input').fill('20')
+      await body.getByTestId('body-sex-unspecified').check()
+      await sweep.take('Body details, with its messages')
+      await body.getByTestId('body-height-unit-ftin').check()
+      await body.getByTestId('body-height-in-input').fill('12')
+      await body.getByTestId('body-weight-unit-lb').check()
+      await sweep.take('Body details in feet, inches and pounds, with its messages')
+      await body.getByTestId('body-age-input').fill('34')
+      await body.getByTestId('body-height-ft-input').fill('5')
+      await body.getByTestId('body-height-in-input').fill('6')
+      await body.getByTestId('body-weight-input').fill('141')
+      await body.getByTestId('body-activity-moderate').check()
+      await body.getByTestId('save-body').click()
+      await expect(page.getByTestId('balance')).toBeVisible()
+      await sweep.take('demo dashboard with an estimated surplus')
+
+      await page.getByTestId('balance').click()
+      await opened(page, 'explain-balance')
+      await sweep.take('deficit or surplus explanation, prefer not to say')
+      await closeWithEsc(page, 'explain-balance')
+
+      await page.getByTestId('day-prev').click()
+      await page.getByTestId('day-prev').click()
+      await expect(page.getByTestId('balance')).toBeVisible()
+      await sweep.take('an earlier day with net and an estimated deficit')
+      await page.getByTestId('balance').click()
+      await opened(page, 'explain-balance')
+      await sweep.take('deficit or surplus explanation, an earlier day')
+      await closeWithEsc(page, 'explain-balance')
+
+      // Your own log, with no body details, then with them in Profile and privacy.
+      await seedAndOpen(page, MINE_NOW, { [E2E_KEYS.mine]: V1_MINE, [E2E_KEYS.active]: 'mine' })
+      await expect(page.getByTestId('balance-invite')).toBeVisible()
+      await sweep.take('own log dashboard, inviting body details')
+      await page.getByTestId('open-profile').click()
+      const panel = await opened(page, 'profile-privacy')
+      await panel.getByTestId('edit-body').click()
+      const mine = await opened(page, 'body-sheet')
+      await sweep.take('Body details in your own log')
+      await mine.getByTestId('body-age-input').fill('34')
+      await mine.getByTestId('body-sex-female').check()
+      await mine.getByTestId('body-height-cm-input').fill('168')
+      await mine.getByTestId('body-weight-input').fill('64')
+      await mine.getByTestId('save-body').click()
+      await expect(panel.getByTestId('privacy-body-summary')).toContainText('168 cm')
+      await sweep.take('Profile and privacy with body details')
+      await closeWithEsc(page, 'profile-privacy')
+      await sweep.take('own log dashboard with an estimated deficit or surplus, known entries only')
+      await page.getByTestId('balance').click()
+      await opened(page, 'explain-balance')
+      await sweep.take('deficit or surplus explanation, known entries only')
+      await closeWithEsc(page, 'explain-balance')
+
+      // A new own log with body details: no wake time yet, then a day with no known calories.
+      await page.evaluate(() => localStorage.clear())
+      await page.clock.setFixedTime(new Date('2026-11-05T10:00:00-05:00'))
+      await page.reload()
+      await page.getByRole('button', { name: 'Start my log' }).click()
+      await page.getByTestId('open-more').click()
+      await (await opened(page, 'more-menu')).getByTestId('more-body').click()
+      const fresh = await opened(page, 'body-sheet')
+      await fresh.getByTestId('body-age-input').fill('34')
+      await fresh.getByTestId('body-sex-male').check()
+      await fresh.getByTestId('body-height-cm-input').fill('180')
+      await fresh.getByTestId('body-weight-input').fill('80')
+      await fresh.getByTestId('save-body').click()
+      // Nothing eaten yet: the headline says it is not available, and the line adds nothing.
+      await expect(page.getByTestId('headline')).toBeVisible()
+      await expect(page.getByTestId('balance-na')).toHaveCount(0)
+      await expect(page.getByTestId('balance')).toHaveCount(0)
+      await sweep.take('own log with body details and nothing logged yet')
+      // A meal before any wake time: the day has nothing to count burn from, and says so.
+      await page.getByTestId('log-meal').click()
+      const meal = await opened(page, 'log-meal-sheet')
+      await meal.getByTestId('meal-name-input').fill('Oat porridge')
+      await meal.getByTestId('source-label').check()
+      await meal.getByTestId('meal-kcal-input').fill('320')
+      await meal.getByTestId('save-meal').click()
+      await expect(meal).toBeHidden()
+      await expect(page.getByTestId('balance-na')).toHaveText(copy.balance.needsWake)
+      await sweep.take('own log with no wake time yet')
+
+      sweep.check(15)
     })
 
     test('an empty own log, Set wake time and the regroup preview', async ({ page }) => {

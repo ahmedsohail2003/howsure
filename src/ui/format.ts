@@ -38,6 +38,12 @@ export function fmtSigned(n: number): string {
   return r < 0 ? `${copy.headline.minus}${group.format(-r)}` : group.format(r === 0 ? 0 : r)
 }
 
+/** Rounded, with its sign either way: −369, +1,453, 0. */
+export function fmtSignedPlus(n: number): string {
+  const r = Math.round(n)
+  return r > 0 ? `${copy.headline.plus}${group.format(r)}` : fmtSigned(r)
+}
+
 /** A range's ends that may run below 0 (net), not cut off at 0. */
 export function fmtSignedRangeEnds(r: Range): { lo: string; hi: string } {
   return { lo: fmtSigned(r.lo), hi: fmtSigned(r.hi) }
@@ -105,6 +111,30 @@ export function onLaterDate(iso: string, dayStart: string | null): boolean {
 /** "Thu 12:40 AM": a meal's time with its own weekday, used where it differs from the day's. */
 export function fmtWeekdayTime(iso: string): string {
   return `${fmtWeekday(iso)} ${fmtTime(iso)}`
+}
+
+/** Local calendar days from `iso` to `nowIso` (0 on the same date, 1 the day before, below 0 ahead). */
+function daysBefore(iso: string, nowIso: string): number {
+  const a = new Date(iso)
+  const b = new Date(nowIso)
+  const da = Date.UTC(a.getFullYear(), a.getMonth(), a.getDate())
+  const db = Date.UTC(b.getFullYear(), b.getMonth(), b.getDate())
+  return Math.round((db - da) / 86_400_000)
+}
+
+/**
+ * When a past entry was, plain enough to tell which day it was. Within the last six days the
+ * weekday says it: "Tue 7:10 AM". Earlier (or ahead), the calendar date is added, with the year
+ * when it is not this year's: "Tue 22 Sep, 7:10 AM", "Tue 22 Sep 2025, 7:10 AM". With no recorded
+ * time (`timeKnown` false) the time is left out and the date is always given: "Tue 22 Sep".
+ */
+export function fmtPastWhen(iso: string, nowIso: string, timeKnown = true): string {
+  const days = daysBefore(iso, nowIso)
+  if (timeKnown && days >= 0 && days <= 6) return fmtWeekdayTime(iso)
+  const d = new Date(iso)
+  const year = d.getFullYear() === new Date(nowIso).getFullYear() ? null : String(d.getFullYear())
+  const date = copy.dayDate(fmtWeekday(iso), String(d.getDate()), copy.months[d.getMonth()], year)
+  return timeKnown ? copy.dateAndTime(date, fmtTime(iso)) : date
 }
 
 /** "2026-10-21" in local time, for "re-checked" dates and the like. */

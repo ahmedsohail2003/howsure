@@ -5,10 +5,15 @@ import { BUILT_LOOKS, LOOKS } from '../looks'
 import { MORE_ENTRIES, moreEntries } from '../moreMenu'
 
 describe('More menu entries', () => {
-  it('lists Profile and privacy, Targets, Saved meals, Look and the full-screen switch in your own log', () => {
+  it('lists Profile and privacy, Targets, Body details, Saved meals, Look and the full-screen switch in your own log', () => {
     expect(moreEntries({ kind: 'mine', fullScreen: 'off', look: 'journal' })).toEqual([
       { id: 'profile', label: 'Profile and privacy', hint: copy.moreMenu.profileHint },
       { id: 'targets', label: 'Targets', hint: copy.moreMenu.targetsHint },
+      {
+        id: 'body',
+        label: 'Body details',
+        hint: 'Age, sex, height, weight and everyday activity, for the estimated deficit or surplus.',
+      },
       { id: 'savedMeals', label: 'Saved meals', hint: 'Rename or delete the meals you saved as usual.' },
       { id: 'look', label: 'Look', hint: 'How the dashboard is drawn. Now: Journal.' },
       { id: 'fullScreen', label: 'Show full screen', hint: copy.moreMenu.fullScreenHint },
@@ -17,8 +22,10 @@ describe('More menu entries', () => {
 
   it('leaves Profile and privacy out of the demo, and says the demo targets are made up', () => {
     const entries = moreEntries({ kind: 'demo', fullScreen: 'off', look: 'journal' })
-    expect(entries.map((e) => e.id)).toEqual(['targets', 'savedMeals', 'look', 'fullScreen', 'resetDemo'])
+    expect(entries.map((e) => e.id)).toEqual(['targets', 'body', 'savedMeals', 'look', 'fullScreen', 'resetDemo'])
     expect(entries[0].hint).toBe(copy.moreMenu.targetsHintDemo)
+    // Build-out item 2.5b: Sam's body details stay in the demo, and the hint says they are made up.
+    expect(entries[1].hint).toBe(copy.moreMenu.bodyHintDemo)
   })
 
   it('offers Reset demo in the demo only (build-out item 2.1)', () => {

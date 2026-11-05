@@ -1,0 +1,237 @@
+{
+  "_about": "Golden values for resting burn (E1) and the estimated deficit or surplus (E2), written by scripts/golden.py --write from spec.md > Maths Core: Energy Balance. Fictional inputs only. Asserted by src/kernel/__tests__/energy.test.ts.",
+  "tolerance": {
+    "kcal": 1
+  },
+  "restingTypicalError": 0.1,
+  "factors": {
+    "sitting": 1.2,
+    "light": 1.375,
+    "moderate": 1.55
+  },
+  "E1": [
+    {
+      "input": {
+        "kg": 64,
+        "cm": 168,
+        "age": 34,
+        "sex": "female"
+      },
+      "expected": {
+        "kcal": 1359.0,
+        "sexConstant": -161,
+        "sexSd": 0.0,
+        "equationSd": 135.9,
+        "sd": 135.9
+      }
+    },
+    {
+      "input": {
+        "kg": 80,
+        "cm": 180,
+        "age": 40,
+        "sex": "male"
+      },
+      "expected": {
+        "kcal": 1730.0,
+        "sexConstant": 5,
+        "sexSd": 0.0,
+        "equationSd": 173.0,
+        "sd": 173.0
+      }
+    },
+    {
+      "input": {
+        "kg": 70,
+        "cm": 172,
+        "age": 29,
+        "sex": "unspecified"
+      },
+      "expected": {
+        "kcal": 1552.0,
+        "sexConstant": -78,
+        "sexSd": 47.9201,
+        "equationSd": 155.2,
+        "sd": 162.4296
+      }
+    }
+  ],
+  "E2": [
+    {
+      "id": "E2a",
+      "about": "a whole 24-hour day: G6's meals and workout, E1's female inputs, mostly sitting",
+      "input": {
+        "meals": [
+          {
+            "id": "e2a-breakfast",
+            "name": "e2a-breakfast",
+            "source": "photo",
+            "kcal": 600
+          },
+          {
+            "id": "e2a-lunch",
+            "name": "e2a-lunch",
+            "source": "photo",
+            "kcal": 600
+          },
+          {
+            "id": "e2a-dinner",
+            "name": "e2a-dinner",
+            "source": "photo",
+            "kcal": 600
+          }
+        ],
+        "workouts": [
+          {
+            "id": "e2a-walk",
+            "name": "e2a-walk",
+            "source": "burn_device",
+            "kcal": 300
+          }
+        ],
+        "body": {
+          "kg": 64,
+          "cm": 168,
+          "age": 34,
+          "sex": "female"
+        },
+        "activity": "sitting",
+        "factor": 1.2,
+        "hours": 24
+      },
+      "expected": {
+        "eaten": 1800,
+        "eatenSd": 828.0,
+        "workouts": 300,
+        "workoutsSd": 120.0,
+        "resting": 1359.0,
+        "everyday": 1630.8,
+        "everydaySd": 163.08,
+        "burn": 1930.8,
+        "balance": -130.8,
+        "sd": 852.3961,
+        "rounded": -131,
+        "direction": "deficit",
+        "likely": [
+          -1223,
+          962
+        ],
+        "veryLikely": [
+          -1801,
+          1540
+        ]
+      }
+    },
+    {
+      "id": "E2b",
+      "about": "a day in progress, 15 hours so far, two label meals, no workout, E1's male inputs",
+      "input": {
+        "meals": [
+          {
+            "id": "e2b-lunch",
+            "name": "e2b-lunch",
+            "source": "label",
+            "kcal": 750
+          },
+          {
+            "id": "e2b-dinner",
+            "name": "e2b-dinner",
+            "source": "label",
+            "kcal": 750
+          }
+        ],
+        "workouts": [],
+        "body": {
+          "kg": 80,
+          "cm": 180,
+          "age": 40,
+          "sex": "male"
+        },
+        "activity": "light",
+        "factor": 1.375,
+        "hours": 15
+      },
+      "expected": {
+        "eaten": 1500,
+        "eatenSd": 150.0,
+        "workouts": 0,
+        "workoutsSd": 0.0,
+        "resting": 1730.0,
+        "everyday": 1486.7188,
+        "everydaySd": 148.6719,
+        "burn": 1486.7188,
+        "balance": 13.2812,
+        "sd": 211.195,
+        "rounded": 13,
+        "direction": "surplus",
+        "likely": [
+          -257,
+          284
+        ],
+        "veryLikely": [
+          -401,
+          427
+        ]
+      }
+    },
+    {
+      "id": "E2c",
+      "about": "a 26-hour waking day, prefer not to say, on your feet most of the day",
+      "input": {
+        "meals": [
+          {
+            "id": "e2c-weighed",
+            "name": "e2c-weighed",
+            "source": "weighed",
+            "kcal": 2000
+          },
+          {
+            "id": "e2c-menu",
+            "name": "e2c-menu",
+            "source": "menu",
+            "kcal": 600
+          }
+        ],
+        "workouts": [
+          {
+            "id": "e2c-rower",
+            "name": "e2c-rower",
+            "source": "burn_machine",
+            "kcal": 400
+          }
+        ],
+        "body": {
+          "kg": 70,
+          "cm": 172,
+          "age": 29,
+          "sex": "unspecified"
+        },
+        "activity": "moderate",
+        "factor": 1.55,
+        "hours": 26
+      },
+      "expected": {
+        "eaten": 2600,
+        "eatenSd": 203.6566,
+        "workouts": 400,
+        "workoutsSd": 120.0,
+        "resting": 1552.0,
+        "everyday": 2606.0667,
+        "everydaySd": 272.7464,
+        "burn": 3006.0667,
+        "balance": -406.0667,
+        "sd": 360.9246,
+        "rounded": -406,
+        "direction": "deficit",
+        "likely": [
+          -869,
+          56
+        ],
+        "veryLikely": [
+          -1113,
+          301
+        ]
+      }
+    }
+  ]
+}

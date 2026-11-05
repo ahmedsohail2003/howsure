@@ -8,7 +8,7 @@ import { nowIso, reanchorDemoClock, type LogKind } from '../clock'
 import { sleepStatus, wakingDayStart } from '../kernel/sleepday'
 import type { Meal, SleepRecord, Workout } from '../kernel/types'
 import { demoChanges, isDemoEdited, pristineDemo, type DemoChanges } from '../store/demoReset'
-import { emptyLog, startDemo, type LogDoc } from '../store/log'
+import { emptyLog, startDemo, type BodyDetails, type LogDoc } from '../store/log'
 import { DEFAULT_LOOK, saveLook, type Look } from '../store/look'
 import { loadSession, type LogProblem, type Logs } from '../store/session'
 import { browserStore, KEYS, readRaw, saveActive, saveLog, storageWorks } from '../store/storage'
@@ -24,6 +24,9 @@ import {
 } from '../store/transfer'
 import { copy } from './copy'
 import { Dashboard } from './Dashboard'
+import { balanceView, latestWeighIn } from './balanceView'
+import { withBody } from './body'
+import { BodySheet } from './BodySheet'
 import { buildDayViewFor } from './dayView'
 import { anchorFor, dateOfDay, dayForDate, dayNav } from './days'
 import type { DayNavState } from './DayNav'
@@ -51,7 +54,7 @@ import { StorageNotice } from './StorageNotice'
 import { withTargets, type Targets } from './targets'
 import { TargetsSheet } from './TargetsSheet'
 import { SavedMealsSheet } from './SavedMealsSheet'
-import { fmtInt, fmtTime, fmtWeekday } from './format'
+import { fmtDate, fmtInt, fmtTime, fmtWeekday } from './format'
 import {
   mealFromValues,
   newSavedMealId,
@@ -96,6 +99,9 @@ type SheetState =
   | { mode: 'workout'; workoutId: string }
   | { mode: 'newWorkout'; workout: Workout }
   | { mode: 'editWorkout'; workoutId: string }
+  // Build-out item 2.5b: Body details, from Profile and privacy (closing goes back there), More,
+  // or the line under the headline that invites adding them.
+  | { mode: 'body'; from: 'profile' | 'more' | 'dashboard' }
 
 /**
  * The one-line confirmation of the last action: under the header (Reset demo), or in the action
@@ -351,6 +357,13 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
     if (doc) commit(withTargets(doc, targets))
   }
 
+  /** Body details Save (build-out item 2.5b): the open log's (Sam's in the demo stay in the demo). */
+  function saveBody(body: BodyDetails, from: 'profile' | 'more' | 'dashboard') {
+    if (!doc) return
+    commit(withBody(doc, body))
+    if (from === 'profile') setSheet({ mode: 'profile' })
+  }
+
   /**
    * A More menu entry: the menu closes, then the entry opens. A new entry in moreMenu.ts needs a
    * case here; TypeScript flags a missing one.
@@ -365,6 +378,9 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
         return
       case 'savedMeals':
         setSheet({ mode: 'savedMeals', from: 'more' })
+        return
+      case 'body':
+        setSheet({ mode: 'body', from: 'more' })
         return
       case 'look':
         setSheet({ mode: 'look' })
@@ -477,7 +493,11 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
   }
   const sleepTime = sheet?.mode === 'sleepTime' ? sheet : null
   const explain =
-    sheet?.mode === 'meal' || sheet?.mode === 'day' || sheet?.mode === 'ranges' || sheet?.mode === 'net' ? sheet : null
+    sheet?.mode === 'meal' || sheet?.mode === 'day' || sheet?.mode === 'ranges' || sheet?.mode === 'net' || sheet?.mode === 'balance'
+      ? sheet
+      : null
+  // Build-out item 2.5b: the estimated deficit or surplus for the viewed day, worked out once.
+  const balance = balanceView(doc, view, at, demo)
   const findWorkout = (id: string) => doc.workouts.find((w) => w.id === id)
   const workoutDetails = sheet?.mode === 'workout' ? findWorkout(sheet.workoutId) : undefined
   const editingWorkout =
@@ -515,6 +535,8 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
         onOpenProfile={() => setSheet({ mode: 'profile' })}
         targets={doc.profile.targets}
         onOpenTargets={() => setSheet({ mode: 'targets' })}
+        balance={balance}
+        onOpenBody={() => setSheet({ mode: 'body', from: 'dashboard' })}
         nowIso={at}
         onOpenMore={() => setSheet({ mode: 'more' })}
         moreOpen={sheet?.mode === 'more'}
@@ -533,7 +555,18 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
       {sheet?.mode === 'targets' && (
         <TargetsSheet targets={doc.profile.targets} demo={demo} onSave={saveTargets} onClose={() => setSheet(null)} />
       )}
-      {explain && <ExplainSheet mode={explain} view={view} demo={demo} onClose={() => setSheet(null)} />}
+      {explain && <ExplainSheet mode={explain} view={view} balance={balance} demo={demo} onClose={() => setSheet(null)} />}
+      {sheet?.mode === 'body' && (
+        <BodySheet
+          body={doc.profile.body}
+          nowIso={at}
+          todayDate={fmtDate(at)}
+          weighIn={latestWeighIn(doc, at)}
+          demo={demo}
+          onSave={(body) => saveBody(body, sheet.from)}
+          onClose={() => setSheet(sheet.from === 'profile' ? { mode: 'profile' } : null)}
+        />
+      )}
       {sheet?.mode === 'eaten' && (
         <EatenSheet
           view={view}
@@ -630,6 +663,8 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
           onExportOlderCopies={exportOlderCopies}
           onImport={importMine}
           onDelete={deleteMine}
+          onEditBody={() => setSheet({ mode: 'body', from: 'profile' })}
+          nowIso={at}
           onClose={() => setSheet(null)}
         />
       )}

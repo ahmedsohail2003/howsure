@@ -42,9 +42,17 @@
 // opens its explanation, the target chip the targets editor (or offers to set a target when there
 // is none), and the macro chip shows each macro with its target and any missing entries. Once net
 // is the headline, eaten and burned are chips too, each opening its detail.
+//
+// Build-out item 2.5b (the owner's decision to show the deficit or surplus when resting burn can be
+// worked out, always called an estimate): under the headline, net or eaten, one line reads "Estimated
+// deficit 350 kcal" or "Estimated surplus 120 kcal" with its likely range, and opens how it is
+// worked out. Without age, sex, height and weight it is left out, and one line invites adding
+// them instead (it opens Body details). balanceView.ts works it out once; every look draws the
+// same line (BalanceLine), Night with the range's unit left off as in its other ranges.
 
 import type { MacroKey, MacroTotal } from '../kernel/types'
 import type { Profile } from '../store/log'
+import type { BalanceView } from './balanceView'
 import { copy } from './copy'
 import type { DayView } from './dayView'
 import { fmtAmount, fmtInt } from './format'
@@ -69,6 +77,10 @@ interface HeadlineEstimateProps {
   /** The day's macros and the log's targets: the Night look draws them as a chip here. */
   macros?: Record<MacroKey, MacroTotal>
   targets?: Profile['targets']
+  /** The estimated deficit or surplus, or what stands in for it (build-out item 2.5b). */
+  balance?: BalanceView
+  /** Opens Body details, from the line that invites adding them. */
+  onOpenBody?: () => void
 }
 
 interface LookProps extends HeadlineEstimateProps {
@@ -152,6 +164,72 @@ function NetParts({ hv, onOpen }: { hv: HeadlineView; onOpen: (mode: HeadlineOpe
   )
 }
 
+/**
+ * The estimated deficit or surplus under the headline, one tap from how it is worked out; or
+ * the line inviting body details (which opens them); or why it is not shown on this day.
+ */
+function BalanceLine({
+  balance,
+  onOpen,
+  onOpenBody,
+  short = false,
+}: {
+  balance?: BalanceView
+  onOpen: (mode: HeadlineOpen) => void
+  onOpenBody?: () => void
+  short?: boolean
+}) {
+  if (!balance || balance.kind === 'hidden') return null
+  if (balance.kind === 'shown') {
+    return (
+      <button
+        type="button"
+        className="balance-line"
+        onClick={() => onOpen({ mode: 'balance' })}
+        aria-label={balance.label}
+        data-direction={balance.direction}
+        data-testid="balance"
+      >
+        <span className="balance-text" data-testid="balance-text">
+          {balance.text}
+        </span>
+        <span className="balance-range num" data-testid="balance-range">
+          {short ? balance.likelyShort : balance.likelyText}
+          {balance.knownOnly && (
+            <>
+              {copy.sep}
+              <span data-testid="balance-known-only">{copy.balance.knownOnly}</span>
+            </>
+          )}
+        </span>
+        <span className="balance-arrow" aria-hidden="true">
+          {copy.arrow}
+        </span>
+      </button>
+    )
+  }
+  if (balance.kind === 'invite' && onOpenBody) {
+    return (
+      <button type="button" className="balance-invite" onClick={onOpenBody} data-testid="balance-invite">
+        {balance.text}
+        <span className="balance-arrow" aria-hidden="true">
+          {copy.arrow}
+        </span>
+      </button>
+    )
+  }
+  return (
+    <p className="balance-na" data-testid={balance.kind === 'invite' ? 'balance-invite' : 'balance-na'}>
+      {balance.text}
+    </p>
+  )
+}
+
+/** The net note on burned: once the estimate (which adds resting burn) shows, it says so. */
+function restingNote(balance: BalanceView | undefined): string {
+  return balance?.kind === 'shown' ? copy.net.restingWithBalance : copy.net.restingShort
+}
+
 function RangesNotAvailable() {
   const na = copy.headline.notAvailable
   return (
@@ -168,7 +246,7 @@ function RangesNotAvailable() {
   )
 }
 
-function JournalHeadline({ hv, onOpen, targetKcal }: LookProps) {
+function JournalHeadline({ hv, onOpen, targetKcal, balance, onOpenBody }: LookProps) {
   const bar =
     hv.bar && hv.value !== null
       ? rangeBarGeometry(hv.value, hv.likely, hv.veryLikely, hv.barTarget ? targetKcal : undefined, { signed: hv.net })
@@ -180,6 +258,7 @@ function JournalHeadline({ hv, onOpen, targetKcal }: LookProps) {
 
       <HeadlineNumber hv={hv} />
       {hv.net && <NetParts hv={hv} onOpen={onOpen} />}
+      <BalanceLine balance={balance} onOpen={onOpen} onOpenBody={onOpenBody} />
       <DayStatus hv={hv} />
 
       <div className="headline-meta">
@@ -267,14 +346,14 @@ function JournalHeadline({ hv, onOpen, targetKcal }: LookProps) {
               <span data-testid="net-bar-note">{copy.net.barNote}</span>{' '}
             </>
           )}
-          <span data-testid="net-resting">{copy.net.restingShort}</span>
+          <span data-testid="net-resting">{restingNote(balance)}</span>
         </p>
       )}
     </section>
   )
 }
 
-function PanelHeadline({ hv, onOpen, targetKcal, onSetTarget, dayKey }: LookProps) {
+function PanelHeadline({ hv, onOpen, targetKcal, onSetTarget, dayKey, balance, onOpenBody }: LookProps) {
   // Only a complete day fills the ring: on an incomplete day the known meals are part of it only.
   // The ring always compares calories eaten with the target, which is a target for eating.
   const share = ringFill(hv.ringValue, targetKcal)
@@ -337,6 +416,7 @@ function PanelHeadline({ hv, onOpen, targetKcal, onSetTarget, dayKey }: LookProp
           </div>
         </>
       )}
+      <BalanceLine balance={balance} onOpen={onOpen} onOpenBody={onOpenBody} />
       <DayStatus hv={hv} />
 
       {share && !hv.net && (
@@ -357,7 +437,7 @@ function PanelHeadline({ hv, onOpen, targetKcal, onSetTarget, dayKey }: LookProp
               <span data-testid="ring-note">{copy.panel.ringNoteEaten}</span>{' '}
             </>
           )}
-          <span data-testid="net-resting">{copy.net.restingShort}</span>
+          <span data-testid="net-resting">{restingNote(balance)}</span>
         </p>
       )}
 
@@ -393,7 +473,7 @@ function RingWords({ share, targetKcal, net }: { share: { pct: number } | null; 
   )
 }
 
-function NightHeadline({ hv, onOpen, targetKcal, onSetTarget, macros, targets, view }: LookProps) {
+function NightHeadline({ hv, onOpen, targetKcal, onSetTarget, macros, targets, view, balance, onOpenBody }: LookProps) {
   return (
     <section className="headline night-hero" aria-label={hv.label} data-mode={hv.net ? 'net' : 'eaten'} data-testid="headline">
       <p className="headline-label">{hv.label}</p>
@@ -471,9 +551,12 @@ function NightHeadline({ hv, onOpen, targetKcal, onSetTarget, macros, targets, v
         {macros && view.day.status !== 'empty' && <NightMacros macros={macros} targets={targets} />}
       </div>
 
+      {/* Under the chips, so eaten and burned stay right under the net number. */}
+      <BalanceLine balance={balance} onOpen={onOpen} onOpenBody={onOpenBody} short />
+
       {hv.net && (
         <p className="net-resting small" data-testid="net-resting">
-          {copy.net.restingShort}
+          {restingNote(balance)}
         </p>
       )}
     </section>

@@ -731,6 +731,129 @@ button {
   margin-top: var(--s1);
 }
 
+/* ---------- estimated deficit or surplus (build-out item 2.5b) ----------
+   One line under the headline: the words say deficit or surplus (colour is not the signal, and
+   neither is a judgement), with the likely range beside them. The whole line is one tap target
+   that opens how it is worked out. Without body details, one line invites adding them. */
+.balance-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 10px;
+  width: calc(100% + 2 * var(--s1));
+  min-height: 44px;
+  margin: 4px calc(-1 * var(--s1)) 0;
+  padding: 8px var(--s1);
+  border: 0;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--t);
+}
+
+.balance-line:hover {
+  background: var(--teal-bg);
+}
+
+.balance-text {
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.balance-range {
+  color: var(--ink-soft);
+  font-size: 14px;
+}
+
+.balance-arrow {
+  color: var(--teal-ink);
+  font-weight: 600;
+}
+
+.balance-invite {
+  display: block;
+  min-height: 44px;
+  margin-top: 4px;
+  padding: 8px 0;
+  border: 0;
+  background: none;
+  color: var(--teal-ink);
+  font-size: 15px;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.balance-invite .balance-arrow {
+  text-decoration: none;
+}
+
+.balance-na {
+  margin-top: 4px;
+  color: var(--ink-soft);
+  font-size: 14px;
+}
+
+.plain-list {
+  margin: 0 0 var(--s1);
+  padding-left: 1.2em;
+  list-style: disc;
+}
+
+.plain-list li::marker {
+  color: var(--ink-soft);
+}
+
+/* The balance explanation's equation: its heading, the sum, the prefer-not-to-say note and the
+   everyday line, a step apart like the sheet's other blocks. */
+.balance-equation-block > * + * {
+  margin-top: var(--s1);
+}
+
+.plain-list li + li {
+  margin-top: 4px;
+}
+
+/* Body details (build-out item 2.5b): sex and the units as two or three button-like radios, in
+   the Log a meal amount control's style; long words may wrap inside their button. */
+/* Their questions weigh the same as the boxes' labels (Age, Height, Weight). */
+.body-choice > legend {
+  font-weight: 600;
+}
+
+.body-choice .amount-options.choice-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  max-width: 20em;
+}
+
+.body-choice .amount-options.choice-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  max-width: 30em;
+}
+
+.body-choice .amount-option {
+  white-space: normal;
+  text-align: center;
+  line-height: 1.25;
+}
+
+.body-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 8em));
+  gap: var(--s2);
+}
+
+.body-num input {
+  max-width: 12em;
+}
+
+.body-clear {
+  align-self: flex-start;
+}
+
 /* A score shown as a fact, not a button (burned's and a workout's): the score pill's look. */
 .score-pill {
   display: inline-block;
@@ -3500,4 +3623,34 @@ details.more > summary {
 
 [data-look="night"] .quick-item:hover:not(:disabled) {
   border-left-color: var(--teal);
+}
+
+/* Panel: the estimated deficit or surplus as a thin tile under the hero numbers (build-out item 2.5b). */
+[data-look="panel"] .balance-line {
+  width: 100%;
+  margin: var(--s1) 0 0;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+[data-look="panel"] .body-choice .amount-option {
+  border-radius: 999px;
+}
+
+/* Night: the estimated deficit or surplus as a quiet line under the ranges, its words thin like
+   the headline and its range without the unit, as Night's other ranges (build-out item 2.5b). */
+[data-look="night"] .balance-line {
+  width: auto;
+  margin: 8px -6px 0;
+  padding: 6px;
+}
+
+[data-look="night"] .balance-text {
+  font-size: 16px;
+  font-weight: 400;
+}
+
+[data-look="night"] .body-choice .amount-option {
+  border-radius: 999px;
 }

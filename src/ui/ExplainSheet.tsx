@@ -2,29 +2,44 @@
 // meal score, day score and ranges, each short, with the calculation and the sources
 // under More detail. Net mode (build-out item 2.5a, slice 10; spec.md > Maths Core: Net
 // Calories) shows net's ranges, eaten's range, burned's range and how they combine, with the
-// resting-burn note. Net has no score.
+// resting-burn note. Net has no score. Balance mode (build-out item 2.5b) explains the estimated
+// deficit or surplus: the equation, its inputs, the activity factor, the hours counted, how the
+// spreads combine, what is not counted, and where each number comes from.
 
 import { estimateMeal, improve, isKnownMeal } from '../kernel/estimate'
+import { RESTING_BASIS, RESTING_TYPICAL_ERROR } from '../kernel/energy'
 import { isKnownWorkout } from '../kernel/net'
 import { getSource } from '../kernel/sources'
 import type { Meal, SourceId } from '../kernel/types'
+import type { BalanceView } from './balanceView'
+import { heightText, weightText } from './body'
 import { copy } from './copy'
 import type { DayView } from './dayView'
-import { fmtInt, fmtPct, fmtRange, fmtSharePct, fmtSigned, fmtSignedRange } from './format'
+import { fmtInt, fmtPct, fmtRange, fmtSharePct, fmtSigned, fmtSignedPlus, fmtSignedRange, fmtWeekdayTime } from './format'
 import { mealSourceLabel, mealTimeLabel } from './MealList'
 import { Sheet } from './Sheet'
 import { BasisTag, SourceBasisItem, SourceBasisList, sourcesUsed } from './SourceBasis'
 
-export type ExplainMode = { mode: 'meal'; mealId: string } | { mode: 'day' } | { mode: 'ranges' } | { mode: 'net' }
+export type ExplainMode = { mode: 'meal'; mealId: string } | { mode: 'day' } | { mode: 'ranges' } | { mode: 'net' } | { mode: 'balance' }
 
 interface ExplainSheetProps {
   mode: ExplainMode
   view: DayView
   demo: boolean
   onClose: () => void
+  /** The estimated deficit or surplus (balance mode). */
+  balance?: BalanceView
 }
 
-export function ExplainSheet({ mode, view, demo, onClose }: ExplainSheetProps) {
+export function ExplainSheet({ mode, view, demo, onClose, balance }: ExplainSheetProps) {
+  if (mode.mode === 'balance') {
+    if (!balance || balance.kind !== 'shown') return null
+    return (
+      <Sheet title={copy.explainBalance.title} demo={demo} onClose={onClose} testId="explain-balance">
+        <BalanceExplanation balance={balance} />
+      </Sheet>
+    )
+  }
   if (mode.mode === 'meal') {
     const meal = view.meals.find((m) => m.id === mode.mealId)
     if (!meal) return null
@@ -57,6 +72,11 @@ export function ExplainSheet({ mode, view, demo, onClose }: ExplainSheetProps) {
     return (
       <Sheet title={copy.explainNet.title} demo={demo} onClose={onClose} testId="explain-net">
         <NetExplanation view={view} />
+        {balance?.kind === 'shown' && (
+          <p className="small" data-testid="net-balance-pointer">
+            {copy.explainNet.balancePointer}
+          </p>
+        )}
       </Sheet>
     )
   }
@@ -161,6 +181,186 @@ function NetExplanation({ view }: { view: DayView }) {
       </details>
     </>
   )
+}
+
+/* ---------------- estimated deficit or surplus ---------------- */
+
+/** "12 h 10 min" from hours. */
+function fmtDuration(hours: number): string {
+  const total = Math.round(hours * 60)
+  return copy.explainBalance.duration(String(Math.floor(total / 60)), String(total % 60))
+}
+
+function BalanceExplanation({ balance }: { balance: Extract<BalanceView, { kind: 'shown' }> }) {
+  const t = copy.explainBalance
+  const { inputs, resting, est } = balance
+  const factor = String(inputs.factor)
+  const weight = weightText(inputs.weightKg, inputs.weightUnit)
+  const sexTerm =
+    resting.sexConstant < 0 ? `${copy.headline.minus} ${fmtInt(-resting.sexConstant)}` : `+ ${fmtInt(resting.sexConstant)}`
+  return (
+    <>
+      <p className="big-figure num" data-testid="explain-balance-total">
+        {balance.text}
+      </p>
+      <p data-testid="balance-intro">{t.intro}</p>
+      <ul className="fact-list num" data-testid="balance-ranges">
+        <li data-testid="explain-balance-likely">
+          <span className="k">{copy.headline.likely}</span>
+          <span>{balance.likelyRange}</span>
+        </li>
+        <li data-testid="explain-balance-very-likely">
+          <span className="k">{copy.headline.veryLikely}</span>
+          <span>{balance.veryLikelyRange}</span>
+        </li>
+      </ul>
+
+      <ul className="fact-list num" data-testid="balance-sum">
+        <li data-testid="explain-balance-eaten">
+          <span className="k">{balance.knownOnly ? t.eatenKnownOnly : t.eaten}</span>
+          <span>{t.kcal(fmtInt(balance.eaten))}</span>
+        </li>
+        <li data-testid="explain-balance-resting">
+          <span className="k">{t.resting}</span>
+          <span>{t.restingValue(fmtInt(resting.kcal))}</span>
+        </li>
+        <li data-testid="explain-balance-activity">
+          <span className="k">{t.activity}</span>
+          <span>{t.activityValue(copy.body.activityOptions[inputs.activity], factor, inputs.activityDefault)}</span>
+        </li>
+        <li data-testid="explain-balance-hours">
+          <span className="k">{t.hours}</span>
+          <span>{t.hoursValue(fmtDuration(inputs.hours), fmtSharePct(est.share))}</span>
+        </li>
+        <li data-testid="explain-balance-everyday">
+          <span className="k">{t.everyday}</span>
+          <span>{t.kcal(fmtInt(est.everyday))}</span>
+        </li>
+        <li data-testid="explain-balance-workouts">
+          <span className="k">{balance.knownOnly ? t.workoutsKnownOnly : t.workouts}</span>
+          <span>{t.kcal(fmtInt(balance.workouts))}</span>
+        </li>
+        <li data-testid="explain-balance-burn">
+          <span className="k">{t.burn}</span>
+          <span>{t.kcal(fmtInt(est.burn))}</span>
+        </li>
+        <li data-testid="explain-balance-sum">
+          <span className="k">{t.balance}</span>
+          <span>{t.kcal(fmtSignedPlus(est.balance))}</span>
+        </li>
+      </ul>
+      <p className="small" data-testid="balance-time">
+        {inputs.soFar ? t.soFar(fmtWeekdayTime(inputs.from)) : t.wholeDay(fmtWeekdayTime(inputs.from), fmtWeekdayTime(inputs.to))}
+      </p>
+      <p className="small">{t.once}</p>
+      {balance.knownOnly && <p className="small">{t.knownOnly}</p>}
+
+      <div>
+        <h3 className="section-title">{t.inputsTitle}</h3>
+        <ul className="fact-list num" data-testid="balance-inputs">
+          <li>
+            <span className="k">{t.age}</span>
+            <span>{t.ageValue(String(inputs.age))}</span>
+          </li>
+          <li>
+            <span className="k">{t.sex}</span>
+            <span>{t.sexNames[inputs.sex]}</span>
+          </li>
+          <li>
+            <span className="k">{t.height}</span>
+            <span>{heightText(inputs.heightCm, inputs.heightUnit)}</span>
+          </li>
+          <li data-testid="balance-weight">
+            <span className="k">{t.weight}</span>
+            <span>
+              {inputs.weightFrom.from === 'weighIn'
+                ? t.weightFromWeighIn(weight, inputs.weightFrom.when)
+                : t.weightFromProfile(weight)}
+            </span>
+          </li>
+        </ul>
+      </div>
+
+      <div className="balance-equation-block" data-testid="balance-equation-block">
+        <h3 className="section-title">{t.equationTitle}</h3>
+        <p className="num" data-testid="balance-equation">
+          {t.equation(fmtNum(inputs.weightKg), fmtNum(inputs.heightCm), String(inputs.age), sexTerm)}
+          {t.equationResult(fmtInt(resting.kcal))}
+        </p>
+        {inputs.sex === 'unspecified' && (
+          <p className="small" data-testid="balance-unspecified">
+            {t.unspecified(fmtInt(resting.sexSd))}
+          </p>
+        )}
+        <p className="num small" data-testid="balance-everyday-line">{t.everydayLine(fmtInt(resting.kcal), factor, fmtShare(est.share), fmtInt(est.everyday))}</p>
+      </div>
+
+      <div className="callout amber" data-testid="balance-not-counted">
+        <h3 className="section-title">{t.notCountedTitle}</h3>
+        <ul className="plain-list">
+          {t.notCounted.map((line) => (
+            <li key={line}>{line}</li>
+          ))}
+        </ul>
+        <p>{t.notMeasured}</p>
+      </div>
+
+      <details className="more">
+        <summary>{copy.sheet.moreDetail}</summary>
+        <div className="more-body">
+          <p className="num" data-testid="balance-combine">
+            {t.combine(fmtInt(balance.eatenSd), fmtInt(balance.workoutsSd), fmtInt(est.everydaySd), fmtInt(est.sd))}
+          </p>
+          <p className="small">{t.restError(fmtPct(RESTING_TYPICAL_ERROR))}</p>
+          <div>
+            <h3>{t.howTitle}</h3>
+            <p className="num">{t.how(fmtInt(est.sd))}</p>
+          </div>
+          <p className="small">{t.rangesNote}</p>
+          <div>
+            <h3>{t.sourcesTitle}</h3>
+            <ul className="source-basis">
+              <li data-testid="balance-source">
+                <p>
+                  <strong className="num">{t.equationSource(fmtPct(RESTING_TYPICAL_ERROR))}</strong>{' '}
+                  <span className="basis-tag" data-testid="basis-tag">
+                    {copy.basis.assumption}
+                  </span>
+                </p>
+                <p className="context">{copy.basis.nearestStudy(RESTING_BASIS.context)}</p>
+                <p className="context" data-testid="basis-cite">
+                  {[RESTING_BASIS.cite, copy.basis.doi(RESTING_BASIS.doi as string), copy.basis.checkedOn(RESTING_BASIS.checked as string)].join(copy.sep)}
+                </p>
+              </li>
+              <li>
+                <p>
+                  <strong>{copy.body.activity}</strong>{' '}
+                  <span className="basis-tag">{copy.basis.assumption}</span>
+                </p>
+                <p className="context">{t.factorsSource}</p>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </details>
+    </>
+  )
+}
+
+// Up to two decimals: the stored values have at most that many that matter (172.72 cm from
+// 5 ft 8 in, 63.957 kg from 141 lb shows 63.96), so redoing the sum gives the same whole kcal.
+const twoDecimals = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2, useGrouping: false })
+/** 64 -> "64", 172.72 -> "172.72", 63.957 -> "63.96". */
+function fmtNum(n: number): string {
+  return twoDecimals.format(n)
+}
+/**
+ * A share of a day to four decimals: 0.99306 -> "0.9931". Two decimals were too coarse to redo
+ * the everyday-burn sum (1,442 × 1.2 × 0.99 is 1,713, not the 1,718 shown); at four the share's
+ * own rounding moves the sum by well under 1 kcal.
+ */
+function fmtShare(share: number): string {
+  return share.toFixed(4)
 }
 
 /* ---------------- meal score ---------------- */

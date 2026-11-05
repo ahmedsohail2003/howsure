@@ -12,12 +12,33 @@ import {
   type LogKind,
 } from '../clock'
 import { SOURCES } from '../kernel/sources'
+import type { ActivityLevel, BodySex } from '../kernel/energy'
 import type { BurnSourceId, Meal, MealFood, MealLookup, MealSourceId, SleepRecord, Workout } from '../kernel/types'
+
+/**
+ * Body details for the resting-burn estimate (build-out item 2.5b). Every key is optional: a
+ * blank box is not set, and nothing is guessed. Height is kept in cm and weight in kg; the units
+ * say how they were typed, so the form shows them the same way again.
+ */
+export interface BodyDetails {
+  /** Age in whole years when typed, on `ageSetOn` (YYYY-MM-DD), so it moves on with time. */
+  age?: number
+  ageSetOn?: string
+  sex?: BodySex
+  heightCm?: number
+  heightUnit?: 'cm' | 'ftin'
+  weightKg?: number
+  weightUnit?: 'kg' | 'lb'
+  /** Everyday activity, not counting workouts. Missing reads as the default, mostly sitting. */
+  activity?: ActivityLevel
+}
 
 export interface Profile {
   name: string
   kind: 'guest' | 'demo'
   targets?: { kcal?: number; protein?: number; carbs?: number; fat?: number }
+  /** Build-out item 2.5b: optional, so a log saved before it loads unchanged (no version bump). */
+  body?: BodyDetails
 }
 
 /**

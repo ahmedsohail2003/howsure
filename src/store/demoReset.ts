@@ -93,6 +93,8 @@ export interface DemoChanges {
   savedMealsChanged: boolean
   /** Workouts were logged, edited or deleted (build-out item 2.5a). */
   workoutsChanged: boolean
+  /** Body details for the estimated deficit or surplus were added, changed or cleared (build-out item 2.5b). */
+  bodyChanged: boolean
   /** The rest of the projection: the profile's other fields and plates. */
   otherChanged: boolean
 }
@@ -113,14 +115,15 @@ export function demoChanges(doc: LogDoc, pristine: LogDoc = pristineDemo()): Dem
   }
   const mealsDeleted = [...was.keys()].filter((id) => !now.has(id)).length
   const sleepText = (s: SleepRecord[]) => demoJson(inIdOrder(s))
-  const { targets: targetsNow, ...profileNow } = doc.profile
-  const { targets: targetsWas, ...profileWas } = pristine.profile
+  const { targets: targetsNow, body: bodyNow, ...profileNow } = doc.profile
+  const { targets: targetsWas, body: bodyWas, ...profileWas } = pristine.profile
   return {
     mealsAdded,
     mealsChanged,
     mealsDeleted,
     sleepChanged: sleepText(doc.sleeps) !== sleepText(pristine.sleeps),
     targetsChanged: demoJson(targetsNow ?? null) !== demoJson(targetsWas ?? null),
+    bodyChanged: demoJson(bodyNow ?? null) !== demoJson(bodyWas ?? null),
     savedMealsChanged: demoJson(inIdOrder(doc.savedMeals ?? [])) !== demoJson(inIdOrder(pristine.savedMeals ?? [])),
     workoutsChanged: demoJson(inIdOrder(doc.workouts)) !== demoJson(inIdOrder(pristine.workouts)),
     otherChanged:

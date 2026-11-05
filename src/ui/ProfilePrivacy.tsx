@@ -6,6 +6,9 @@
 // what it replaces; Delete lists what it removes. Focus moves to each step's heading, and back
 // to the button that started it on Cancel. A refused file changes nothing.
 //
+// Build-out item 2.5b: Body details (age, sex, height, weight, everyday activity) for the
+// estimated deficit or surplus: a one-line summary here and a button that opens their sheet.
+//
 // Not here yet: the guest name with Reroll and Rename (item 2.10), plates (3.4), the
 // sent-off-device count (with lookups, 3.5), the Claude connector switch (3.3) and Reset demo (2.1).
 
@@ -13,6 +16,7 @@ import { useEffect, useRef, useState, type ChangeEvent } from 'react'
 import type { LogDoc } from '../store/log'
 import type { LogProblem } from '../store/session'
 import { IMPORT_MAX_BYTES, readImport, summarize, type ImportRead, type OlderCopiesCount } from '../store/transfer'
+import { bodySummary } from './body'
 import { copy } from './copy'
 import { deleteItems, holdsText, replacesText, spanText } from './privacyView'
 import { Sheet } from './Sheet'
@@ -38,6 +42,10 @@ interface ProfilePrivacyProps {
   onImport: (doc: LogDoc) => ImportOutcome
   /** Delete your own log. */
   onDelete: () => DeleteOutcome
+  /** Opens Body details (build-out item 2.5b); closing them comes back here. */
+  onEditBody: () => void
+  /** Your log's now: the age shown moves on with it. */
+  nowIso: string
   onClose: () => void
 }
 
@@ -217,6 +225,19 @@ export function ProfilePrivacy(props: ProfilePrivacyProps) {
             {copy.privacy.savedHere}
           </h3>
           <p className="privacy-hint">{copy.privacy.savedHereDetail}</p>
+        </section>
+
+        <section className="privacy-section" aria-labelledby="privacy-body-title" data-testid="privacy-body">
+          <h3 className="privacy-section-title" id="privacy-body-title">
+            {copy.body.title}
+          </h3>
+          <p className="privacy-hint">{copy.body.sectionHint}</p>
+          <p className="privacy-hint num" data-testid="privacy-body-summary">
+            {bodySummary(doc.profile.body, props.nowIso) ?? copy.body.notSet}
+          </p>
+          <button type="button" className="btn" onClick={props.onEditBody} data-testid="edit-body">
+            {bodySummary(doc.profile.body, props.nowIso) ? copy.body.edit : copy.body.add}
+          </button>
         </section>
 
         <section className="privacy-section" aria-labelledby="privacy-export-title">

@@ -84,6 +84,8 @@ export const copy = {
     savedMealsChanged: 'Saved meals changed',
     workoutsChanged: 'Workouts changed',
     otherChanged: 'Other demo details changed',
+    // Build-out item 2.5b.
+    bodyChanged: 'Sam’s body details changed',
     discards: 'Resetting puts back Sam’s week as it started and discards these changes. Your own log is not affected.',
     confirm: 'Reset demo',
     keep: 'Keep the changes',
@@ -91,6 +93,11 @@ export const copy = {
   },
 
   weekdays: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const,
+  months: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const,
+  // A past moment with its calendar date: "Tue 22 Sep", "Tue 22 Sep 2025", "Tue 22 Sep, 7:10 AM".
+  dayDate: (weekday: string, day: string, month: string, year: string | null) =>
+    year ? `${weekday} ${day} ${month} ${year}` : `${weekday} ${day} ${month}`,
+  dateAndTime: (date: string, time: string) => `${date}, ${time}`,
   weekdaysFull: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] as const,
   am: 'AM',
   pm: 'PM',
@@ -137,6 +144,7 @@ export const copy = {
     // A range that runs below 0 reads "−140 to 3,140 kcal": an en dash after a minus sign is hard to read.
     signedRangeValue: (lo: string, hi: string) => `${lo} to ${hi} kcal`,
     minus: '−',
+    plus: '+',
   },
 
   // Build-out item 2.5a (slice 10; prd.md > Workouts and Net Calories): eaten and burned under the
@@ -150,6 +158,8 @@ export const copy = {
     eatenOpen: (value: string) => `Eaten ${value}. Opens the meals.`,
     burnedOpen: (value: string) => `Burned ${value}. Opens the workouts.`,
     restingShort: 'Burned counts the workouts you logged, not your resting burn.',
+    // With the estimated deficit or surplus shown beside it, which does count resting burn.
+    restingWithBalance: 'Burned counts the workouts you logged; the estimated deficit or surplus adds your resting burn.',
     // spec.md > Maths Core: Net Calories, word for word.
     note: "Not your full energy balance: your body's resting burn isn't counted, so net alone can't show whether you ate more or less than you burned.",
     // Journal's range bar shows net once net is the headline; the target is for calories eaten.
@@ -157,6 +167,94 @@ export const copy = {
     barNote: 'The bar shows net, so your target for eating isn’t marked on it.',
     // The mark for 0 on Journal's net range bar, once the bar runs below 0.
     zero: '0',
+  },
+
+  // Build-out item 2.5b, by the owner's decision: the estimated deficit or surplus, shown when resting
+  // burn can be worked out from body details, and always called an estimate. Never "for sure".
+  balance: {
+    deficit: (kcal: string, soFar: boolean) => (soFar ? `Estimated deficit ${kcal} kcal so far` : `Estimated deficit ${kcal} kcal`),
+    surplus: (kcal: string, soFar: boolean) => (soFar ? `Estimated surplus ${kcal} kcal so far` : `Estimated surplus ${kcal} kcal`),
+    even: (soFar: boolean) => (soFar ? 'Estimated balance about even so far (0 kcal)' : 'Estimated balance about even (0 kcal)'),
+    likely: (range: string) => `likely ${range}`,
+    veryLikely: (range: string) => `very likely ${range}`,
+    kcalSpace: 'kcal ',
+    // Ranges on the deficit scale: "120–580 kcal deficit", "60–300 kcal surplus", or across 0
+    // "120 kcal surplus to 580 kcal deficit". Night drops the unit ("120–580 deficit").
+    rangeDeficit: (lo: string, hi: string, unit: string) => `${lo}–${hi} ${unit}deficit`,
+    rangeSurplus: (lo: string, hi: string, unit: string) => `${lo}–${hi} ${unit}surplus`,
+    rangeAcross: (surplus: string, deficit: string, unit: string) => `${surplus} ${unit}surplus to ${deficit} ${unit}deficit`,
+    open: (text: string, likely: string) => `${text}, ${likely}. Opens how it is worked out.`,
+    knownOnly: 'Known entries only',
+    fields: { age: 'age', sex: 'sex', height: 'height', weight: 'weight' },
+    and: ' and ',
+    invite: (fields: string) => `Add your ${fields} in Profile to see an estimated deficit or surplus.`,
+    inviteDemo: (fields: string) => `Add Sam’s ${fields} to see an estimated deficit or surplus.`,
+    needsWake: 'Estimated deficit or surplus: needs a wake time to count the day from.',
+  },
+
+  // The estimated deficit or surplus explained (build-out item 2.5b).
+  explainBalance: {
+    title: 'Estimated deficit or surplus',
+    intro:
+      'Calories eaten minus an estimate of everything burned: your resting burn, your everyday activity and the workouts you logged.',
+    eaten: 'Eaten',
+    eatenKnownOnly: 'Eaten (known meals)',
+    resting: 'Resting burn',
+    restingValue: (kcal: string) => `${kcal} kcal a day`,
+    activity: 'Everyday activity',
+    activityValue: (name: string, factor: string, isDefault: boolean) =>
+      isDefault ? `${name}, × ${factor} (the default)` : `${name}, × ${factor}`,
+    hours: 'Hours counted',
+    hoursValue: (duration: string, pct: string) => `${duration} (${pct}% of a day)`,
+    everyday: 'Everyday burn',
+    workouts: 'Workouts logged',
+    workoutsKnownOnly: 'Workouts logged (known)',
+    burn: 'Estimated burn',
+    balance: 'Eaten minus burn',
+    kcal: (kcal: string) => `${kcal} kcal`,
+    inputsTitle: 'What it uses',
+    age: 'Age',
+    ageValue: (years: string) => `${years} years`,
+    sex: 'Sex',
+    height: 'Height',
+    weight: 'Weight',
+    weightFromProfile: (w: string) => `${w}, from body details`,
+    weightFromWeighIn: (w: string, when: string) => `${w}, from your weigh-in on ${when}`,
+    sexNames: { female: 'Female', male: 'Male', unspecified: 'Prefer not to say' },
+    equationTitle: 'The equation',
+    equation: (kg: string, cm: string, age: string, s: string) => `Mifflin-St Jeor: 10 × ${kg} kg + 6.25 × ${cm} cm − 5 × ${age} ${s}`,
+    equationResult: (kcal: string) => ` = ${kcal} kcal a day at rest.`,
+    unspecified: (sd: string) =>
+      `You chose Prefer not to say, so HowSure uses the middle of the equation’s values for women (−161) and men (+5), which is −78, and widens the range as if yours could be anywhere between them (±${sd} kcal a day).`,
+    everydayLine: (resting: string, factor: string, share: string, kcal: string) =>
+      `Everyday burn = ${resting} × ${factor} × ${share} of a day = ${kcal} kcal.`,
+    soFar: (from: string) =>
+      `This day is still going, so burn is counted from your wake (${from}) up to now, spread evenly over 24 hours. A deficit grows as the day goes on, even if you eat nothing more. By the next wake, the whole day is counted.`,
+    wholeDay: (from: string, to: string) => `Counted from this day’s wake (${from}) to the next wake (${to}).`,
+    once: 'Workouts are added on top of everyday activity, so each one is counted once. Pick the activity level for everyday movement only.',
+    combine: (eaten: string, workouts: string, rest: string, total: string) =>
+      `Eaten, workouts and the resting estimate are estimated separately, so their spreads combine: √(${eaten}² + ${workouts}² + ${rest}²) = ±${total} kcal.`,
+    restError: (pct: string) => `The resting estimate’s spread is its typical error of ${pct}%, carried through the activity factor and the hours counted.`,
+    notCountedTitle: 'What is not counted',
+    notCounted: [
+      'How far your everyday movement differs from the level you picked: the range leaves that out, so the real figure can sit outside it.',
+      'Meals and workouts with unknown calories.',
+      'Day-to-day changes in water and digestion, and anything that makes your resting burn differ from the equation’s average for people like you.',
+      'A device’s workout calories often include the resting burn during the workout, so those minutes may count twice: once in everyday burn and once in the workout.',
+    ],
+    knownOnly: 'Meals and workouts with unknown calories are left out, so this covers known entries only.',
+    notMeasured:
+      'This is an estimate from an equation, not a measurement. A measured resting burn (from a clinic’s breath test) would be surer.',
+    rangesNote:
+      'The likely range is meant to catch the real figure about 8 times in 10, and the very likely range about 19 times in 20. They are design targets: HowSure hasn’t measured how often they do.',
+    sourcesTitle: 'Where the numbers come from',
+    equationSource: (pct: string) => `Mifflin-St Jeor equation · typical error ${pct}%`,
+    factorsSource:
+      'Activity factors 1.2, 1.375 and 1.55 are the usual multipliers for little, some and a lot of everyday movement. They are not measured for you.',
+    howTitle: 'How the ranges are worked out',
+    how: (sd: string) =>
+      `With a spread of ±${sd} kcal: likely runs from the estimate − 1.2816 × ${sd} to the estimate + 1.2816 × ${sd}, and very likely uses 1.96 in place of 1.2816.`,
+    duration: (h: string, m: string) => `${h} h ${m} min`,
   },
 
   macros: {
@@ -413,9 +511,9 @@ export const copy = {
     previewName: (name: string) => `Guest name: ${name}`,
     previewUpgraded: (v: string) => `Saved in format version ${v}. It is updated to this version as it is imported.`,
     previewReplaces: (what: string) =>
-      `Importing replaces your log on this device, which holds ${what}, and your guest name, targets and settings. Export it first if you want to keep it.`,
+      `Importing replaces your log on this device, which holds ${what}, and your guest name, targets, body details and settings. Export it first if you want to keep it.`,
     previewReplacesEmpty:
-      'Importing replaces your guest name, targets and settings on this device. Your log has no meals or sleep yet.',
+      'Importing replaces your guest name, targets, body details and settings on this device. Your log has no meals or sleep yet.',
     importConfirm: 'Replace my log',
     importCancel: 'Cancel',
     imported: (what: string) => `Imported. Your log now holds ${what}.`,
@@ -436,7 +534,7 @@ export const copy = {
     deleteButton: 'Delete my data',
     confirmTitle: 'Delete your log from this device?',
     confirmDeletes: 'This deletes',
-    confirmProfile: 'your guest name, targets and settings',
+    confirmProfile: 'your guest name, targets, body details and settings',
     confirmUnreadable: "your saved log, which this version of HowSure can't read",
     confirmUnsaved: (what: string) => `${what} on screen, which were never saved`,
     confirmOriginal: 'the older-format copy of your saved log, which was never backed up',
@@ -464,6 +562,10 @@ export const copy = {
     // Build-out item 2.3: saved meals, in both logs (the demo's stay in the demo).
     savedMeals: 'Saved meals',
     savedMealsHint: 'Rename or delete the meals you saved as usual.',
+    // Build-out item 2.5b: body details, in both logs (the demo's stay in the demo).
+    body: 'Body details',
+    bodyHint: 'Age, sex, height, weight and everyday activity, for the estimated deficit or surplus.',
+    bodyHintDemo: 'Sam’s made-up body details, for the estimated deficit or surplus.',
     // Build-out item 2.1: in the demo only.
     resetDemo: 'Reset demo',
     resetDemoHint: 'Puts back Sam’s week as it started. Your own log is not affected.',
@@ -594,6 +696,68 @@ export const copy = {
     headlineEaten: (kcal: string) => `Daily target ${kcal} kcal, for calories eaten`,
     shortEaten: (kcal: string) => `Target ${kcal} for eaten`,
     setKcal: 'Set a calorie target',
+  },
+
+  // Build-out item 2.5b: body details for the resting-burn estimate (profile.body). A blank box is
+  // not set, never guessed.
+  body: {
+    title: 'Body details',
+    sub: 'For the estimated deficit or surplus. Saved with your log, on this device only.',
+    subDemo: 'Sam’s body details are made up, like the rest of the demo.',
+    intro:
+      'HowSure estimates resting burn from these with the Mifflin-St Jeor equation. Leave a box blank to leave it out: nothing is guessed, and the estimate shows only once age, sex, height and weight are all in.',
+    age: 'Age (years)',
+    sex: 'Sex, for the equation',
+    sexOptions: { female: 'Female', male: 'Male', unspecified: 'Prefer not to say' },
+    sexHint: 'The equation has one value for women and one for men.',
+    sexHintUnspecified: 'Prefer not to say uses the middle of the two values, with a wider range.',
+    height: 'Height',
+    heightCm: 'Height (cm)',
+    heightFt: 'Feet',
+    heightIn: 'Inches',
+    units: { cm: 'cm', ftin: 'ft and in', kg: 'kg', lb: 'lb' },
+    heightUnit: 'Height in',
+    weight: 'Weight',
+    weightKg: 'Weight (kg)',
+    weightLb: 'Weight (lb)',
+    weightUnit: 'Weight in',
+    weighInHint: (w: string, when: string) => `Your weigh-in on ${when} (${w}) is used while it is the latest. This weight counts when there is none.`,
+    activity: 'Everyday activity, not counting workouts',
+    activityOptions: {
+      sitting: 'Mostly sitting',
+      light: 'Some standing and walking',
+      moderate: 'On your feet most of the day',
+    },
+    activityHints: {
+      sitting: 'Desk work and little walking. The default.',
+      light: 'Some of the day on your feet, such as errands or light chores.',
+      moderate: 'Most of the day on your feet, such as shop or warehouse work.',
+    },
+    factor: (f: string) => `× ${f}`,
+    activityNote: 'Workouts you log are added on top, so they are counted once.',
+    save: 'Save body details',
+    cancel: 'Cancel',
+    clear: 'Clear all',
+    errors: {
+      age: 'Type an age from 18 to 120, in whole years. The equation is for adults.',
+      heightCm: 'Type a height from 100 to 250 cm.',
+      heightFtIn: 'Type a height from 3 ft 4 in to 8 ft 2 in.',
+      inches: 'Inches run from 0 to 11.9.',
+      feetMissing: 'Type the feet too, or clear the inches.',
+      weightKg: 'Type a weight from 30 to 300 kg.',
+      weightLb: 'Type a weight from 66 to 660 lb.',
+    },
+    // Values as shown in the explanation and in Profile and privacy.
+    cmValue: (n: string) => `${n} cm`,
+    ftInValue: (ft: string, inches: string) => `${ft} ft ${inches} in`,
+    kgValue: (n: string) => `${n} kg`,
+    lbValue: (n: string) => `${n} lb`,
+    ageValue: (n: string) => `age ${n}`,
+    // Profile and privacy's section.
+    sectionHint: 'Used for the estimated deficit or surplus under the headline.',
+    notSet: 'Not set yet.',
+    edit: 'Edit body details',
+    add: 'Add body details',
   },
 
   logMeal: {
@@ -844,6 +1008,9 @@ export const copy = {
     how: (sd: string) =>
       `With net’s spread of ±${sd} kcal: likely runs from net − 1.2816 × ${sd} to net + 1.2816 × ${sd}, and very likely uses 1.96 in place of 1.2816.`,
     notAvailable: 'Not available yet: net needs known calories for both eaten and burned on this day.',
+    // Build-out item 2.5b: once body details are in, the line under the headline adds resting burn.
+    balancePointer:
+      'The estimated deficit or surplus under the headline adds an estimate of your resting burn and everyday activity, from your body details.',
   },
 
   more: {

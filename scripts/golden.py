@@ -13,6 +13,10 @@ not built yet; this script computes them from the spec's formulas and writes
 them to fixtures/golden.json, which the future tests read
 (src/kernel/__tests__/golden-later.test.ts lists them as pending until then).
 
+Cases E1 (resting burn) and E2 (estimated deficit or surplus), spec.md > Maths Core: Energy
+Balance (build-out item 2.5b), are computed here from the spec's words with fictional inputs and
+written to fixtures/golden-energy.json, which src/kernel/__tests__/energy.test.ts asserts.
+
 Run from the repo root:
   python3 scripts/golden.py          check every case against the spec, and check
                                      that fixtures/golden.json is up to date
@@ -50,6 +54,7 @@ ERR = {
 ROOT = Path(__file__).resolve().parent.parent
 FIXTURE = ROOT / "fixtures" / "demo-week.json"
 GOLDEN_JSON = ROOT / "fixtures" / "golden.json"
+ENERGY_JSON = ROOT / "fixtures" / "golden-energy.json"
 
 # Mean Earth radius for the haversine distance golden (G9b). The spec names haversine
 # but no radius; 6371 km is the usual mean radius, recorded in golden.json so the
@@ -394,6 +399,125 @@ def later_json_text(cases):
     return json.dumps(cases, indent=2, ensure_ascii=False) + "\n"
 
 
+# ---------- E1, E2: resting burn and the estimated deficit or surplus (build-out item 2.5b) ----------
+# spec.md > Maths Core: Energy Balance. Mifflin-St Jeor: 10 kg + 6.25 cm - 5 age + s, s = +5 (male),
+# -161 (female), midpoint -78 for "prefer not to say" with an extra uniform spread of 166 / sqrt(12).
+# Typical error 10% of resting burn. Everyday burn = resting x factor x hours / 24, with the spread
+# carried the same way. Balance = eaten - (everyday + workouts); sd = sqrt(sd_eaten^2 + sd_workouts^2
+# + sd_everyday^2); normal ranges. Below 0 is a deficit.
+RESTING_ERR = 0.10
+SEX_S = {"male": 5, "female": -161, "unspecified": -78}
+FACTORS = {"sitting": 1.2, "light": 1.375, "moderate": 1.55}
+
+
+def resting(kg, cm, age, sex):
+    kcal = 10 * kg + 6.25 * cm - 5 * age + SEX_S[sex]
+    sex_sd = (5 - (-161)) / math.sqrt(12) if sex == "unspecified" else 0.0
+    eq_sd = RESTING_ERR * kcal
+    return {"kcal": kcal, "sexConstant": SEX_S[sex], "sexSd": r4(sex_sd), "equationSd": r4(eq_sd),
+            "sd": r4(math.sqrt(eq_sd ** 2 + sex_sd ** 2))}
+
+
+def balance_case(cid, about, meals, workouts, body, activity, hours):
+    x = sum(m["kcal"] for m in meals)
+    sd_x = grouped_sd(meals)
+    b = sum(w["kcal"] for w in workouts)
+    sd_b = grouped_sd(workouts) if workouts else 0.0
+    rest = resting(body["kg"], body["cm"], body["age"], body["sex"])
+    rest_sd = math.sqrt((RESTING_ERR * rest["kcal"]) ** 2 + rest["sexSd"] ** 2)
+    f = FACTORS[activity]
+    share = hours / 24
+    everyday = rest["kcal"] * f * share
+    everyday_sd = rest_sd * f * share
+    bal = x - (everyday + b)
+    sd = math.sqrt(sd_x ** 2 + sd_b ** 2 + everyday_sd ** 2)
+    return {
+        "id": cid,
+        "about": about,
+        "input": {"meals": meals, "workouts": workouts, "body": body, "activity": activity, "factor": f,
+                  "hours": hours},
+        "expected": {
+            "eaten": x, "eatenSd": r4(sd_x), "workouts": b, "workoutsSd": r4(sd_b),
+            "resting": rest["kcal"], "everyday": r4(everyday), "everydaySd": r4(everyday_sd),
+            "burn": r4(everyday + b), "balance": r4(bal), "sd": r4(sd),
+            "rounded": half_up(bal),
+            "direction": "deficit" if half_up(bal) < 0 else "surplus" if half_up(bal) > 0 else "even",
+            "likely": [half_up(bal - Z80 * sd), half_up(bal + Z80 * sd)],
+            "veryLikely": [half_up(bal - Z95 * sd), half_up(bal + Z95 * sd)],
+        },
+    }
+
+
+def energy_cases():
+    m = lambda mid, source, kcal: {"id": mid, "name": mid, "source": source, "kcal": kcal}
+    return {
+        "_about": ("Golden values for resting burn (E1) and the estimated deficit or surplus (E2), "
+                   "written by scripts/golden.py --write from spec.md > Maths Core: Energy Balance. "
+                   "Fictional inputs only. Asserted by src/kernel/__tests__/energy.test.ts."),
+        "tolerance": {"kcal": 1},
+        "restingTypicalError": RESTING_ERR,
+        "factors": FACTORS,
+        "E1": [
+            {"input": {"kg": 64, "cm": 168, "age": 34, "sex": "female"}, "expected": resting(64, 168, 34, "female")},
+            {"input": {"kg": 80, "cm": 180, "age": 40, "sex": "male"}, "expected": resting(80, 180, 40, "male")},
+            {"input": {"kg": 70, "cm": 172, "age": 29, "sex": "unspecified"},
+             "expected": resting(70, 172, 29, "unspecified")},
+        ],
+        "E2": [
+            balance_case("E2a", "a whole 24-hour day: G6's meals and workout, E1's female inputs, mostly sitting",
+                         [m("e2a-breakfast", "photo", 600), m("e2a-lunch", "photo", 600), m("e2a-dinner", "photo", 600)],
+                         [m("e2a-walk", "burn_device", 300)],
+                         {"kg": 64, "cm": 168, "age": 34, "sex": "female"}, "sitting", 24),
+            balance_case("E2b", "a day in progress, 15 hours so far, two label meals, no workout, E1's male inputs",
+                         [m("e2b-lunch", "label", 750), m("e2b-dinner", "label", 750)], [],
+                         {"kg": 80, "cm": 180, "age": 40, "sex": "male"}, "light", 15),
+            balance_case("E2c", "a 26-hour waking day, prefer not to say, on your feet most of the day",
+                         [m("e2c-weighed", "weighed", 2000), m("e2c-menu", "menu", 600)],
+                         [m("e2c-rower", "burn_machine", 400)],
+                         {"kg": 70, "cm": 172, "age": 29, "sex": "unspecified"}, "moderate", 26),
+        ],
+    }
+
+
+def check_energy(cases):
+    """Compare with the numbers printed in spec.md > Maths Core: Energy Balance."""
+    bad = []
+    want_rest = [1359, 1730, 1552]
+    for c, kcal in zip(cases["E1"], want_rest):
+        if not near(c["expected"]["kcal"], kcal, 0.5):
+            bad.append(("E1", f"{c['input']} gives {c['expected']['kcal']}, spec says {kcal}"))
+    if not near(cases["E1"][2]["expected"]["sd"], 162.4, 0.05):
+        bad.append(("E1", f"prefer-not-to-say sd {cases['E1'][2]['expected']['sd']} != 162.4"))
+    want = {
+        "E2a": (-131, 852.4, (-1223, 962), (-1801, 1540)),
+        "E2b": (13, 211.2, (-257, 284), (-401, 427)),
+        "E2c": (-406, 360.9, (-869, 56), (-1113, 301)),
+    }
+    for c in cases["E2"]:
+        r, sd, lk, vl = want[c["id"]]
+        x = c["expected"]
+        if x["rounded"] != r or not near(x["sd"], sd, 0.05):
+            bad.append((c["id"], f"balance {x['rounded']} sd {x['sd']} != {r} sd {sd}"))
+        for key, (lo, hi) in (("likely", lk), ("veryLikely", vl)):
+            if not (near(x[key][0], lo, 1) and near(x[key][1], hi, 1)):
+                bad.append((c["id"], f"{key} {x[key]} != {lo} to {hi}"))
+    FAILS.extend((case, [msg]) for case, msg in bad)
+    return bad
+
+
+def show_energy(cases):
+    for c in cases["E1"]:
+        i, x = c["input"], c["expected"]
+        print(f"E1    resting burn {i['kg']} kg, {i['cm']} cm, {i['age']} y, {i['sex']}: "
+              f"{x['kcal']:g} kcal a day, sd {x['sd']}")
+    for c in cases["E2"]:
+        x = c["expected"]
+        print(f"{c['id']:<5} {c['about']}")
+        print(f"      eaten {x['eaten']} - burn {x['burn']} (everyday {x['everyday']}) = {x['balance']} "
+              f"({x['direction']} {abs(x['rounded'])}), sd {x['sd']}, likely {x['likely']}, "
+              f"very likely {x['veryLikely']}")
+
+
 FAILS = []
 
 
@@ -535,6 +659,22 @@ def main(write=False):
             FAILS.append(("golden.json", [
                 f"{GOLDEN_JSON.relative_to(ROOT)} is missing or out of date; run with --write"]))
 
+    # E1, E2: resting burn and the estimated deficit or surplus (build-out item 2.5b).
+    ecases = energy_cases()
+    show_energy(ecases)
+    bad_energy = check_energy(ecases)
+    print(f"      vs spec: {'OK' if not bad_energy else 'MISMATCH'}")
+    etext = later_json_text(ecases)
+    if write:
+        if not FAILS:
+            ENERGY_JSON.write_text(etext, encoding="utf-8")
+            print(f"Wrote {ENERGY_JSON.relative_to(ROOT)}")
+    else:
+        current = ENERGY_JSON.read_text(encoding="utf-8") if ENERGY_JSON.exists() else None
+        if current != etext:
+            FAILS.append(("golden-energy.json", [
+                f"{ENERGY_JSON.relative_to(ROOT)} is missing or out of date; run with --write"]))
+
     print()
     if FAILS:
         print(f"{len(FAILS)} case(s) differ from the spec table:")
@@ -542,7 +682,7 @@ def main(write=False):
             print(f"  {case}: {'; '.join(bad)}")
         return 1
     print("All golden cases match the spec (G1, G1 improve, G2, G3, G4, G4b, G5, G11, G11b, G12,"
-          " and G6, G7, G9, G10 for kernels still to be built), and fixtures/golden.json is current.")
+          " G6, G7, G9, G10, and E1, E2), and fixtures/golden.json and fixtures/golden-energy.json are current.")
     return 0
 
 
