@@ -36,6 +36,8 @@ import { EatenSheet } from './EatenSheet'
 import { ExplainSheet, type ExplainMode } from './ExplainSheet'
 import { FictionalBanner } from './FictionalBanner'
 import { FirstOpen } from './FirstOpen'
+import { GymLogSheet } from './GymLog'
+import { gymHistory, gymSummary, gymUnitOf, HISTORY_PAGE } from './gymView'
 import { useFullScreenView } from './fullScreen'
 import { LogMealSheet } from './LogMealSheet'
 import { LookContext, type LookState } from './lookContext'
@@ -102,9 +104,12 @@ type SheetState =
   // details, and Log a workout (a new workout keeps its blank starting point while open) and Edit.
   | { mode: 'eaten' }
   | { mode: 'workouts' }
-  | { mode: 'workout'; workoutId: string }
-  | { mode: 'newWorkout'; workout: Workout }
-  | { mode: 'editWorkout'; workoutId: string }
+  // Build-out item 2.6: `from: 'gymLog'` goes back to the gym log afterwards; `gym` opens Log a
+  // workout with its gym sets showing (Log a gym session).
+  | { mode: 'workout'; workoutId: string; from?: 'gymLog' }
+  | { mode: 'newWorkout'; workout: Workout; gym?: boolean; from?: 'gymLog' }
+  | { mode: 'editWorkout'; workoutId: string; from?: 'gymLog' }
+  | { mode: 'gymLog' }
   // Build-out item 2.5b: Body details, from Profile and privacy (closing goes back there), More,
   // or the line under the headline that invites adding them.
   | { mode: 'body'; from: 'profile' | 'more' | 'dashboard' }
@@ -160,6 +165,11 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
   const tick = useMinuteTick()
   // Per log, why its saved copy is left as it is. Delete and Import clear your own log's problem.
   const [problems, setProblems] = useState<Record<LogKind, LogProblem | null>>(initial.problems)
+  // The gym log's place (build-out item 2.6): its search, how many sessions it shows, and the
+  // session opened from it, kept while that session is looked at so coming back finds the same spot.
+  const [gymQuery, setGymQuery] = useState('')
+  const [gymShown, setGymShown] = useState(HISTORY_PAGE)
+  const [gymReturnTo, setGymReturnTo] = useState<string | null>(null)
   // The full-screen view (build-out item 1.3). Not saved: a reload opens the normal view.
   const fullScreen = useFullScreenView()
   // The chosen look: a device setting shared by both logs, saved apart from them (store/look.ts).
@@ -245,13 +255,42 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
     if (doc) commit(withoutMeal(doc, mealId))
   }
 
-  /** Log a workout and Edit save through here (build-out item 2.5a): a new id is added, a known id replaced. */
-  function saveWorkout(workout: Workout) {
-    if (doc) commit(withWorkout(doc, workout))
+  /**
+   * Log a workout and Edit save through here (build-out item 2.5a): a new id is added, a known id
+   * replaced. Build-out item 2.6: a workout opened from the gym log goes back there, to its own row.
+   * A gym session's unit never changes the weight log's (gymView.ts gymUnitOf).
+   */
+  function saveWorkout(workout: Workout, from?: 'gymLog') {
+    if (!doc) return
+    const next = withWorkout(doc, workout)
+    commit(next)
+    if (from === 'gymLog') openGymLog(workout.id, next.workouts)
   }
 
-  function deleteWorkout(workoutId: string) {
-    if (doc) commit(withoutWorkout(doc, workoutId))
+  function deleteWorkout(workoutId: string, from?: 'gymLog') {
+    if (!doc) return
+    commit(withoutWorkout(doc, workoutId))
+    if (from === 'gymLog') openGymLog(null)
+  }
+
+  /**
+   * The gym log (build-out item 2.6). Opened afresh (More, the dashboard) it starts at the top with
+   * an empty search and its first page; coming back from a session opened in it (`returnTo`), it
+   * keeps its search and the sessions it showed, shows more if that session's row is further down
+   * (one just saved with an earlier date), and focus goes back to that row. `workouts`: the log as
+   * it will be shown.
+   */
+  function openGymLog(returnTo?: string | null, workouts: Workout[] = doc?.workouts ?? []) {
+    if (returnTo === undefined) {
+      setGymQuery('')
+      setGymShown(HISTORY_PAGE)
+      setGymReturnTo(null)
+    } else {
+      const need = returnTo ? gymHistory(workouts, gymQuery).matches.findIndex((w) => w.id === returnTo) + 1 : 0
+      if (need > gymShown) setGymShown(Math.ceil(need / HISTORY_PAGE) * HISTORY_PAGE)
+      setGymReturnTo(returnTo)
+    }
+    setSheet({ mode: 'gymLog' })
   }
 
   /** Show a waking day; the current one is followed (null) so a new wake moves the dashboard on. */
@@ -415,6 +454,9 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
       case 'savedMeals':
         setSheet({ mode: 'savedMeals', from: 'more' })
         return
+      case 'gym':
+        openGymLog()
+        return
       case 'body':
         setSheet({ mode: 'body', from: 'more' })
         return
@@ -450,6 +492,17 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
   function openLogWorkout() {
     if (!doc || !view || !at) return
     setSheet({ mode: 'newWorkout', workout: blankWorkout(newWorkoutId(), defaultMealTime(doc.sleeps, view.dayStart, at)) })
+  }
+
+  /** Log a gym session (build-out item 2.6), from the gym log: Log a workout with its gym sets open. */
+  function openLogGym() {
+    if (!doc || !view || !at) return
+    setSheet({
+      mode: 'newWorkout',
+      workout: blankWorkout(newWorkoutId(), defaultMealTime(doc.sleeps, view.dayStart, at)),
+      gym: true,
+      from: 'gymLog',
+    })
   }
 
   /**
@@ -573,6 +626,15 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
   const balance = balanceView(doc, view, at, demo)
   const findWorkout = (id: string) => doc.workouts.find((w) => w.id === id)
   const workoutDetails = sheet?.mode === 'workout' ? findWorkout(sheet.workoutId) : undefined
+  // Build-out item 2.6: gym weights show in the unit of the latest gym session (gymView.ts gymUnitOf);
+  // the day's gym sessions for the dashboard.
+  const gymUnit = gymUnitOf(doc)
+  const workoutFrom = sheet && 'from' in sheet && sheet.from === 'gymLog' ? 'gymLog' : undefined
+  // Back to the gym log, at the session that was open (a new one being logged has no row yet).
+  const backToGymLog = () => {
+    if (workoutFrom !== 'gymLog' || !sheet) setSheet(null)
+    else openGymLog(sheet.mode === 'workout' || sheet.mode === 'editWorkout' ? sheet.workoutId : null)
+  }
   const editingWorkout =
     sheet?.mode === 'newWorkout' ? sheet.workout : sheet?.mode === 'editWorkout' ? findWorkout(sheet.workoutId) : undefined
   const weighIn = sheet?.mode === 'weighIn' ? sheet : null
@@ -596,6 +658,8 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
         onOpenMeal={(mealId) => setSheet({ mode: 'details', mealId })}
         onOpenWorkout={(workoutId) => setSheet({ mode: 'workout', workoutId })}
         onLogWorkout={openLogWorkout}
+        gym={gymSummary(view.workouts, view.dayStart, gymUnit)}
+        onOpenGymLog={() => openGymLog()}
         sleep={buildSleepView(doc.sleeps, viewedStart)}
         weight={weight}
         onOpenWeight={() => setSheet({ mode: 'weight' })}
@@ -670,11 +734,31 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
       {workoutDetails && (
         <WorkoutDetails
           workout={workoutDetails}
-          dayStart={view.dayStart}
+          dayStart={wakingDayStart(doc.sleeps, workoutDetails.startedAt)}
+          demo={demo}
+          onClose={backToGymLog}
+          onEdit={() => setSheet({ mode: 'editWorkout', workoutId: workoutDetails.id, from: workoutFrom })}
+          onDelete={() => deleteWorkout(workoutDetails.id, workoutFrom)}
+          workouts={doc.workouts}
+          weightUnit={gymUnit}
+          nowIso={at}
+          withDate={workoutFrom === 'gymLog'}
+        />
+      )}
+      {sheet?.mode === 'gymLog' && (
+        <GymLogSheet
+          workouts={doc.workouts}
+          unit={gymUnit}
+          nowIso={at}
+          query={gymQuery}
+          onQuery={setGymQuery}
+          shown={gymShown}
+          onShown={setGymShown}
+          returnTo={gymReturnTo}
           demo={demo}
           onClose={() => setSheet(null)}
-          onEdit={() => setSheet({ mode: 'editWorkout', workoutId: workoutDetails.id })}
-          onDelete={() => deleteWorkout(workoutDetails.id)}
+          onOpenWorkout={(workoutId) => setSheet({ mode: 'workout', workoutId, from: 'gymLog' })}
+          onLogSession={openLogGym}
         />
       )}
       {editingWorkout && sheet && (sheet.mode === 'newWorkout' || sheet.mode === 'editWorkout') && (
@@ -685,8 +769,12 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
           sleeps={doc.sleeps}
           viewDayStart={view.dayStart}
           demo={demo}
-          onSave={saveWorkout}
-          onClose={() => setSheet(null)}
+          onSave={(w) => saveWorkout(w, workoutFrom)}
+          onClose={backToGymLog}
+          gym={sheet.mode === 'newWorkout' && sheet.gym}
+          workouts={doc.workouts}
+          weightUnit={gymUnit}
+          nowIso={at}
         />
       )}
       {details && (

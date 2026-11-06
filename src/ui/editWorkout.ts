@@ -2,12 +2,15 @@
 // Workouts and Net Calories): name, how you know, calories burned, start date and time, and
 // duration. Blank calories and duration are unknown (null), never 0; "How do you know?" has no
 // default, and known calories need it, as for a meal. Pure: no React, no storage.
+// Build-out item 2.6 (slice 26): the same sheet holds a workout's gym sets (gymDraft.ts), so a gym
+// session is a workout like any other, with its burned calories and source beside its sets.
 
 import { parseAmount } from '../kernel/parse'
 import type { BurnSourceId, Parsed, Workout } from '../kernel/types'
 import type { LogDoc } from '../store/log'
 import { copy } from './copy'
 import { fromLocalInput, toLocalInput } from './editMeal'
+import { checkGymDraft, draftFromGym, type GymCheck, type GymDraft } from './gymDraft'
 
 export interface WorkoutDraft {
   name: string
@@ -15,15 +18,19 @@ export interface WorkoutDraft {
   kcal: string
   startedAtLocal: string // a datetime-local value, "YYYY-MM-DDTHH:MM", in local time
   minutes: string
+  /** The gym sets (build-out item 2.6), or null for a workout without them. */
+  gym: GymDraft | null
 }
 
-export type WorkoutField = 'name' | 'source' | 'kcal' | 'startedAt' | 'minutes'
+export type WorkoutField = 'name' | 'source' | 'kcal' | 'startedAt' | 'minutes' | 'gym'
 
 export interface WorkoutCheck {
   /** The workout Save would store, or null while something blocks Save. */
   workout: Workout | null
   /** Inline errors by field. Everything typed is kept; only Save is blocked. */
   errors: Partial<Record<WorkoutField, string>>
+  /** The gym sets' own check, row by row (null without gym sets). */
+  gym: GymCheck | null
 }
 
 /** A new workout's id: random, so two devices or two tabs never pick the same one. */
@@ -49,6 +56,7 @@ export function draftFromWorkout(w: Workout): WorkoutDraft {
     kcal: amountText(w.kcal),
     startedAtLocal: toLocalInput(w.startedAt),
     minutes: amountText(w.minutes),
+    gym: w.gym ? draftFromGym(w.gym) : null,
   }
 }
 
@@ -70,11 +78,14 @@ export function checkWorkoutDraft(draft: WorkoutDraft, original: Workout): Worko
   const startedAt =
     draft.startedAtLocal === toLocalInput(original.startedAt) ? original.startedAt : fromLocalInput(draft.startedAtLocal)
   if (startedAt === null) errors.startedAt = copy.workouts.startNeeded
-  if (Object.keys(errors).length > 0 || startedAt === null) return { workout: null, errors }
-  return {
-    workout: { ...original, name, source: draft.source, kcal: valueOf(kcal), startedAt, minutes: valueOf(minutes) },
-    errors,
-  }
+  const gym = draft.gym ? checkGymDraft(draft.gym) : null
+  if (gym && gym.gym === null) errors.gym = copy.gym.fixToSave
+  if (Object.keys(errors).length > 0 || startedAt === null) return { workout: null, errors, gym }
+  const { gym: _dropped, ...rest } = original
+  void _dropped
+  const workout: Workout = { ...rest, name, source: draft.source, kcal: valueOf(kcal), startedAt, minutes: valueOf(minutes) }
+  if (gym?.gym) workout.gym = gym.gym
+  return { workout, errors, gym }
 }
 
 /** The log with one workout saved: replaced in place when its id is there (Edit), else added. */

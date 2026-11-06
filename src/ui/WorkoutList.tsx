@@ -15,14 +15,14 @@ import { getSource } from '../kernel/sources'
 import type { BurnSourceId, Workout } from '../kernel/types'
 import { copy } from './copy'
 import type { DayView } from './dayView'
-import { fmtInt, fmtPct, fmtRange, fmtTime, fmtWeekdayTime, onLaterDate } from './format'
+import { fmtInt, fmtPct, fmtRange, fmtTimeInDay } from './format'
 import { useLook } from './lookContext'
 import { Sheet } from './Sheet'
 import { SourceBasisList } from './SourceBasis'
 
-/** The workout's start time, with its weekday when it falls on a later calendar date than the wake. */
+/** The workout's start time, with its weekday (and a week or more on, its date) when it falls on a later calendar date than the wake. */
 export function workoutTimeLabel(w: Workout, dayStart: string | null): string {
-  return onLaterDate(w.startedAt, dayStart) ? fmtWeekdayTime(w.startedAt) : fmtTime(w.startedAt)
+  return fmtTimeInDay(w.startedAt, dayStart)
 }
 
 export function workoutSourceLabel(source: BurnSourceId | null): string {

@@ -166,7 +166,8 @@ describe('the workout form (editWorkout.ts)', () => {
 
   it('starts blank, with no source and nothing invented', () => {
     expect(blank).toEqual({ id: 'w-new', name: '', startedAt: '2026-10-21T18:00:00-04:00', minutes: null, kcal: null, source: null })
-    expect(draftFromWorkout(blank)).toEqual({ name: '', source: null, kcal: '', startedAtLocal: '2026-10-21T18:00', minutes: '' })
+    // Build-out item 2.6: no gym sets until Add gym sets.
+    expect(draftFromWorkout(blank)).toEqual({ name: '', source: null, kcal: '', startedAtLocal: '2026-10-21T18:00', minutes: '', gym: null })
   })
 
   it('blank calories and duration are unknown, never 0; a typed 0 calories is known', () => {

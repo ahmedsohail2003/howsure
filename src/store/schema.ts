@@ -106,10 +106,39 @@ const _everyBurnSourceListed: MissingBurnSource extends never ? true : false = t
 void _everyBurnSourceListed
 
 /**
+ * A workout's gym sets (build-out item 2.6, slice 26; kernel/types.ts GymSession). Optional on a
+ * workout, so every log saved before it loads unchanged (no version bump). As strict as the model,
+ * so nothing an edit would have to change silently gets in: weights in kg, a blank weight null and
+ * never 0; reps whole numbers from 1; drops only on a drop set, and a list of them is never empty;
+ * a session has at least one exercise and an exercise at least one set.
+ */
+const gymWeight = z.number().positive().nullable()
+const gymReps = z.number().int().min(1)
+
+const gymDropSchema = z.looseObject({
+  weightKg: gymWeight,
+  reps: gymReps,
+})
+
+const gymSetSchema = z
+  .looseObject({
+    kind: z.enum(['warmup', 'working', 'drop']),
+    weightKg: gymWeight,
+    reps: gymReps,
+    drops: z.array(gymDropSchema).min(1).optional(),
+  })
+  .refine((s) => s.drops === undefined || s.kind === 'drop', { message: 'only a drop set has drops' })
+
+export const gymSessionSchema = z.looseObject({
+  unit: z.enum(['kg', 'lb']),
+  exercises: z.array(z.looseObject({ name: z.string(), sets: z.array(gymSetSchema).min(1) })).min(1),
+})
+
+/**
  * A workout (slice 10, build-out item 2.5a; spec.md > Data Model). The shape the demo fixture and
  * the frozen version 1 logs already hold, so no format version bump: blank calories and duration
- * are unknown (null), never 0, and as for a meal, known calories need their source. Keys added by
- * later slices (run, split, sets) are kept as they are.
+ * are unknown (null), never 0, and as for a meal, known calories need their source. Build-out item
+ * 2.6 adds the optional gym sets; keys added by later slices (run) are kept as they are.
  */
 export const workoutSchema = z
   .looseObject({
@@ -119,6 +148,7 @@ export const workoutSchema = z
     minutes: amountOrUnknown,
     kcal: amountOrUnknown,
     source: z.enum(BURN_SOURCES).nullable(),
+    gym: gymSessionSchema.optional(),
   })
   .refine((w) => w.kcal === null || w.source !== null, {
     message: 'a workout with known calories needs its source',

@@ -105,7 +105,8 @@ export function fmtWeekdayFull(iso: string): string {
 
 /** True when `iso` falls on a later calendar date than the waking day's wake (after midnight). */
 export function onLaterDate(iso: string, dayStart: string | null): boolean {
-  return dayStart !== null && fmtWeekday(iso) !== fmtWeekday(dayStart)
+  // The calendar date, not just the weekday: a day a week later has the same weekday name.
+  return dayStart !== null && new Date(iso).toDateString() !== new Date(dayStart).toDateString()
 }
 
 /** "Thu Nov 5": a weekday with its date, where a weekday alone could name two days a week apart. */
@@ -122,6 +123,28 @@ export function fmtWeekdayTime(iso: string): string {
 /** "Wed Nov 4, 11:10 PM": a time with its weekday and date, for a night that may be weeks away. */
 export function fmtWeekdayDateTime(iso: string): string {
   return copy.dateAndTime(fmtWeekdayDate(iso), fmtTime(iso))
+}
+
+/**
+ * A time inside a waking day: "6:30 PM" on the day's own date, "Thu 12:40 AM" on a later date, and
+ * "Mon Oct 19, 6:30 PM" 6 or more days on (a long day with no sleep logged), where a weekday alone
+ * could name the day the waking day started on.
+ */
+export function fmtTimeInDay(iso: string, dayStart: string | null): string {
+  if (!onLaterDate(iso, dayStart)) return fmtTime(iso)
+  return dayStart !== null && Date.parse(iso) - Date.parse(dayStart) >= 6 * 86_400_000 ? fmtWeekdayDateTime(iso) : fmtWeekdayTime(iso)
+}
+
+/**
+ * "Wed Oct 21, 6:30 PM": a moment with its weekday and date always given, for a list that runs
+ * across many dates (the gym log). The year is added when it is not now's: "Wed Oct 21, 2025, 6:30 PM".
+ * Without the time: "Wed Oct 21".
+ */
+export function fmtDatedWhen(iso: string, nowIso: string, withTime = true): string {
+  const d = new Date(iso)
+  const year = d.getFullYear() === new Date(nowIso).getFullYear() ? null : String(d.getFullYear())
+  const date = copy.weekdayDate(copy.weekdays[d.getDay()], copy.monthsShort[d.getMonth()], String(d.getDate()), year)
+  return withTime ? copy.dateAndTime(date, fmtTime(iso)) : date
 }
 
 /** Local calendar days from `iso` to `nowIso` (0 on the same date, 1 the day before, below 0 ahead). */

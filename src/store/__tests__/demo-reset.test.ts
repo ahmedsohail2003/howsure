@@ -140,6 +140,13 @@ describe('is the demo edited?', () => {
     expect(isDemoEdited({ ...fresh, weighIns: [] }, fresh)).toBe(false)
   })
 
+  it('gym sets added to a workout count as a workout change; the weight unit setting does not count (build-out item 2.6)', () => {
+    const fresh = pristineDemo()
+    const gym = { unit: 'kg' as const, exercises: [{ name: 'Bench press', sets: [{ kind: 'working' as const, weightKg: 80, reps: 8 }] }] }
+    expect(demoChanges({ ...fresh, workouts: [{ ...fresh.workouts[0], gym }] }, fresh)).toEqual({ ...NONE, workoutsChanged: true })
+    expect(isDemoEdited({ ...fresh, settings: { weightUnit: 'lb' } }, fresh)).toBe(false)
+  })
+
   it('a change to the plates or the profile name counts as another change', () => {
     const fresh = pristineDemo()
     expect(demoChanges({ ...fresh, plates: [] }, fresh)).toEqual({ ...NONE, otherChanged: true })

@@ -4,16 +4,21 @@
 // default), calories burned, start date and time (with the waking day it will belong to), and
 // duration. Blank calories and duration are unknown, never 0. Once calories and a source are in,
 // a line shows that workout's likely and very likely ranges. Nothing changes until Save.
+// Build-out item 2.6 (slice 26): Add gym sets opens the gym editor (GymEditor.tsx) under the name,
+// so a gym session is this same workout with its exercises and sets. Log a gym session opens the
+// sheet with it already open. Remove gym sets says what Save will do before it does it.
 
-import { useId, useMemo, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { BURN_SOURCE_IDS, estimateWorkout } from '../kernel/net'
 import { parseAmount } from '../kernel/parse'
 import { wakingDayStart } from '../kernel/sleepday'
 import { getSource } from '../kernel/sources'
-import type { SleepRecord, Workout } from '../kernel/types'
+import type { SleepRecord, WeightUnit, Workout } from '../kernel/types'
 import { copy } from './copy'
 import { fromLocalInput } from './editMeal'
 import { checkWorkoutDraft, draftFromWorkout, type WorkoutDraft } from './editWorkout'
+import { GymEditor } from './GymEditor'
+import { blankGymDraft, isBlankDraft, type GymDraft } from './gymDraft'
 import { fmtPct, fmtRange, fmtTime, fmtWeekday } from './format'
 import { Sheet } from './Sheet'
 import { BasisTag } from './SourceBasis'
@@ -28,17 +33,56 @@ interface WorkoutSheetProps {
   demo: boolean
   onSave: (workout: Workout) => void
   onClose: () => void
+  /** Build-out item 2.6: open with the gym sets showing (Log a gym session). */
+  gym?: boolean
+  /** Every workout in the log (Copy last session, previous best), the weight unit preferred, and now. */
+  workouts: Workout[]
+  weightUnit: WeightUnit
+  nowIso: string
 }
 
-export function WorkoutSheet({ mode, workout, sleeps, viewDayStart, demo, onSave, onClose }: WorkoutSheetProps) {
+export function WorkoutSheet(props: WorkoutSheetProps) {
+  const { mode, workout, sleeps, viewDayStart, demo, onSave, onClose } = props
   const formId = useId()
-  const [initial] = useState<WorkoutDraft>(() => draftFromWorkout(workout))
+  const [initial] = useState<WorkoutDraft>(() => {
+    const d = draftFromWorkout(workout)
+    return props.gym && d.gym === null ? { ...d, gym: blankGymDraft(props.weightUnit) } : d
+  })
   const [draft, setDraft] = useState<WorkoutDraft>(initial)
+  // Remove gym sets keeps what was typed, so Keep the gym sets (or Add gym sets) brings it back.
+  const [parkedGym, setParkedGym] = useState<GymDraft | null>(null)
+  // Remove gym sets takes its button away: focus goes to the button that brings them back.
+  const gymToggleRef = useRef<HTMLButtonElement>(null)
+  const focusGymToggle = useRef(false)
+  // Add gym sets (or Keep the gym sets) takes its button away too: focus goes to Copy last session
+  // when it is offered (the quickest start), else to the workout's name while it is blank, else to
+  // the first exercise's name. Log a gym session opens the same way (the Sheet's first focus).
+  const focusGymStart = useRef(false)
+  useEffect(() => {
+    if (focusGymToggle.current) {
+      focusGymToggle.current = false
+      gymToggleRef.current?.focus()
+    }
+    if (focusGymStart.current) {
+      focusGymStart.current = false
+      const form = document.getElementById(formId)
+      const target =
+        form?.querySelector<HTMLElement>('[data-testid="gym-copy-last"]') ??
+        (draft.name.trim() === '' ? form?.querySelector<HTMLElement>('[data-testid="workout-name-input"]') : null) ??
+        form?.querySelector<HTMLElement>('[data-testid="gym-exercise-name"], [data-testid="gym-add-exercise"]')
+      target?.focus()
+    }
+  })
   const [nameTouched, setNameTouched] = useState(false)
   const check = useMemo(() => checkWorkoutDraft(draft, workout), [draft, workout])
   const isNew = mode === 'new'
-  const changed = (Object.keys(initial) as (keyof WorkoutDraft)[]).some((k) => k !== 'name' && draft[k] !== initial[k])
-  const showNameError = Boolean(check.errors.name) && (!isNew || nameTouched || changed)
+  const changed = (Object.keys(initial) as (keyof WorkoutDraft)[]).some(
+    (k) => k !== 'name' && k !== 'gym' && draft[k] !== initial[k],
+  )
+  // Typing into the gym sets counts as a change too, so a blank workout name says why Save waits.
+  // Only opening them (Add gym sets, or Log a gym session) does not.
+  const gymTyped = draft.gym !== null && !isBlankDraft(draft.gym)
+  const showNameError = Boolean(check.errors.name) && (!isNew || nameTouched || changed || gymTyped)
 
   function set<K extends keyof WorkoutDraft>(key: K, value: WorkoutDraft[K]) {
     setDraft((d) => ({ ...d, [key]: value }))
@@ -57,10 +101,11 @@ export function WorkoutSheet({ mode, workout, sleeps, viewDayStart, demo, onSave
 
   return (
     <Sheet
-      title={isNew ? copy.workouts.titleNew : copy.workouts.titleEdit(workout.name)}
+      title={isNew ? (props.gym && draft.gym !== null ? copy.gym.titleNew : copy.workouts.titleNew) : copy.workouts.titleEdit(workout.name)}
       demo={demo}
       onClose={onClose}
       testId="workout-sheet"
+      initialFocusTestId={props.gym && isNew ? ['gym-copy-last', 'workout-name-input'] : undefined}
       footer={
         <div className="sheet-actions">
           <button type="button" className="btn" onClick={onClose} data-testid="cancel-workout">
@@ -88,16 +133,79 @@ export function WorkoutSheet({ mode, workout, sleeps, viewDayStart, demo, onSave
             type="text"
             value={draft.name}
             onChange={(e) => set('name', e.target.value)}
-            onBlur={() => setNameTouched(true)}
+            onBlur={(e) => {
+              // Focus leaving the sheet altogether (it closing, or a development double run of its
+              // first focus) is not the person moving on from the name.
+              const to = e.relatedTarget
+              if (to && !e.currentTarget.closest('[role="dialog"]')?.contains(to)) return
+              setNameTouched(true)
+            }}
             aria-invalid={showNameError ? true : undefined}
             data-testid="workout-name-input"
           />
+          {draft.gym && <p className="field-hint">{copy.gym.nameHint}</p>}
           {showNameError && (
             <p className="field-error" data-testid="workout-name-error">
               {check.errors.name}
             </p>
           )}
         </div>
+
+        {draft.gym && check.gym ? (
+          <GymEditor
+            draft={draft.gym}
+            check={check.gym}
+            onChange={(gym) => set('gym', gym)}
+            workouts={props.workouts}
+            workoutId={workout.id}
+            startIso={startIso}
+            nowIso={props.nowIso}
+            name={draft.name}
+            onName={(name) => set('name', name)}
+            onRemove={() => {
+              setParkedGym(draft.gym)
+              set('gym', null)
+              focusGymToggle.current = true
+            }}
+          />
+        ) : workout.gym && parkedGym ? (
+          <div className="callout amber gym-removed" data-testid="gym-removed">
+            <p>{copy.gym.setsRemoved}</p>
+            <button
+              type="button"
+              className="btn"
+              ref={gymToggleRef}
+              onClick={() => {
+                set('gym', parkedGym)
+                setParkedGym(null)
+                focusGymStart.current = true
+              }}
+              data-testid="gym-keep"
+            >
+              {copy.gym.keepSets}
+            </button>
+          </div>
+        ) : (
+          <div className="gym-add">
+            <button
+              type="button"
+              className="btn btn-quiet"
+              ref={gymToggleRef}
+              onClick={() => {
+                set('gym', parkedGym ?? blankGymDraft(props.weightUnit))
+                setParkedGym(null)
+                focusGymStart.current = true
+              }}
+              aria-describedby={`${formId}-gym-hint`}
+              data-testid="gym-add"
+            >
+              {copy.gym.addSets}
+            </button>
+            <p className="field-hint" id={`${formId}-gym-hint`}>
+              {copy.gym.addSetsHint}
+            </p>
+          </div>
+        )}
 
         <fieldset className="field source-field">
           <legend>{copy.workouts.howKnow}</legend>

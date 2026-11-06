@@ -192,6 +192,38 @@ export interface Workout {
   kcal: number | null // calories burned; null = unknown, never 0
   // null = "How do you know?" not picked, allowed only while kcal is null (as for a meal).
   source: BurnSourceId | null
+  /** Build-out item 2.6 (slice 26): the gym sets done in this workout. Absent on other workouts. */
+  gym?: GymSession
+}
+
+// Build-out item 2.6 (slice 26; prd.md > Gym Log): a gym session is a workout's sets, grouped by
+// exercise. Weights are stored in kg; `unit` says how they were typed. A blank weight (null) is a
+// set with no weight typed, such as a bodyweight set, never 0. Reps are whole numbers from 1.
+// The weight unit is item 2.4's WeightUnit.
+export type SetKind = 'warmup' | 'working' | 'drop'
+
+/** One step down inside a drop set: a lighter weight, straight after the one before. */
+export interface GymDrop {
+  weightKg: number | null
+  reps: number
+}
+
+export interface GymSet {
+  kind: SetKind
+  weightKg: number | null
+  reps: number
+  /** A drop set's drops, in order. Only a drop set has them. */
+  drops?: GymDrop[]
+}
+
+export interface GymExercise {
+  name: string
+  sets: GymSet[]
+}
+
+export interface GymSession {
+  unit: WeightUnit
+  exercises: GymExercise[]
 }
 
 /** A workout the burned maths can count: known calories and a picked source (net.ts isKnownWorkout). */

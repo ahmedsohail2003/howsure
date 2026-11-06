@@ -1189,6 +1189,375 @@ button {
   padding-top: var(--s2);
 }
 
+/* ---------- gym log (build-out item 2.6) ----------
+   The day's gym sessions on the dashboard, the gym sets inside Log a workout, and every set in a
+   workout's details and the gym log. A set's type is always written out (Warm-up, Working, Drop
+   set), never shown by colour alone. Tokens only, so every look's palette applies. */
+.meal-open.gym-open {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.gym-summary-list {
+  display: block;
+  margin-top: 4px;
+}
+
+.gym-summary-ex {
+  /* Name, then its sets under it, for every exercise: one steady rhythm whatever the name's length. */
+  display: flex;
+  flex-direction: column;
+  font-size: 14px;
+}
+
+.gym-summary-ex + .gym-summary-ex {
+  margin-top: 4px;
+}
+
+.gym-ex-name {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.gym-ex-text {
+  color: var(--ink-soft);
+}
+
+.gym-add > * + * {
+  margin-top: 4px;
+}
+
+.gym-removed > * + * {
+  margin-top: var(--s1);
+}
+
+.gym-editor {
+  padding-top: var(--s2);
+  border-top: 1px solid var(--line);
+}
+
+.gym-editor > * + * {
+  margin-top: var(--s2);
+}
+
+/* A control that takes focus in the gym sets (Copy last session after Add gym sets, a new set's
+   weight, Undo) scrolls clear of the sheet's sticky header and its pinned Cancel and Save bar. */
+.gym-editor :is(button, input, select),
+.gym-log-open {
+  scroll-margin: 150px 0 96px;
+}
+
+.gym-undo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s1) var(--s2);
+  padding: var(--s1) var(--s2);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+}
+
+.gym-undo > p {
+  flex: 1 1 12em;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.gym-editor-head,
+.gym-exercise-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s1);
+}
+
+.gym-title {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.gym-exercise-head > label {
+  font-weight: 600;
+}
+
+.gym-copy > * + * {
+  margin-top: 4px;
+}
+
+.gym-exercises > li {
+  padding: var(--s2) 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.gym-exercises > li:first-child {
+  padding-top: 0;
+}
+
+.gym-exercise > * + * {
+  margin-top: var(--s1);
+}
+
+.meal-form select {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 6px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+}
+
+/* Set number, type, weight, reps, remove: one row on a 320 px phone. On a wide sheet the type
+   column stops at the width "Drop set" needs, and weight and reps share the rest. */
+.gym-set-row {
+  display: grid;
+  grid-template-columns: 2em minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1fr) 44px;
+  align-items: center;
+  gap: 6px;
+}
+
+@media (min-width: 600px) {
+  .gym-set-row {
+    grid-template-columns: 2em minmax(0, 9.5em) minmax(0, 1fr) minmax(0, 1fr) 44px;
+  }
+}
+
+.meal-form .gym-set-row input[type="text"] {
+  padding: 8px 8px;
+}
+
+
+.gym-set-head {
+  color: var(--ink-soft);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.gym-set + .gym-set {
+  margin-top: 6px;
+}
+
+.gym-set-n {
+  color: var(--ink-soft);
+  text-align: center;
+}
+
+.gym-drops {
+  margin-top: 6px;
+}
+
+.gym-drop {
+  margin-top: 6px;
+}
+
+.gym-drop-label {
+  padding-left: 12px;
+  border-left: 3px solid var(--line-strong);
+  color: var(--ink-soft);
+  font-size: 14px;
+  line-height: 44px;
+}
+
+.gym-add-drop,
+.gym-row-msg {
+  margin-left: calc(2em + 6px);
+}
+
+/* Add drop's own box hugs the words, so its focus ring does too; the 44 px tap target is an ::after
+   layer centred on the line, and the margins keep that layer clear of the rows around it. */
+.gym-add-drop {
+  position: relative;
+  display: inline-block;
+  margin-block: 12px 10px;
+  border-radius: 2px;
+}
+
+.gym-add-drop::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: max(100%, 44px);
+  height: 44px;
+  transform: translateY(-50%);
+}
+
+.btn.gym-x {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  font-size: 20px;
+  line-height: 1;
+}
+
+
+
+.gym-add-set {
+  margin-top: var(--s1);
+}
+
+/* Add gym sets, Add set, Remove exercise and Remove gym sets: the quiet button's look, with a
+   44 px tap target from an ::after layer centred on it, so the box keeps its size and its focus
+   ring hugs it. */
+.gym-editor .btn-quiet:not(.gym-x),
+.gym-add > .btn-quiet {
+  position: relative;
+}
+
+.gym-editor .btn-quiet:not(.gym-x)::after,
+.gym-add > .btn-quiet::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 100%;
+  height: 44px;
+  transform: translateY(-50%);
+}
+
+.gym-ex-list > li + li {
+  margin-top: 12px;
+}
+
+.gym-ex-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.gym-set-list li {
+  display: grid;
+  grid-template-columns: 5.5em minmax(0, 1fr);
+  gap: var(--s1);
+  padding: 3px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.gym-kind {
+  color: var(--ink-soft);
+  font-size: 14px;
+  line-height: 24px;
+}
+
+.gym-kind-working .gym-kind {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.gym-best {
+  margin-top: 4px;
+  color: var(--ink-soft);
+  font-size: 14px;
+}
+
+.gym-details > * + * {
+  margin-top: var(--s1);
+}
+
+.gym-log-list > li {
+  padding: var(--s2) 0;
+  border-top: 1px solid var(--line);
+}
+
+.gym-log-list > li > * + * {
+  margin-top: 4px;
+}
+
+.gym-log-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--s1);
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.gym-log-when {
+  color: var(--ink-soft);
+  font-size: 14px;
+  font-weight: 400;
+}
+
+/* The split's link: its box (and focus ring) hugs the words; an ::after layer makes the tap
+   target 44 px tall, as for Add drop. The list's padding keeps that layer clear of the next row.
+   A name with no spaces breaks anywhere rather than pushing the sheet sideways. */
+.gym-log-open {
+  position: relative;
+  border-radius: 2px;
+  overflow-wrap: anywhere;
+  text-align: left;
+}
+
+/* The dashboard's "Gym log" link beside the section title: the same hugging box with a 44 px
+   ::after tap layer centred on the line. */
+.gym-open-log {
+  position: relative;
+  display: inline-block;
+  border-radius: 2px;
+  line-height: 24px;
+}
+
+.gym-open-log::after,
+.gym-log-open::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: max(100%, 44px);
+  height: 44px;
+  transform: translateY(-50%);
+}
+
+/* A 320 px phone: a narrower number column and gaps, and slimmer padding in the boxes, so "Warm-up"
+   and "Drop set" fit their box and a weight the app fills in itself on a unit switch (60 kg reads
+   132.28 lb, 453.5 kg reads 999.8 lb) shows whole in its box. Reps get the least room: up to 3
+   digits. The text stays at 16 px, so a phone does not zoom in when a box takes focus. */
+@media (max-width: 360px) {
+  .gym-set-row {
+    grid-template-columns: 1.25em minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, .6fr) 32px;
+    gap: 4px;
+  }
+
+  /* The remove button's box narrows to 32 px; its 44 px tap target is an ::after layer reaching
+     right, into the sheet's own padding, so it never covers the reps box to its left. */
+  .btn.gym-x {
+    position: relative;
+    min-width: 32px;
+  }
+
+  .btn.gym-x::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 44px;
+    height: 100%;
+  }
+
+  .meal-form .gym-set-row select {
+    padding: 8px 2px;
+  }
+
+  .meal-form .gym-set-row input[type="text"] {
+    padding: 8px 4px;
+  }
+
+  /* "Set" would run into "Type" over the narrow number column; the numbers speak for themselves
+     there, and each box is still labelled "Set 1 type" and so on. */
+  .gym-set-head .gym-head-n {
+    visibility: hidden;
+  }
+
+  .gym-add-drop,
+  .gym-row-msg {
+    margin-left: calc(1.25em + 4px);
+  }
+}
+
 /* ---------- sheet ---------- */
 
 .sheet-backdrop {
@@ -1249,9 +1618,12 @@ button {
 }
 
 .sheet-title {
+  min-width: 0;
   font-size: 20px;
   font-weight: 600;
   line-height: 1.3;
+  /* A long name with no spaces (a workout's, say) breaks rather than running off the sheet. */
+  overflow-wrap: anywhere;
 }
 
 .sheet-sub {
@@ -1746,6 +2118,7 @@ details.more > summary {
 }
 
 .meal-form input[type="text"],
+.meal-form input[type="search"],
 .meal-form input[type="datetime-local"],
 .meal-form input[type="date"],
 .meal-form input[type="time"],
@@ -1759,6 +2132,20 @@ details.more > summary {
   background: var(--surface);
   color: var(--ink);
   font: inherit;
+}
+
+/* A search box's built-in clear button, drawn in the look's ink instead of the browser's own blue:
+   an inline cross used as a mask over the teal ink colour (no outside file). */
+.meal-form input[type="search"]::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  margin-left: 6px;
+  background-color: var(--teal-ink);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3 3l10 10M13 3L3 13' stroke='black' stroke-width='2.2' stroke-linecap='round'/%3E%3C/svg%3E") center / 16px 16px no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3 3l10 10M13 3L3 13' stroke='black' stroke-width='2.2' stroke-linecap='round'/%3E%3C/svg%3E") center / 16px 16px no-repeat;
+  cursor: pointer;
 }
 
 .meal-form textarea {
@@ -3434,6 +3821,12 @@ details.more > summary {
   background: var(--teal-bg);
 }
 
+/* A gym session's row (build-out item 2.6) has no calories or score bar: one column. */
+[data-look="panel"] .meal-open.gym-open {
+  grid-template-areas: none;
+  grid-template-columns: minmax(0, 1fr);
+}
+
 [data-look="panel"] .meal-open .meal-name {
   grid-area: name;
 }
@@ -3619,7 +4012,7 @@ details.more > summary {
   [data-look="panel"] .dash-col + .dash-col {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    grid-template-rows: auto auto auto auto auto 1fr;
+    grid-template-rows: auto auto auto auto auto auto 1fr;
     align-items: start;
     gap: 12px var(--s2);
   }
@@ -3630,7 +4023,7 @@ details.more > summary {
 
   [data-look="panel"] .dash-col + .dash-col > .section {
     grid-column: 1;
-    grid-row: 2 / span 5;
+    grid-row: 2 / span 6;
   }
 
   /* Build-out item 2.5a: the day's workouts head the second column, above weight and sleep. */
@@ -3650,9 +4043,24 @@ details.more > summary {
     grid-row: 4;
   }
 
+  /* Build-out item 2.6: a day with a gym session puts it right under weight, and sleep and the day
+     controls move down one row. */
+  [data-look="panel"] .dash-col + .dash-col > .section.gym-section {
+    grid-column: 2;
+    grid-row: 4;
+  }
+
+  [data-look="panel"] .dash-col + .dash-col > .gym-section ~ .sleep-section {
+    grid-row: 5;
+  }
+
   [data-look="panel"] .dash-col + .dash-col > .day-nav {
     grid-column: 2;
     grid-row: 5;
+  }
+
+  [data-look="panel"] .dash-col + .dash-col > .gym-section ~ .day-nav {
+    grid-row: 6;
   }
 }
 
@@ -4135,6 +4543,35 @@ details.more > summary {
 }
 
 [data-look="night"] .weight-open:hover {
+  border-color: var(--line-strong);
+}
+
+/* Gym (build-out item 2.6), right under Weight: each session in the same framed block, so the two
+   neighbouring sections read as one family. */
+[data-look="night"] .gym-section {
+  padding-top: var(--s3);
+}
+
+[data-look="night"] .gym-section .workout-head {
+  margin-bottom: var(--s1);
+}
+
+[data-look="night"] .gym-row {
+  border-bottom: 0;
+}
+
+[data-look="night"] .gym-row + .gym-row {
+  margin-top: var(--s1);
+}
+
+[data-look="night"] .meal-open.gym-open {
+  padding: var(--s1) var(--s2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+[data-look="night"] .meal-open.gym-open:hover {
   border-color: var(--line-strong);
 }
 

@@ -82,8 +82,8 @@ test.describe('item 1.3: the More menu', () => {
     const menu = await openMore(page)
     await expect(more).toHaveAttribute('aria-expanded', 'true')
     await expect(menu.getByRole('heading', { name: 'More' })).toBeVisible()
-    // Build-out item 2.3 adds Saved meals, item 2.4 Weight, and item 2.5b Body details, in both logs.
-    await expect(menu.locator('.more-label')).toHaveText(['Profile and privacy', 'Targets', 'Body details', 'Saved meals', 'Weight', 'Look', 'Show full screen'])
+    // Build-out item 2.3 adds Saved meals, item 2.4 Weight, item 2.5b Body details and item 2.6 Gym log, in both logs.
+    await expect(menu.locator('.more-label')).toHaveText(['Profile and privacy', 'Targets', 'Body details', 'Saved meals', 'Weight', 'Gym log', 'Look', 'Show full screen'])
 
     // Focus stays inside: Close is first, the full-screen switch last.
     const close = menu.getByRole('button', { name: 'Close' })
@@ -130,8 +130,8 @@ test.describe('item 1.3: the More menu', () => {
     await startDemo(page)
     const menu = await openMore(page)
     await expect(menu.getByTestId('fictional-banner')).toHaveText('Sample person — fictional')
-    // Build-out item 2.1 adds Reset demo, in the demo only; items 2.4 and 2.5b add Weight and Body details, in both logs.
-    await expect(menu.locator('.more-label')).toHaveText(['Targets', 'Body details', 'Saved meals', 'Weight', 'Look', 'Show full screen', 'Reset demo'])
+    // Build-out item 2.1 adds Reset demo, in the demo only; items 2.4, 2.5b and 2.6 add Weight, Body details and Gym log, in both logs.
+    await expect(menu.locator('.more-label')).toHaveText(['Targets', 'Body details', 'Saved meals', 'Weight', 'Gym log', 'Look', 'Show full screen', 'Reset demo'])
     await expect(menu.getByTestId('more-targets')).toContainText('Sam’s daily targets, which are made up.')
   })
 })

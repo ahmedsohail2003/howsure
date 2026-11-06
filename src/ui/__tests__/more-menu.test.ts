@@ -5,7 +5,7 @@ import { BUILT_LOOKS, LOOKS } from '../looks'
 import { MORE_ENTRIES, moreEntries } from '../moreMenu'
 
 describe('More menu entries', () => {
-  it('lists Profile and privacy, Targets, Body details, Saved meals, Weight, Look and the full-screen switch in your own log', () => {
+  it('lists Profile and privacy, Targets, Body details, Saved meals, Weight, Gym log, Look and the full-screen switch in your own log', () => {
     expect(moreEntries({ kind: 'mine', fullScreen: 'off', look: 'journal' })).toEqual([
       { id: 'profile', label: 'Profile and privacy', hint: copy.moreMenu.profileHint },
       { id: 'targets', label: 'Targets', hint: copy.moreMenu.targetsHint },
@@ -16,6 +16,8 @@ describe('More menu entries', () => {
       },
       { id: 'savedMeals', label: 'Saved meals', hint: 'Rename or delete the meals you saved as usual.' },
       { id: 'weight', label: 'Weight', hint: 'Your weigh-ins, the 7-day average and the trend.' },
+      // Build-out item 2.6: the gym log, in both logs.
+      { id: 'gym', label: 'Gym log', hint: 'Every gym session by date, found by exercise or split, with each set.' },
       { id: 'look', label: 'Look', hint: 'How the dashboard is drawn. Now: Journal.' },
       { id: 'fullScreen', label: 'Show full screen', hint: copy.moreMenu.fullScreenHint },
     ])
@@ -23,7 +25,7 @@ describe('More menu entries', () => {
 
   it('leaves Profile and privacy out of the demo, and says the demo targets are made up', () => {
     const entries = moreEntries({ kind: 'demo', fullScreen: 'off', look: 'journal' })
-    expect(entries.map((e) => e.id)).toEqual(['targets', 'body', 'savedMeals', 'weight', 'look', 'fullScreen', 'resetDemo'])
+    expect(entries.map((e) => e.id)).toEqual(['targets', 'body', 'savedMeals', 'weight', 'gym', 'look', 'fullScreen', 'resetDemo'])
     expect(entries[0].hint).toBe(copy.moreMenu.targetsHintDemo)
     // Build-out item 2.5b: Sam's body details stay in the demo, and the hint says they are made up.
     expect(entries[1].hint).toBe(copy.moreMenu.bodyHintDemo)

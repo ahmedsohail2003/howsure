@@ -26,6 +26,10 @@
 // in Profile and privacy.
 // Build-out item 2.4: the dashboard's weight, Log weight with its messages, the weight details in
 // kg and lb, editing a weigh-in (one with no recorded time too) and its delete confirmation.
+//
+// Build-out item 2.6: the gym log. Log a workout with Add gym sets, Log a gym session with its
+// messages, Copy last session and Undo after Remove exercise, the dashboard's gym summary, a workout's sets in its details,
+// the gym log empty, with a search and with no match, and Remove gym sets.
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { expect, test, type Page } from '@playwright/test'
@@ -695,6 +699,93 @@ for (const { id: look, name: lookName } of LOOKS) {
       await closeWithEsc(page, 'sleep-sheet')
 
       sweep.check(2)
+    })
+
+    test('the gym log: its sheets, messages, summary and search (build-out item 2.6)', async ({ page }) => {
+      const sweep = new Sweep(page)
+      await page.clock.setFixedTime(DEMO_NOW)
+      await page.goto('/')
+      await page.getByRole('button', { name: 'Try the fictional demo' }).click()
+      await expect(page.getByTestId('dashboard')).toBeVisible()
+
+      await page.getByTestId('open-more').click()
+      await page.getByTestId('more-gym').click()
+      const empty = await opened(page, 'gym-log')
+      await expect(empty.getByTestId('gym-log-none')).toBeVisible()
+      await sweep.take('gym log, empty')
+
+      await page.getByTestId('gym-log-new').click()
+      let sheet = await opened(page, 'workout-sheet')
+      await sweep.take('log a gym session')
+      const ex = sheet.getByTestId('gym-exercise').first()
+      const set = ex.getByTestId('gym-set').first()
+      await ex.getByTestId('gym-exercise-name').focus()
+      await set.getByTestId('gym-set-weight').fill('0')
+      await set.getByTestId('gym-set-reps').focus()
+      await set.getByTestId('gym-set-reps').blur()
+      await expect(ex.getByTestId('gym-error')).toHaveCount(3)
+      await expect(sheet.getByTestId('gym-fix-to-save')).toBeVisible()
+      await sweep.take('log a gym session, with its messages')
+      await sheet.getByTestId('workout-name-input').fill('Push')
+      await ex.getByTestId('gym-exercise-name').fill('Bench press')
+      await set.getByTestId('gym-set-kind').selectOption('drop')
+      await set.getByTestId('gym-set-weight').fill('60')
+      await set.getByTestId('gym-set-reps').fill('10')
+      await set.getByTestId('gym-add-drop').click()
+      await set.getByTestId('gym-drop-weight').fill('70')
+      await set.getByTestId('gym-drop-reps').fill('6')
+      await expect(set.getByTestId('gym-note')).toBeVisible()
+      await sheet.getByTestId('gym-add-exercise').click()
+      await sheet.getByTestId('gym-exercise').nth(1).getByTestId('gym-exercise-name').fill('Dips')
+      await sheet.getByTestId('gym-exercise').nth(1).getByTestId('gym-set-reps').fill('12')
+      await sweep.take('log a gym session, filled in, with a drop that is not lighter')
+      await sheet.getByTestId('save-workout').click()
+      await opened(page, 'gym-log')
+      await sweep.take('gym log, one session')
+
+      await page.getByTestId('gym-log-new').click()
+      sheet = await opened(page, 'workout-sheet')
+      await expect(sheet.getByTestId('gym-copy-last')).toBeVisible()
+      await sweep.take('log a gym session, with Copy last session')
+      await sheet.getByTestId('gym-copy-last').click()
+      await sheet.getByTestId('gym-unit-lb').check()
+      await sweep.take('log a gym session, copied, in lb')
+      await sheet.getByTestId('gym-remove-exercise').first().click()
+      await expect(sheet.getByTestId('gym-removed-exercise')).toBeVisible()
+      await sweep.take('log a gym session, an exercise removed, with Undo')
+      await page.keyboard.press('Escape')
+      await expect(page.getByTestId('workout-sheet')).toHaveCount(0)
+
+      const log = await opened(page, 'gym-log')
+      await log.getByTestId('gym-search').fill('dip')
+      await sweep.take('gym log, a search')
+      await log.getByTestId('gym-search').fill('squat')
+      await expect(log.getByTestId('gym-log-status')).toBeVisible()
+      await sweep.take('gym log, no match')
+      await log.getByTestId('gym-search').fill('')
+      await log.getByTestId('gym-log-open').click()
+      await opened(page, 'workout-details')
+      await sweep.take('a gym session’s details, from the gym log')
+      await closeWithEsc(page, 'workout-details')
+      await closeWithEsc(page, 'gym-log')
+
+      await expect(page.getByTestId('gym-summary')).toBeVisible()
+      await sweep.take('dashboard with a gym session')
+      await page.getByTestId('gym-summary-session').getByRole('button').click()
+      await (await opened(page, 'workout-details')).getByTestId('edit-workout').click()
+      sheet = await opened(page, 'workout-sheet')
+      await sheet.getByTestId('gym-remove').click()
+      await expect(sheet.getByTestId('gym-removed')).toBeVisible()
+      await sweep.take('edit a gym session, gym sets to be removed')
+      await closeWithEsc(page, 'workout-sheet')
+
+      await page.getByTestId('log-workout').click()
+      await opened(page, 'workout-sheet')
+      await expect(page.getByTestId('gym-add')).toBeVisible()
+      await sweep.take('log a workout, with Add gym sets')
+      await closeWithEsc(page, 'workout-sheet')
+
+      sweep.check(14)
     })
 
     test('the saved-log notices: newer version and unreadable', async ({ page }) => {

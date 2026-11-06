@@ -2,13 +2,18 @@
 // workout for its details (burned with its range, score and source), Edit and Delete"). Its typical
 // error comes from the sources table and says it is an assumption, with the nearest study. A
 // workout with unknown calories gets no invented number: it says so. Delete asks first.
+// Build-out item 2.6: a gym session's details list every set of every exercise, with each
+// exercise's best working set from earlier sessions (GymLog.tsx GymSessionSets).
 
 import { useState } from 'react'
 import { estimateWorkout } from '../kernel/net'
 import { getSource } from '../kernel/sources'
-import type { Workout } from '../kernel/types'
+import { isGymSession } from '../kernel/gym'
+import type { WeightUnit, Workout } from '../kernel/types'
 import { copy } from './copy'
-import { fmtPct, fmtRange, fmtWeekdayTime } from './format'
+import { GymSessionSets } from './GymLog'
+import { sessionView } from './gymView'
+import { fmtDatedWhen, fmtPct, fmtRange, fmtWeekdayTime } from './format'
 import { Sheet } from './Sheet'
 import { BasisTag, SourceBasisItem } from './SourceBasis'
 import { workoutDuration, workoutKcal, workoutSourceLabel, workoutTimeLabel } from './WorkoutList'
@@ -20,12 +25,20 @@ interface WorkoutDetailsProps {
   onClose: () => void
   onEdit: () => void
   onDelete: () => void
+  /** Build-out item 2.6: every workout (for previous best), the weight unit preferred, and now. */
+  workouts: Workout[]
+  weightUnit: WeightUnit
+  nowIso: string
+  /** Opened from the gym log, where the date matters: the start is given with its date. */
+  withDate?: boolean
 }
 
-export function WorkoutDetails({ workout, dayStart, demo, onClose, onEdit, onDelete }: WorkoutDetailsProps) {
+export function WorkoutDetails(props: WorkoutDetailsProps) {
+  const { workout, dayStart, demo, onClose, onEdit, onDelete } = props
   const [confirming, setConfirming] = useState(false)
   const est = estimateWorkout(workout)
   const source = workout.source === null ? null : getSource(workout.source)
+  const gym = isGymSession(workout) ? sessionView(workout, props.workouts, props.weightUnit, props.nowIso) : null
 
   const footer = confirming ? (
     <div className="delete-confirm" data-testid="workout-delete-confirm">
@@ -53,7 +66,10 @@ export function WorkoutDetails({ workout, dayStart, demo, onClose, onEdit, onDel
   return (
     <Sheet
       title={workout.name}
-      sub={copy.explainMeal.sub(workoutSourceLabel(workout.source), workoutTimeLabel(workout, dayStart))}
+      sub={copy.explainMeal.sub(
+        workoutSourceLabel(workout.source),
+        props.withDate ? fmtDatedWhen(workout.startedAt, props.nowIso) : workoutTimeLabel(workout, dayStart),
+      )}
       demo={demo}
       onClose={onClose}
       testId="workout-details"
@@ -92,7 +108,9 @@ export function WorkoutDetails({ workout, dayStart, demo, onClose, onEdit, onDel
         )}
         <li data-testid="workout-started">
           <span className="k">{copy.workouts.started}</span>
-          <span>{fmtWeekdayTime(workout.startedAt)}</span>
+          <span className="nowrap">
+            {props.withDate ? fmtDatedWhen(workout.startedAt, props.nowIso) : fmtWeekdayTime(workout.startedAt)}
+          </span>
         </li>
         <li data-testid="workout-duration">
           <span className="k">{copy.workouts.durationLabel}</span>
@@ -109,6 +127,17 @@ export function WorkoutDetails({ workout, dayStart, demo, onClose, onEdit, onDel
           )}
         </li>
       </ul>
+
+      {gym && (
+        <section className="gym-details" aria-labelledby="gym-details-title" data-testid="workout-gym">
+          <h3 className="section-title" id="gym-details-title">
+            {copy.gym.setsTitle}
+          </h3>
+          <p className="small">{gym.counts}</p>
+          <GymSessionSets session={gym} />
+          <p className="small">{copy.gym.bestRule}</p>
+        </section>
+      )}
 
       {est && <p data-testid="workout-score-sentence">{copy.workouts.scoreMeans(String(est.score), fmtPct(est.e))}</p>}
 

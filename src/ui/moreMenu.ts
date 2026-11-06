@@ -9,7 +9,7 @@ import { copy } from './copy'
 import type { FullScreenMode } from './fullScreen'
 import { lookDef } from './looks'
 
-export type MoreEntryId = 'profile' | 'targets' | 'body' | 'savedMeals' | 'weight' | 'look' | 'fullScreen' | 'resetDemo'
+export type MoreEntryId = 'profile' | 'targets' | 'body' | 'savedMeals' | 'weight' | 'gym' | 'look' | 'fullScreen' | 'resetDemo'
 
 /** What an entry may depend on: which log is open, the full-screen view's state, the look. */
 export interface MoreContext {
@@ -61,6 +61,13 @@ export const MORE_ENTRIES: readonly MoreEntryDef[] = [
     shows: () => true,
     label: () => copy.moreMenu.weight,
     hint: () => copy.moreMenu.weightHint,
+  },
+  {
+    // Build-out item 2.6: the gym log, every gym session across every date. In both logs.
+    id: 'gym',
+    shows: () => true,
+    label: () => copy.moreMenu.gym,
+    hint: () => copy.moreMenu.gymHint,
   },
   {
     // Build-out item 1.5.2: the Look sheet. A device setting, so it shows in both logs.

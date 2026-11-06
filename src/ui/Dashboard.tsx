@@ -29,6 +29,9 @@
 // (HeadlineEstimate.tsx), the day lists its workouts under the meals with Log a workout (on the
 // Night timeline, workouts are points beside the meals), and a workout with unknown calories is
 // listed under Missing information.
+//
+// Build-out item 2.6 (slice 26): the viewed day's gym sessions (GymLog.tsx GymSummary), or nothing
+// on a day without one, right below the weight section (item 2.4) in every look.
 
 import { useEffect, useLayoutEffect, useRef } from 'react'
 import type { LogKind } from '../clock'
@@ -45,6 +48,8 @@ import { useLook } from './lookContext'
 import { MacroRow } from './MacroRow'
 import { MealList } from './MealList'
 import { NightTimeline } from './NightTimeline'
+import { GymSummary } from './GymLog'
+import type { SummaryItem } from './gymView'
 import { SleepSection } from './SleepSection'
 import type { EditTarget } from './sleepEdit'
 import type { SleepAction, SleepView } from './sleepView'
@@ -79,6 +84,9 @@ interface DashboardProps {
   /** Opens a workout's details, and Log a workout (build-out item 2.5a). */
   onOpenWorkout: (workoutId: string) => void
   onLogWorkout: () => void
+  /** The viewed day's gym sessions (build-out item 2.6), and the gym log of every session. */
+  gym: SummaryItem[]
+  onOpenGymLog: () => void
   sleep: SleepView
   onSleepAction: (action: SleepAction) => void
   /**
@@ -150,6 +158,7 @@ export function Dashboard(props: DashboardProps) {
   const weightSection = (
     <WeightSection weight={props.weight} today={nav.today} onOpen={props.onOpenWeight} onLog={props.onLogWeight} />
   )
+  const gymSummary = <GymSummary items={props.gym} onOpenWorkout={props.onOpenWorkout} onOpenLog={props.onOpenGymLog} />
 
   return (
     <main className="page dash-page" data-testid="dashboard">
@@ -364,6 +373,9 @@ export function Dashboard(props: DashboardProps) {
 
           {/* Build-out item 2.4: the day's weigh-in with the 7-day average and the trend. */}
           {weightSection}
+
+          {/* Build-out item 2.6: the day's gym sessions, just below weight in every look. */}
+          {gymSummary}
 
           {!night && sleepSection}
 

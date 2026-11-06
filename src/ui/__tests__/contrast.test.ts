@@ -236,6 +236,8 @@ const NO_TEXT: Record<string, string> = {
   '.tl .tl-dot':
     "a dot on the Night look's timeline (aria-hidden) holds no text; each point says what it is in words beside it",
   '.tl .tl-dot.amber': 'the amber dot of the meal with the biggest uncertainty, no text; "biggest uncertainty" is written beside it',
+  '.meal-form input[type="search"]::-webkit-search-cancel-button':
+    "a search box's clear button: a cross drawn in --teal-ink through a mask, no text (--teal-ink is checked as text on every surface, above 3:1)",
 }
 /** Selector starts whose rules hold no text, with why. Each must still match a rule. */
 const NO_TEXT_PREFIXES: Record<string, string> = {

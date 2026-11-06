@@ -39,7 +39,7 @@ interface BodySheetProps {
 }
 
 /** Two or three choices drawn as buttons, each a radio (the Log a meal amount control's style). */
-function Choice<T extends string>({
+export function Choice<T extends string>({
   legend,
   name,
   options,

@@ -283,6 +283,81 @@ describe('Import reads a file through the same pipeline as a stored log', () => 
     expect(res.summary.workouts).toBe(3)
   })
 
+  it('a gym session with drop sets round-trips through Export and Import unchanged, with the weight unit setting (build-out item 2.6)', () => {
+    const doc = mineDoc()
+    const withGym: LogDoc = {
+      ...doc,
+      settings: { ...(doc.settings ?? {}), weightUnit: 'lb' },
+      workouts: [
+        ...doc.workouts,
+        {
+          id: 'workout-push',
+          name: 'Push',
+          startedAt: '2026-10-28T18:30:00-04:00',
+          minutes: 50,
+          kcal: null,
+          source: null,
+          gym: {
+            unit: 'lb',
+            exercises: [
+              {
+                name: 'Bench press',
+                sets: [
+                  { kind: 'warmup', weightKg: 20.41165665, reps: 10 },
+                  { kind: 'working', weightKg: 61.2349699, reps: 8 },
+                  { kind: 'drop', weightKg: 45.359237, reps: 10, drops: [{ weightKg: 34.01942775, reps: 8 }, { weightKg: null, reps: 6 }] },
+                ],
+              },
+              { name: 'Dips', sets: [{ kind: 'working', weightKg: null, reps: 12 }] },
+            ],
+          },
+        },
+      ],
+    }
+    const res = readImport(exportOwnLog(withGym, null, null))
+    expect(res.status).toBe('ok')
+    if (res.status !== 'ok') return
+    expect(res.doc).toStrictEqual(withGym)
+  })
+
+  it('refuses gym sets that are not sets: a negative weight, reps that are not whole, a kind HowSure does not know (build-out item 2.6)', () => {
+    const base = (set: Record<string, unknown>) => {
+      const doc = structuredClone(V1_MINE) as { workouts: Record<string, unknown>[] }
+      doc.workouts[0].gym = { unit: 'kg', exercises: [{ name: 'Row', sets: [set] }] }
+      return JSON.stringify(doc)
+    }
+    expect(readImport(base({ kind: 'working', weightKg: 60, reps: 8 })).status).toBe('ok')
+    expect(readImport(base({ kind: 'working', weightKg: -60, reps: 8 }))).toMatchObject({ status: 'refused', problem: 'unreadable' })
+    expect(readImport(base({ kind: 'working', weightKg: 60, reps: 7.5 }))).toMatchObject({ status: 'refused', problem: 'unreadable' })
+    expect(readImport(base({ kind: 'max', weightKg: 60, reps: 8 }))).toMatchObject({ status: 'refused', problem: 'unreadable' })
+    // As strict as the model, so an edit never has to change a stored value without saying so:
+    // reps from 1, a weight of 0 (blank is null), drops on a set that is not a drop set, an empty
+    // drops list.
+    expect(readImport(base({ kind: 'working', weightKg: 60, reps: 0 }))).toMatchObject({ status: 'refused', problem: 'unreadable' })
+    expect(readImport(base({ kind: 'working', weightKg: 0, reps: 8 }))).toMatchObject({ status: 'refused', problem: 'unreadable' })
+    expect(readImport(base({ kind: 'working', weightKg: null, reps: 8 })).status).toBe('ok')
+    expect(
+      readImport(base({ kind: 'working', weightKg: 60, reps: 8, drops: [{ weightKg: 40, reps: 6 }] })),
+    ).toMatchObject({ status: 'refused', problem: 'unreadable' })
+    expect(readImport(base({ kind: 'drop', weightKg: 60, reps: 8, drops: [] }))).toMatchObject({ status: 'refused', problem: 'unreadable' })
+    expect(readImport(base({ kind: 'drop', weightKg: 60, reps: 8, drops: [{ weightKg: 40, reps: 0 }] }))).toMatchObject({
+      status: 'refused',
+      problem: 'unreadable',
+    })
+    expect(readImport(base({ kind: 'drop', weightKg: 60, reps: 8, drops: [{ weightKg: 40, reps: 6 }] })).status).toBe('ok')
+    // A session needs an exercise, and an exercise a set.
+    const shaped = (gym: unknown) => {
+      const doc = structuredClone(V1_MINE) as { workouts: Record<string, unknown>[] }
+      doc.workouts[0].gym = gym
+      return JSON.stringify(doc)
+    }
+    expect(readImport(shaped({ unit: 'kg', exercises: [] }))).toMatchObject({ status: 'refused', problem: 'unreadable' })
+    expect(readImport(shaped({ unit: 'kg', exercises: [{ name: 'Row', sets: [] }] }))).toMatchObject({
+      status: 'refused',
+      problem: 'unreadable',
+    })
+  })
+
   it('refuses a workout with known calories and no source, as for a meal (build-out item 2.5a)', () => {
     const doc = structuredClone(V1_MINE) as { workouts: { kcal: unknown; source: unknown }[] }
     doc.workouts[0].kcal = 200

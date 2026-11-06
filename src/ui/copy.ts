@@ -113,6 +113,9 @@ export const copy = {
   dayDate: (weekday: string, day: string, month: string, year: string | null) =>
     year ? `${weekday} ${day} ${month} ${year}` : `${weekday} ${day} ${month}`,
   dateAndTime: (date: string, time: string) => `${date}, ${time}`,
+  // "Wed Oct 21", "Wed Oct 21, 2025" (format.ts fmtDatedWhen).
+  weekdayDate: (weekday: string, month: string, day: string, year: string | null) =>
+    year ? `${weekday} ${month} ${day}, ${year}` : `${weekday} ${month} ${day}`,
   weekdaysFull: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] as const,
   monthsShort: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const,
   am: 'AM',
@@ -407,6 +410,106 @@ export const copy = {
     deleteConfirm: 'Delete workout',
   },
 
+  // Build-out item 2.6 (slice 26; prd.md > Gym Log): a workout's gym sets, the day's gym summary on
+  // the dashboard, and the gym log of every session. A blank weight is "no weight logged", never 0.
+  gym: {
+    sectionTitle: 'Gym',
+    logSession: 'Log a gym session',
+    titleNew: 'Log a gym session',
+    addSets: 'Add gym sets',
+    addSetsHint: 'Exercises, with each set’s weight, reps and type.',
+    setsTitle: 'Gym sets',
+    removeSets: 'Remove gym sets',
+    setsRemoved: 'The gym sets will be removed when you save.',
+    keepSets: 'Keep the gym sets',
+    nameHint: 'For a gym session, its split or name, such as Push.',
+    unitLegend: 'Weights in',
+    units: { kg: 'kg', lb: 'lb' },
+    unitHint: 'Changing the unit converts the weights already typed. The gym log shows weights in the unit of your latest session; your weigh-ins keep their own unit.',
+    copyLast: 'Copy last session',
+    copyLastFrom: (name: string, when: string, exercises: string) => `Starts from ${name}, ${when}: ${exercises}.`,
+    copied: (name: string, when: string) => `Copied from ${name}, ${when}. Change anything before saving.`,
+    exercise: (n: number) => `Exercise ${n}`,
+    exerciseHint: 'Its name, such as Bench press. The same name links it to earlier sessions.',
+    removeExercise: (n: number) => `Remove exercise ${n}`,
+    removeExerciseShort: 'Remove exercise',
+    // After Remove exercise on one with something typed: what went, and a way back until Save.
+    exerciseRemoved: (name: string, sets: string) => `Removed ${name}, with ${sets}.`,
+    exerciseRemovedUnnamed: (n: number, sets: string) => `Removed exercise ${n}, with ${sets}.`,
+    undoRemove: 'Undo',
+    undoRemoveLabel: (name: string) => `Undo: put back ${name}`,
+    addExercise: 'Add exercise',
+    head: { n: 'Set', kind: 'Type', weight: (unit: string) => `Weight (${unit})`, reps: 'Reps' },
+    setKindLabel: (n: number) => `Set ${n} type`,
+    setWeightLabel: (n: number, unit: string) => `Set ${n} weight (${unit})`,
+    setRepsLabel: (n: number) => `Set ${n} reps`,
+    removeSet: (n: number) => `Remove set ${n}`,
+    removeMark: '×',
+    addSet: 'Add set',
+    addSetLabel: (exercise: string) => `Add a set to ${exercise}`,
+    addSetHint: '“Add set” copies the set above, ready to change.',
+    drop: (n: number) => `Drop ${n}`,
+    dropWeightLabel: (set: number, n: number, unit: string) => `Set ${set}, drop ${n} weight (${unit})`,
+    dropRepsLabel: (set: number, n: number) => `Set ${set}, drop ${n} reps`,
+    removeDrop: (set: number, n: number) => `Remove drop ${n} of set ${set}`,
+    addDrop: 'Add drop',
+    addDropLabel: (set: number) => `Add a drop to set ${set}`,
+    kinds: { warmup: 'Warm-up', working: 'Working', drop: 'Drop set' },
+    weightHint: 'Leave a weight blank for a set with no weight, such as a bodyweight set.',
+    // Messages.
+    nameNeeded: 'Name the exercise.',
+    setNeeded: 'Add a set, or remove the exercise.',
+    exerciseNeeded: 'Add an exercise, or use “Remove gym sets”.',
+    repsNeeded: 'Type the reps.',
+    repsWhole: 'Reps are a whole number from 1 to 1,000.',
+    weightZero: 'A weight of 0 isn’t used. Leave it blank for a set with no weight.',
+    weightTooBig: (limit: string) => `That is more than ${limit}. Check the number.`,
+    weightTooSmall: 'That is less than 0.01. Check the number, or leave it blank for a set with no weight.',
+    dropNotLighter: 'This drop isn’t lighter than the weight before it.',
+    fixToSave: 'To save, give each exercise a name and each set its reps, and fix any line marked above.',
+    // A set as text: "80 kg × 8", "12 reps, no weight logged", a drop set "60 kg × 10, then 45 kg × 8".
+    // No-break spaces keep "80 kg × 8" and "12 reps" on one line; a line breaks only between parts.
+    weight: (n: string, unit: string) => `${n}\u00a0${unit}`,
+    setWeighted: (weight: string, reps: string) => `${weight}\u00a0×\u00a0${reps}`,
+    setNoWeight: (reps: string) => (reps === '1' ? '1\u00a0rep, no weight logged' : `${reps}\u00a0reps, no weight logged`),
+    dropThen: ', then ',
+    exercises: (n: number) => (n === 1 ? '1 exercise' : `${n} exercises`),
+    sets: (n: number) => (n === 1 ? '1 set' : `${n} sets`),
+    kindCount: {
+      warmup: (n: number) => `${n} warm-up`,
+      working: (n: number) => `${n} working`,
+      drop: (n: number) => (n === 1 ? '1 drop set' : `${n} drop sets`),
+    },
+    countsJoin: ', ',
+    setsWithKinds: (sets: string, kinds: string) => `${sets} (${kinds})`,
+    // Best working set: from earlier sessions only.
+    bestBefore: (set: string, date: string) => `Previous best: ${set} (${date})`,
+    bestFirst: 'Previous best: none, first time logged',
+    bestNoWorking: 'Previous best: none yet (no earlier working set)',
+    bestRule:
+      'Previous best is the heaviest working set of that exercise in earlier sessions, with the most reps at that weight. Warm-ups and drop sets are left out, and nothing is estimated.',
+    topSet: (set: string) => `Top working set ${set}`,
+    noWorkingSet: 'No working set',
+    // The dashboard summary.
+    summaryMeta: (time: string, exercises: string, sets: string) => `${time} · ${exercises} · ${sets}`,
+    // The dashboard row's accessible name: its name, meta line and each exercise's line, as shown.
+    summaryLabel: (name: string, meta: string, exercises: string) => `${name}, ${meta}. ${exercises} Opens the workout details with every set.`,
+    summaryExerciseLabel: (name: string, text: string) => `${name}: ${text}.`,
+    allSessions: 'Gym log',
+    allSessionsLabel: 'Gym log: every gym session, by date',
+    // The gym log.
+    historyTitle: 'Gym log',
+    historySub: (n: number) => (n === 1 ? '1 gym session' : `${n} gym sessions`),
+    search: 'Find an exercise or split',
+    searchHint: 'For example bench press, or Push.',
+    none: 'No gym sessions logged yet. Use “Log a gym session”, or “Add gym sets” in a workout.',
+    noMatch: (q: string) => `No gym session has “${q}” as its split or an exercise.`,
+    matches: (n: number, total: number) => (n === total ? '' : `${n} of ${total} sessions match.`),
+    showMore: (n: number) => `Show ${n} more`,
+    openSession: (name: string, when: string) => `${name}, ${when}. Opens the workout details.`,
+    exerciseSets: (name: string) => `${name} sets`,
+  },
+
   // Build-out item 2.5a: Eaten under the net headline opens the day's meals, each opening its breakdown.
   eaten: {
     title: 'Eaten today',
@@ -668,6 +771,9 @@ export const copy = {
     targets: 'Targets',
     targetsHint: 'Your daily calories, protein, carbs and fat.',
     targetsHintDemo: 'Sam’s daily targets, which are made up.',
+    // Build-out item 2.6: the gym log, in both logs.
+    gym: 'Gym log',
+    gymHint: 'Every gym session by date, found by exercise or split, with each set.',
     // Build-out item 2.3: saved meals, in both logs (the demo's stay in the demo).
     savedMeals: 'Saved meals',
     savedMealsHint: 'Rename or delete the meals you saved as usual.',

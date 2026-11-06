@@ -13,9 +13,10 @@ interface SheetProps {
   footer?: ReactNode
   /**
    * The data-testid of the control, inside the sheet, that takes focus when it opens (the field
-   * most people came to change). Without it, or when nothing matches, the Close button takes focus.
+   * most people came to change), or several in order of preference: the first one on the sheet
+   * wins. Without it, or when nothing matches, the Close button takes focus.
    */
-  initialFocusTestId?: string
+  initialFocusTestId?: string | string[]
 }
 
 /** Marks the element focus goes back to when a sheet closes and its opener has left the page. */
@@ -31,7 +32,8 @@ export function Sheet({ title, sub, demo, onClose, children, testId, footer, ini
 
   useEffect(() => {
     const opener = document.activeElement as HTMLElement | null
-    const first = initialFocusTestId ? panelRef.current?.querySelector<HTMLElement>(`[data-testid="${initialFocusTestId}"]`) : null
+    const wanted = initialFocusTestId === undefined ? [] : [initialFocusTestId].flat()
+    const first = wanted.map((t) => panelRef.current?.querySelector<HTMLElement>(`[data-testid="${t}"]`)).find(Boolean)
     ;(first ?? closeRef.current)?.focus()
     const prevOverflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
