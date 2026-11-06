@@ -108,9 +108,20 @@ export function onLaterDate(iso: string, dayStart: string | null): boolean {
   return dayStart !== null && fmtWeekday(iso) !== fmtWeekday(dayStart)
 }
 
+/** "Thu Nov 5": a weekday with its date, where a weekday alone could name two days a week apart. */
+export function fmtWeekdayDate(iso: string): string {
+  const d = new Date(iso)
+  return `${copy.weekdays[d.getDay()]} ${copy.monthsShort[d.getMonth()]} ${d.getDate()}`
+}
+
 /** "Thu 12:40 AM": a meal's time with its own weekday, used where it differs from the day's. */
 export function fmtWeekdayTime(iso: string): string {
   return `${fmtWeekday(iso)} ${fmtTime(iso)}`
+}
+
+/** "Wed Nov 4, 11:10 PM": a time with its weekday and date, for a night that may be weeks away. */
+export function fmtWeekdayDateTime(iso: string): string {
+  return copy.dateAndTime(fmtWeekdayDate(iso), fmtTime(iso))
 }
 
 /** Local calendar days from `iso` to `nowIso` (0 on the same date, 1 the day before, below 0 ahead). */

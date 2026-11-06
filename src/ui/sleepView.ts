@@ -6,7 +6,7 @@
 import { movedMeals, nightStats, sleepStatus, sortedSleeps, validateSleep } from '../kernel/sleepday'
 import type { Meal, Night, NightStats, SleepProblem, SleepRecord, SleepStatus } from '../kernel/types'
 import { copy } from './copy'
-import { fmtWeekdayTime } from './format'
+import { fmtWeekdayDateTime, fmtWeekdayTime } from './format'
 
 export interface SleepView {
   /** Now's status: awake or asleep. It is about now, whichever day is on screen. */
@@ -17,6 +17,14 @@ export interface SleepView {
   stats: NightStats
   /** How the viewed waking day ends (the Night look's timeline ends with it). */
   dayEnd: DayEnd
+  /**
+   * The record whose wake starts the viewed day (build-out item 2.2): what the header's wake time,
+   * Edit in the sleep section and the Night timeline's wake point open in the editor. Null for
+   * the provisional day.
+   */
+  dayRecordId: string | null
+  /** The viewed day's wake (null: the provisional day), for the words around those entry points. */
+  dayStart: string | null
 }
 
 /**
@@ -26,8 +34,8 @@ export interface SleepView {
  */
 export type DayEnd =
   | { kind: 'awake' }
-  | { kind: 'asleep'; since: string }
-  | { kind: 'closed'; sleepStart: string | null }
+  | { kind: 'asleep'; since: string; recordId: string }
+  | { kind: 'closed'; sleepStart: string | null; recordId: string }
 
 /** The sleep section for the waking day `dayStart`: nights up to that day's wake, so a previous day shows its own. */
 export function buildSleepView(sleeps: SleepRecord[], dayStart: string | null): SleepView {
@@ -46,6 +54,8 @@ export function buildSleepView(sleeps: SleepRecord[], dayStart: string | null): 
     lastNight: last && dayStart !== null && last.wake === dayStart ? last : null,
     stats,
     dayEnd: dayEndOf(sleeps, dayStart, status),
+    dayRecordId: dayStart === null ? null : (sleeps.find((r) => r.wake === dayStart)?.id ?? null),
+    dayStart,
   }
 }
 
@@ -55,8 +65,10 @@ export function dayEndOf(sleeps: SleepRecord[], dayStart: string | null, status:
   const from = dayStart === null ? Number.NEGATIVE_INFINITY : Date.parse(dayStart)
   // The night that closes this day is the first one whose wake comes after the day's wake.
   const closing = sorted.find((r) => r.wake !== null && Date.parse(r.wake) > from)
-  if (closing) return { kind: 'closed', sleepStart: closing.sleepStart }
-  if (status.kind === 'asleep' && Date.parse(status.since) >= from) return { kind: 'asleep', since: status.since }
+  if (closing) return { kind: 'closed', sleepStart: closing.sleepStart, recordId: closing.id }
+  if (status.kind === 'asleep' && Date.parse(status.since) >= from) {
+    return { kind: 'asleep', since: status.since, recordId: status.recordId }
+  }
   return { kind: 'awake' }
 }
 
@@ -130,10 +142,38 @@ export function problemText(p: SleepProblem): string {
     case 'wake-before-sleep':
       return copy.sleep.errors.wakeBeforeSleep(fmtWeekdayTime(p.sleepStart))
     case 'sleep-before-previous-wake':
-      return copy.sleep.errors.sleepBeforeWake(fmtWeekdayTime(p.wake))
+      return copy.sleep.errors.sleepBeforeWake(fmtWeekdayDateTime(p.wake))
     case 'overlap':
-      return copy.sleep.errors.overlap
+      return copy.sleep.errors.overlap(nightRangeText(p.other))
+    case 'needs-wake':
+      return copy.sleep.errors.needsWake(nightRangeText(p.other))
     case 'future':
       return copy.sleep.errors.future
   }
+}
+
+/**
+ * A night's two ends in words, dated so a night weeks away in an imported log is clear: "Wed Nov 4,
+ * 11:10 PM to Thu 7:20 AM" (the wake carries its own date too when it is a week or more later).
+ * A night missing an end says so: "sleep time not logged, woke Thu Nov 5, 7:20 AM", or "asleep
+ * since Wed Nov 4, 11:10 PM, no wake time yet".
+ */
+export function nightRangeText(r: SleepRecord): string {
+  if (r.sleepStart === null) return r.wake !== null ? copy.sleep.nightRangeNoSleep(fmtWeekdayDateTime(r.wake)) : ''
+  if (r.wake === null) return copy.sleep.nightRangeOpen(fmtWeekdayDateTime(r.sleepStart))
+  const farApart = Date.parse(r.wake) - Date.parse(r.sleepStart) >= 6 * 86_400_000
+  return copy.sleep.nightRange(fmtWeekdayDateTime(r.sleepStart), farApart ? fmtWeekdayDateTime(r.wake) : fmtWeekdayTime(r.wake))
+}
+
+/** How long after a wake, with no sleep logged since, a night counts as gone by unlogged. */
+const NIGHT_GONE_MS = 24 * 60 * 60 * 1000
+
+/**
+ * True when a night has gone by since `wakeIso` (24 hours or more before now). Under that, the
+ * night woken from is still "last night", even after midnight (still up at 1:30 AM after waking
+ * at 7:10 AM the day before). The sleep section's head and its row, and the editor's hint about
+ * a missed night, all use this one test, so they tell the same story.
+ */
+export function nightGoneBySince(wakeIso: string, nowIso: string): boolean {
+  return Date.parse(nowIso) - Date.parse(wakeIso) >= NIGHT_GONE_MS
 }

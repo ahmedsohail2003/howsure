@@ -46,7 +46,11 @@ describe('the day choices and the default', () => {
     // Yesterday was before the clock change, so its offset is -04:00.
     expect(wakeIso('2026-11-01T10:00:00-05:00', 'yesterday', '07:00')).toBe('2026-10-31T07:00:00-04:00')
     expect(wakeIso(NOW, 'today', '')).toBeNull()
-    expect(wakeIso(NOW, 'today', '7')).toBeNull()
+    expect(wakeIso(NOW, 'today', 'seven')).toBeNull()
+    expect(wakeIso(NOW, 'today', '25:00')).toBeNull()
+    // Build-out item 2.2: shorthand, read as in the sleep and wake editor.
+    expect(wakeIso(NOW, 'today', '7')).toBe('2026-11-05T07:00:00-05:00')
+    expect(wakeIso(NOW, 'yesterday', '11:15 pm')).toBe('2026-11-04T23:15:00-05:00')
   })
 })
 
@@ -89,6 +93,22 @@ describe('the regroup preview (regroupForWake)', () => {
   it('a time later than now saves nothing', () => {
     expect(regroupForWake(MEALS, [], '2026-11-05T11:00:00-05:00', NOW)).toEqual({ ok: false, problem: { kind: 'future' } })
     expect(regroupForWake(MEALS, [], null, NOW)).toEqual({ ok: false, problem: { kind: 'not-a-time' } })
+  })
+
+  it('lists workouts too: wake Thu 07:00 moves the Thu 07:30 stretch in and keeps the Wed 18:00 run before it', () => {
+    // Build-out item 2.2: the same entries the editor's move warning lists.
+    const run = { id: 'r', name: 'Evening run', startedAt: '2026-11-04T18:00:00-05:00', minutes: 30, kcal: 280, source: 'burn_device' as const }
+    const stretch = { id: 's', name: 'Stretching', startedAt: '2026-11-05T07:30:00-05:00', minutes: 15, kcal: null, source: null }
+    const r = regroupForWake(MEALS, [], '2026-11-05T07:00:00-05:00', NOW, 'w', [stretch, run])
+    if (!r.ok) throw new Error('expected ok')
+    expect(r.movingWorkouts).toEqual([{ kind: 'workout', id: 's', name: 'Stretching', at: '2026-11-05T07:30:00-05:00', kcal: null }])
+    expect(r.stayingWorkouts).toEqual([{ kind: 'workout', id: 'r', name: 'Evening run', at: '2026-11-04T18:00:00-05:00', kcal: null }])
+    // The meals are as before; workouts never count in a list's calories.
+    expect(names(r.moving)).toEqual(['Yogurt', 'Banana'])
+    expect(regroupTotal(r.moving)).toEqual({ kcal: 255, unknown: 0 })
+    // Without workouts passed, the lists hold none.
+    const plain = regroupForWake(MEALS, [], '2026-11-05T07:00:00-05:00', NOW)
+    expect(plain.ok && [plain.movingWorkouts, plain.stayingWorkouts]).toEqual([[], []])
   })
 
   it('with no meals there is nothing to move', () => {

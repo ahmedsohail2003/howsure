@@ -17,8 +17,10 @@ import type { DayView } from './dayView'
 import { onLaterDate } from './format'
 import type { SleepView } from './sleepView'
 
+// Build-out item 2.2: the wake, asleep and sleep points carry the record they show (`recordId`),
+// so tapping one opens that night in the sleep and wake editor.
 export type TimelinePoint =
-  | { kind: 'wake'; at: string; sleptMinutes: number | null }
+  | { kind: 'wake'; at: string; sleptMinutes: number | null; recordId: string | null }
   /** The provisional day: no wake is recorded before it. */
   | { kind: 'noWake' }
   /** `laterDate`: eaten after midnight, on a later calendar date than the wake. */
@@ -28,14 +30,16 @@ export type TimelinePoint =
   /** No meals logged yet on this day. */
   | { kind: 'empty' }
   | { kind: 'now'; at: string }
-  | { kind: 'asleep'; since: string; laterDate: boolean }
+  | { kind: 'asleep'; since: string; laterDate: boolean; recordId: string }
   /** `at` null: the sleep start of the night that closed the day was not logged. */
-  | { kind: 'sleep'; at: string | null; laterDate: boolean }
+  | { kind: 'sleep'; at: string | null; laterDate: boolean; recordId: string }
 
 export function timelinePoints(view: DayView, sleep: SleepView, nowIso: string): TimelinePoint[] {
   const { dayStart } = view
   const points: TimelinePoint[] = [
-    dayStart === null ? { kind: 'noWake' } : { kind: 'wake', at: dayStart, sleptMinutes: sleep.lastNight?.minutes ?? null },
+    dayStart === null
+      ? { kind: 'noWake' }
+      : { kind: 'wake', at: dayStart, sleptMinutes: sleep.lastNight?.minutes ?? null, recordId: sleep.dayRecordId },
   ]
   if (view.meals.length === 0) points.push({ kind: 'empty' })
   // Meals and workouts in time order; at the same minute a meal comes first.
@@ -53,7 +57,11 @@ export function timelinePoints(view: DayView, sleep: SleepView, nowIso: string):
   points.push(...items)
   const end = sleep.dayEnd
   if (end.kind === 'awake') points.push({ kind: 'now', at: nowIso })
-  else if (end.kind === 'asleep') points.push({ kind: 'asleep', since: end.since, laterDate: onLaterDate(end.since, dayStart) })
-  else points.push({ kind: 'sleep', at: end.sleepStart, laterDate: end.sleepStart !== null && onLaterDate(end.sleepStart, dayStart) })
+  else if (end.kind === 'asleep') {
+    points.push({ kind: 'asleep', since: end.since, laterDate: onLaterDate(end.since, dayStart), recordId: end.recordId })
+  } else {
+    const laterDate = end.sleepStart !== null && onLaterDate(end.sleepStart, dayStart)
+    points.push({ kind: 'sleep', at: end.sleepStart, laterDate, recordId: end.recordId })
+  }
   return points
 }

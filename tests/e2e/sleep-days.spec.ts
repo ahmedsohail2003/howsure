@@ -10,6 +10,7 @@
 //   complete nights (530, 515, 530, 525, 550, 525 min) average 529.17 min, shown as 8 h 49 min;
 //   after a new 04:40 to 13:10 night (510 min) the window is 515, 530, 525, 550, 525, 510: 525.83, 8 h 46 min.
 import { expect, test, type Locator, type Page } from '@playwright/test'
+import { fillWhen } from './sleepFields'
 import { E2E_KEYS } from './storage-keys'
 
 const FICTIONAL = 'Sample person — fictional'
@@ -53,7 +54,7 @@ async function sleepAction(page: Page, button: string, when: string) {
   const sheet = page.getByTestId('sleep-sheet')
   await expect(sheet).toBeVisible()
   await expect(sheet).toContainText(FICTIONAL)
-  await sheet.getByTestId('sleep-when-input').fill(when)
+  await fillWhen(sheet, 'sleep', when)
   await sheet.getByTestId('sleep-save').click()
   await expect(sheet).toBeHidden()
 }
@@ -76,6 +77,10 @@ test.describe('slice 4: Sleep and Waking Days', () => {
     // The sleep button sits in the action bar beside Log a meal (build-out item 1.5.2).
     await expect(page.getByTestId('action-bar').getByTestId('sleep-action')).toHaveText('I’m going to sleep')
     await expect(sleep).toContainText('Last night')
+    // Still up at 1:30 AM after Wednesday's wake: no night has gone by, so the head's Edit and the
+    // row both call it last night (build-out item 2.2).
+    await expect(sleep.getByTestId('last-night-label')).toHaveText('Last night')
+    await expect(sleep.getByTestId('sleep-edit')).toHaveText('Edit last night')
     await expect(sleep.getByTestId('last-night')).toHaveText('8 h 45 min')
     await expect(sleep).toContainText('7-night average')
     await expect(sleep.getByTestId('sleep-average')).toContainText('8 h 49 min')
@@ -108,9 +113,11 @@ test.describe('slice 4: Sleep and Waking Days', () => {
     // 04:40 is later than the demo clock (01:30), so the demo moves forward to it (spec.md > Clock).
     await page.getByTestId('sleep-action').click()
     const sheet = page.getByTestId('sleep-sheet')
-    await expect(sheet.getByTestId('sleep-when-input')).toHaveValue('2026-10-22T01:30') // defaults to now
+    // Defaults to now (build-out item 2.2: a date field and a time field, shown with AM or PM).
+    await expect(sheet.getByTestId('sleep-date-input')).toHaveValue('2026-10-22')
+    await expect(sheet.getByTestId('sleep-time-input')).toHaveValue('1:30 AM')
     await expect(sheet).toContainText('This closes the waking day that started Wed 1:20 PM.')
-    await sheet.getByTestId('sleep-when-input').fill('2026-10-22T04:40')
+    await fillWhen(sheet, 'sleep', '2026-10-22T04:40')
     await expect(sheet.getByTestId('demo-advance')).toBeVisible()
     await sheet.getByTestId('sleep-save').click()
     await expect(sheet).toBeHidden()
@@ -121,7 +128,8 @@ test.describe('slice 4: Sleep and Waking Days', () => {
     await expect(page.getByTestId('waking-day')).toHaveText('Wed · awake since 1:20 PM')
 
     await page.getByTestId('sleep-action').click()
-    await expect(page.getByTestId('sleep-sheet').getByTestId('sleep-when-input')).toHaveValue('2026-10-22T04:40')
+    await expect(page.getByTestId('sleep-sheet').getByTestId('sleep-date-input')).toHaveValue('2026-10-22')
+    await expect(page.getByTestId('sleep-sheet').getByTestId('sleep-time-input')).toHaveValue('4:40 AM')
     await page.keyboard.press('Escape')
     await sleepAction(page, 'I woke up', '2026-10-22T13:10')
 
@@ -155,11 +163,14 @@ test.describe('slice 4: Sleep and Waking Days', () => {
     await page.getByRole('button', { name: 'Start my log' }).click()
     await page.getByTestId('sleep-action').click()
     const sheet = page.getByTestId('sleep-sheet')
-    await expect(sheet.getByTestId('sleep-when-input')).toHaveValue('2026-10-26T12:15')
-    await sheet.getByTestId('sleep-when-input').fill('2026-10-26T23:00')
+    await expect(sheet.getByTestId('sleep-date-input')).toHaveValue('2026-10-26')
+    await expect(sheet.getByTestId('sleep-time-input')).toHaveValue('12:15 PM')
+    await fillWhen(sheet, 'sleep', '2026-10-26T23:00')
     await sheet.getByTestId('sleep-save').click()
     await expect(sheet.getByTestId('sleep-error')).toHaveText('That time is later than now. Pick a time up to now.')
-    await expect(sheet.getByTestId('sleep-when-input')).toHaveValue('2026-10-26T23:00')
+    // What was typed is kept: the same date, and 23:00 shown back as 11:00 PM.
+    await expect(sheet.getByTestId('sleep-date-input')).toHaveValue('2026-10-26')
+    await expect(sheet.getByTestId('sleep-time-input')).toHaveValue('11:00 PM')
     await page.keyboard.press('Escape')
     await expect(page.getByTestId('sleep-status')).toHaveText('Awake')
     const mine = await page.evaluate((k) => JSON.parse(localStorage.getItem(k) ?? 'null'), E2E_KEYS.mine)

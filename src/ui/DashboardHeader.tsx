@@ -3,12 +3,14 @@
 // the switch between the demo and your own log, and the More menu (build-out item 1.3). Build-out
 // item 2.1: your own log is the main path, so the switch reads "Open my log" in the demo and
 // offers the demo as a side door ("See the demo") in your own log; a log with no wake time offers
-// Set wake time beside "Wake time not set". While
+// Set wake time beside "Wake time not set". Build-out item 2.2: the wake time is a button that
+// opens the sleep and wake editor on the night that started the day ("I woke at 8"). While
 // the full-screen view is on, its way back sits here too, so it is one tap away.
 
 import type { LogKind } from '../clock'
 import { copy } from './copy'
 import { fmtTime, fmtWeekday } from './format'
+import { KeepTogether } from './KeepTogether'
 
 interface DashboardHeaderProps {
   kind: LogKind
@@ -19,6 +21,8 @@ interface DashboardHeaderProps {
   onSwitch: () => void
   /** Set wake time (build-out item 2.1): given only while the log has no wake time and nobody is asleep. */
   onSetWake?: () => void
+  /** Build-out item 2.2: the wake time opens the sleep and wake editor on the night that started the day. */
+  onEditWake?: () => void
   onOpenMore: () => void
   moreOpen: boolean
   fullScreenOn: boolean
@@ -37,9 +41,22 @@ export function DashboardHeader(props: DashboardHeaderProps) {
             <span className="profile-link">{copy.header.profileAndPrivacy}</span>
           </button>
         )}
-        {dayStart ? (
+        {dayStart && props.onEditWake ? (
           // data-focus-return (Sheet.tsx FOCUS_RETURN): where focus lands when a sheet closes and its
           // opener has gone, as Set wake time's button does once the wake time is saved.
+          <p className="waking-day-line">
+            <button
+              type="button"
+              className="waking-day waking-day-btn num"
+              onClick={props.onEditWake}
+              aria-label={copy.sleepEditor.editWake(copy.header.awakeSince(fmtWeekday(dayStart), fmtTime(dayStart)))}
+              data-testid="waking-day"
+              data-focus-return=""
+            >
+              <KeepTogether text={copy.header.awakeSince(fmtWeekday(dayStart), fmtTime(dayStart))} part={fmtTime(dayStart)} />
+            </button>
+          </p>
+        ) : dayStart ? (
           <p className="waking-day num" data-testid="waking-day" tabIndex={-1} data-focus-return="">
             {copy.header.awakeSince(fmtWeekday(dayStart), fmtTime(dayStart))}
           </p>

@@ -493,6 +493,89 @@ for (const { id: look, name: lookName } of LOOKS) {
       sweep.check(6)
     })
 
+    test('the sleep and wake editor: the night, its messages, the move warning, deleting and a missed night', async ({ page }) => {
+      // Build-out item 2.2, in the demo (Sam's week).
+      const sweep = new Sweep(page)
+      await page.clock.setFixedTime(DEMO_NOW)
+      await page.goto('/')
+      await page.getByRole('button', { name: 'Try the fictional demo' }).click()
+      await page.getByTestId('waking-day').click()
+      const editor = await opened(page, 'sleep-editor')
+      await editor.getByTestId('edit-wake-time-input').fill('8')
+      await sweep.take('sleep editor, with a time shown back')
+
+      await editor.getByTestId('edit-wake-time-input').fill('4 am')
+      await editor.getByTestId('edit-night-save').click()
+      await expect(editor.getByTestId('edit-wake-error')).toBeVisible()
+      await editor.getByTestId('edit-sleep-time-input').fill('later')
+      await editor.getByTestId('edit-night-save').click()
+      await expect(editor.getByTestId('edit-sleep-error')).toBeVisible()
+      await sweep.take('sleep editor, with its order-check messages')
+
+      await editor.getByTestId('edit-sleep-time-input').fill('4:35 am')
+      await editor.getByTestId('edit-wake-time-input').fill('6 pm')
+      await editor.getByTestId('edit-night-save').click()
+      const warning = await opened(page, 'move-warning')
+      await sweep.take('move warning')
+      await warning.getByTestId('moves-back').click()
+
+      await (await opened(page, 'sleep-editor')).getByTestId('delete-night').click()
+      const del = await opened(page, 'delete-night-sheet')
+      await sweep.take('delete a night')
+      await del.getByTestId('delete-night-keep').click()
+
+      await (await opened(page, 'sleep-editor')).getByTestId('editor-add-night').click()
+      const add = await opened(page, 'sleep-editor')
+      await expect(add.locator('.sheet-title')).toHaveText(copy.sleepEditor.titleAdd)
+      await add.getByTestId('edit-night-save').click()
+      await expect(add.getByTestId('edit-wake-error')).toBeVisible()
+      await sweep.take('add a missed night, with its message')
+      // A mistyped year: the demo's dates stop a day after its clock.
+      await add.getByTestId('edit-wake-date-input').fill('2062-10-22')
+      await add.getByTestId('edit-wake-time-input').fill('7')
+      await add.getByTestId('edit-night-save').click()
+      await expect(add.getByTestId('edit-wake-error')).toHaveText(copy.sleepEditor.errors.demoDateLimit('Fri Oct 23'))
+      await sweep.take('add a missed night, past the demo’s dates')
+      await closeWithEsc(page, 'sleep-editor')
+
+      sweep.check(6)
+    })
+
+    test('the sleep editor and "I woke up" in your own log: a night since may be missing, and what moves', async ({ page }) => {
+      // Build-out item 2.2, with the fictional Sam's own log: nights up to Tue 7:00 AM, now Wed 8:00 PM.
+      const sweep = new Sweep(page)
+      const meal = (id: string, name: string, eatenAt: string, kcal: number) => ({ id, name, eatenAt, source: 'label', kcal, protein: null, carbs: null, fat: null })
+      const doc = {
+        version: 1,
+        kind: 'mine',
+        profile: { name: '', kind: 'guest' },
+        meals: [meal('a', 'Porridge', '2026-10-27T08:00:00-04:00', 300), meal('b', 'Rye toast', '2026-10-28T08:30:00-04:00', 220)],
+        sleeps: [{ id: 'n1', sleepStart: '2026-10-26T23:30:00-04:00', wake: '2026-10-27T07:00:00-04:00' }],
+        workouts: [{ id: 'w', name: 'Stretching', startedAt: '2026-10-28T07:30:00-04:00', minutes: 15, kcal: 40, source: 'burn_device' }],
+        plates: [],
+      }
+      await seedAndOpen(page, MINE_NOW, { [E2E_KEYS.mine]: JSON.stringify(doc), [E2E_KEYS.active]: 'mine' })
+      await page.getByTestId('waking-day').click()
+      const editor = await opened(page, 'sleep-editor')
+      await expect(editor.getByTestId('editor-missed-hint')).toBeVisible()
+      await sweep.take('sleep editor, a night since may be missing')
+      await closeWithEsc(page, 'sleep-editor')
+
+      // Asleep since Tue 11:00 PM: "I woke up" at 7 AM moves the toast and the stretch to the new day.
+      await seedAndOpen(page, MINE_NOW, {
+        [E2E_KEYS.mine]: JSON.stringify({ ...doc, sleeps: [...doc.sleeps, { id: 'n2', sleepStart: '2026-10-27T23:00:00-04:00', wake: null }] }),
+        [E2E_KEYS.active]: 'mine',
+      })
+      await page.getByTestId('sleep-action').click()
+      const sheet = await opened(page, 'sleep-sheet')
+      await sheet.getByTestId('sleep-time-input').fill('7')
+      await expect(sheet.getByTestId('sleep-moves').getByTestId('move-entry')).toHaveCount(2)
+      await sweep.take('"I woke up", with the entries that move')
+      await closeWithEsc(page, 'sleep-sheet')
+
+      sweep.check(2)
+    })
+
     test('the saved-log notices: newer version and unreadable', async ({ page }) => {
       const sweep = new Sweep(page)
       await seedAndOpen(page, MINE_NOW, {

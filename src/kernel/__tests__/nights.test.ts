@@ -3,7 +3,7 @@
 // Night lengths for the demo, worked out by hand from fixtures/demo-week.json:
 // 530, 515, 530, 525, 550 and 525 minutes; the record ending with Tue's wake has no sleep start.
 import { describe, expect, it } from 'vitest'
-import { movedMeals, nightStats, sleepStatus, validateSleep, wakingDays } from '../sleepday'
+import { movedBy, movedMeals, nightStats, sleepStatus, validateSleep, wakingDays } from '../sleepday'
 import type { SleepRecord } from '../types'
 import { demoDoc, demoStartIso, meal } from './helpers'
 
@@ -130,5 +130,52 @@ describe('validateSleep', () => {
 
   it('a record with no times is not a time', () => {
     expect(validateSleep([], { id: 'x', sleepStart: null, wake: null })).toEqual({ kind: 'not-a-time' })
+  })
+})
+
+// Build-out item 2.2: the order check names what a night runs into, leaves no room after a sleep
+// still going on, and asks for a wake time when later nights exist; movedBy() checks any dated entry.
+describe('validateSleep, build-out item 2.2', () => {
+  const asleep: SleepRecord[] = [...demoDoc.sleeps, { id: 'n', sleepStart: NEW_SLEEP, wake: null }]
+  const wed = demoDoc.sleeps.find((r) => r.id === 'sleep-1021') as SleepRecord
+
+  it('an overlap names the night it runs into', () => {
+    // Wed's night is 04:35 to 13:20; a new night from Wed 05:00 to Wed 09:00 sits inside it.
+    const inside = { id: 'x', sleepStart: '2026-10-21T05:00:00-04:00', wake: '2026-10-21T09:00:00-04:00' }
+    expect(validateSleep(demoDoc.sleeps, inside)).toEqual({ kind: 'sleep-before-previous-wake', wake: wed.wake })
+    // With no sleep start, a wake inside Wed's night overlaps it.
+    expect(validateSleep(demoDoc.sleeps, { id: 'x', sleepStart: null, wake: '2026-10-21T09:00:00-04:00' })).toEqual({
+      kind: 'overlap',
+      other: wed,
+    })
+    // From Tue 23:00 to Wed 05:00 runs into Wed's night (which starts at 04:35).
+    const into = { id: 'x', sleepStart: '2026-10-20T23:00:00-04:00', wake: '2026-10-21T05:00:00-04:00' }
+    expect(validateSleep(demoDoc.sleeps, into)).toEqual({ kind: 'overlap', other: wed })
+  })
+
+  it('a sleep still going on leaves no room for a night after it began', () => {
+    // Asleep since Thu 04:40: a night from Thu 06:00 to Thu 09:00 can't be added.
+    const after = { id: 'x', sleepStart: '2026-10-22T06:00:00-04:00', wake: '2026-10-22T09:00:00-04:00' }
+    expect(validateSleep(asleep, after)).toEqual({ kind: 'overlap', other: asleep[asleep.length - 1] })
+    // Waking from that sleep (the same record) is fine.
+    expect(validateSleep(asleep, { id: 'n', sleepStart: NEW_SLEEP, wake: '2026-10-22T09:00:00-04:00' })).toBeNull()
+  })
+
+  it('a night with no wake needs one when a later night is recorded', () => {
+    // Taking the wake off Mon's night (sleep-1019) leaves later nights after a sleep with no end.
+    const mon = demoDoc.sleeps.find((r) => r.id === 'sleep-1019') as SleepRecord
+    const later = demoDoc.sleeps.find((r) => r.id === 'sleep-1020') as SleepRecord
+    expect(validateSleep(demoDoc.sleeps, { ...mon, wake: null })).toEqual({ kind: 'needs-wake', other: later })
+  })
+})
+
+describe('movedBy', () => {
+  it('checks any dated entry, by the time it gives', () => {
+    const after = demoDoc.sleeps.map((r) => (r.id === 'sleep-1021' ? { ...r, wake: '2026-10-21T18:00:00-04:00' } : r))
+    const entries = [
+      { id: 'walk', at: '2026-10-21T17:00:00-04:00' }, // before the new 18:00 wake: moves to Tuesday
+      { id: 'swim', at: '2026-10-21T19:00:00-04:00' }, // after it: stays on Wednesday
+    ]
+    expect(movedBy(entries, (e) => e.at, demoDoc.sleeps, after).map((e) => e.id)).toEqual(['walk'])
   })
 })

@@ -286,13 +286,16 @@ for (const { id: look, name: lookName } of LOOKS) {
       // Today once 7:00 AM has passed, at 7:00 AM; yesterday is the other choice.
       await expect(sheet.getByTestId('set-wake-today')).toBeChecked()
       await expect(sheet.getByText('Yesterday, Wednesday')).toBeVisible()
-      await expect(sheet.getByTestId('set-wake-time')).toHaveValue('07:00')
+      await expect(sheet.getByTestId('set-wake-time')).toHaveValue('7:00 AM')
       await expect(sheet.getByTestId('set-wake-effect')).toHaveText('Your waking day will start Thu 7:00 AM.')
       // The hint names the default while the field still holds it, and goes once it is changed.
       await expect(sheet.getByTestId('set-wake-hint')).toHaveText('Filled in as 7:00 AM. Change it to when you woke up.')
       await sheet.getByTestId('set-wake-time').fill('06:30')
       await expect(sheet.getByTestId('set-wake-hint')).toHaveCount(0)
       await expect(sheet.getByTestId('set-wake-effect')).toHaveText('Your waking day will start Thu 6:30 AM.')
+      // Typed as "7" by the person, the time is theirs: the hint does not come back.
+      await sheet.getByTestId('set-wake-time').fill('7')
+      await expect(sheet.getByTestId('set-wake-hint')).toHaveCount(0)
 
       // A time later than now is refused inline, and nothing is saved. The sheet states no
       // outcome it has just refused: the effect line goes while the error shows.
@@ -300,7 +303,8 @@ for (const { id: look, name: lookName } of LOOKS) {
       await sheet.getByTestId('set-wake-save').click()
       await expect(sheet.getByTestId('set-wake-error')).toHaveText(copy.sleep.errors.future)
       await expect(sheet.getByTestId('set-wake-effect')).toHaveCount(0)
-      await expect(sheet.getByTestId('set-wake-time')).toHaveValue('10:30')
+      // Kept as typed, shown back with AM (build-out item 2.2).
+      await expect(sheet.getByTestId('set-wake-time')).toHaveValue('10:30 AM')
       expect(await read(page, E2E_KEYS.mine)).toBeNull()
 
       // Yesterday at 11:15 PM: no meals, so no preview; Enter in the time field saves straight away.
@@ -358,7 +362,7 @@ for (const { id: look, name: lookName } of LOOKS) {
       await expect(preview2.getByTestId('regroup-moving').getByTestId('regroup-total')).toHaveText('105 kcal')
       await preview2.getByTestId('regroup-back').click()
       const back = await opened(page, 'set-wake-sheet')
-      await expect(back.getByTestId('set-wake-time')).toHaveValue('09:00')
+      await expect(back.getByTestId('set-wake-time')).toHaveValue('9:00 AM')
       await back.getByTestId('set-wake-time').fill('07:00')
       await back.getByTestId('set-wake-save').click()
       await (await opened(page, 'regroup-preview')).getByTestId('regroup-save').click()
@@ -376,6 +380,28 @@ for (const { id: look, name: lookName } of LOOKS) {
       const stored = JSON.parse((await read(page, E2E_KEYS.mine)) as string)
       expect(stored.meals).toHaveLength(4)
       expect(stored.sleeps).toEqual([{ id: expect.any(String), sleepStart: null, wake: '2026-11-05T07:00:00-05:00' }])
+    })
+
+    test('Set wake time lists workouts with the meals, outside the calories, as the move warning does', async ({ page }) => {
+      const log = JSON.parse(PROVISIONAL_LOG)
+      log.workouts = [
+        // Workouts in the saved shape the schema checks (build-out item 2.5a).
+        { id: 'k1', name: 'Evening run', startedAt: '2026-11-04T18:00:00-05:00', minutes: 30, kcal: 280, source: 'burn_device' },
+        { id: 'k2', name: 'Stretching', startedAt: '2026-11-05T07:30:00-05:00', minutes: 15, kcal: null, source: null },
+      ]
+      const text = JSON.stringify(log)
+      await openSeededOwnLog(page, text)
+      await page.getByTestId('set-wake').click()
+      await (await opened(page, 'set-wake-sheet')).getByTestId('set-wake-save').click()
+      const preview = await opened(page, 'regroup-preview')
+      const moving = preview.getByTestId('regroup-moving')
+      const staying = preview.getByTestId('regroup-staying')
+      await expect(moving.locator('li')).toHaveText(['Thu 7:30 AMStretchingworkout', 'Thu 8:10 AMYogurt150 kcal', 'Thu 9:40 AMBanana105 kcal'])
+      await expect(moving.getByTestId('regroup-total')).toHaveText('255 kcal')
+      await expect(staying.locator('li')).toHaveText(['Wed 6:00 PMEvening runworkout', 'Wed 10:30 PMOat bar190 kcal', 'Thu 12:45 AMToast240 kcal'])
+      await expect(staying.getByTestId('regroup-total')).toHaveText('430 kcal')
+      await page.keyboard.press('Escape')
+      expect(await read(page, E2E_KEYS.mine)).toBe(text)
     })
   })
 }

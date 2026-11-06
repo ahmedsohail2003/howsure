@@ -25,6 +25,10 @@ Open http://127.0.0.1:5273. **Start my log** opens your own empty log; for this 
 4. Reload the page. Everything is still there.
 5. Tap **I'm going to sleep**, set the time to **4:40 AM** and **Save**, then tap **I woke up**, set **1:10 PM** and **Save**, to start a new waking day. **Previous** takes you back to Wednesday, with the 12:40 AM snack still on it.
 
+6. Still on Wednesday, tap the wake time at the top (**Wed · awake since 1:20 PM**) to open the sleep and wake editor. Type **6 pm** as the wake time and **Save**: before anything changes, HowSure lists the meals that would move (the kefir and the pasta bake, to Tuesday's day). **Change the times** goes back; **Save and move** applies it.
+
+Times can be typed as you would say them: **8**, **8am**, **8:15 pm** or **20:30**. The line under the field shows how it was read, with AM or PM. **Each night** in the sleep section lets you edit or delete any night, or **Add a missed night**, which splits a day that ran on because that night had no record. A wake before its sleep, a time later than now (in your own log) or a night that overlaps another is explained next to the field, and nothing is saved.
+
 The demo person, Sam, is fictional, and so is every meal, sleep time and target in the demo.
 
 ### Log a usual meal again
@@ -120,9 +124,6 @@ Logs are kept per browser origin, so a test run on http://127.0.0.1:5273 would s
 - **Credits.** Some feature ideas came from friends who saw the earlier tracker.
 
 ## Roadmap
-
-Planned for this submission but not finished in time, to be built next:
-- the sleep/wake editor, with its warning before meals move to another day.
 
 These are designed in `devpost/prd.md` but not built for this submission:
 - the week view and averages;

@@ -11,6 +11,11 @@ interface SheetProps {
   testId?: string
   /** Actions kept in view at the bottom of the sheet while its body scrolls (Save and Cancel). */
   footer?: ReactNode
+  /**
+   * The data-testid of the control, inside the sheet, that takes focus when it opens (the field
+   * most people came to change). Without it, or when nothing matches, the Close button takes focus.
+   */
+  initialFocusTestId?: string
 }
 
 /** Marks the element focus goes back to when a sheet closes and its opener has left the page. */
@@ -19,14 +24,15 @@ export const FOCUS_RETURN = 'data-focus-return'
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([hidden]):not([type="hidden"]), select, textarea, summary, [tabindex]:not([tabindex="-1"])'
 
 /** A sheet over the dashboard: a bottom sheet on phones, a centred panel on desktop. */
-export function Sheet({ title, sub, demo, onClose, children, testId, footer }: SheetProps) {
+export function Sheet({ title, sub, demo, onClose, children, testId, footer, initialFocusTestId }: SheetProps) {
   const titleId = useId()
   const panelRef = useRef<HTMLDivElement>(null)
   const closeRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
     const opener = document.activeElement as HTMLElement | null
-    closeRef.current?.focus()
+    const first = initialFocusTestId ? panelRef.current?.querySelector<HTMLElement>(`[data-testid="${initialFocusTestId}"]`) : null
+    ;(first ?? closeRef.current)?.focus()
     const prevOverflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     return () => {
@@ -37,6 +43,7 @@ export function Sheet({ title, sub, demo, onClose, children, testId, footer }: S
       if (opener && opener !== document.body && opener.isConnected) opener.focus()
       else document.querySelector<HTMLElement>(`[${FOCUS_RETURN}]`)?.focus()
     }
+    // Focus moves once, when the sheet opens; a later change to the prop must not pull it back.
   }, [])
 
   function onKeyDown(e: KeyboardEvent<HTMLDivElement>) {

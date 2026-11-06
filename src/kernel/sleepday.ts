@@ -133,14 +133,20 @@ function dayKey(sleeps: SleepRecord[], at: string): string | null {
 }
 
 /**
- * The meals whose waking day changes between two versions of the sleep records (spec.md >
+ * The items whose waking day changes between two versions of the sleep records (spec.md >
  * movedMeals). A day is known by the record whose wake starts it, so moving a wake a little
- * lists only the meals that cross it, not every meal on the day.
+ * lists only the items that cross it, not every item on the day. `at` gives each item's time.
+ * Build-out item 2.2: meals and any other dated entry (workouts) go through the same check.
  */
+export function movedBy<T>(items: T[], at: (item: T) => string, before: SleepRecord[], after: SleepRecord[]): T[] {
+  return items
+    .filter((it) => dayKey(before, at(it)) !== dayKey(after, at(it)))
+    .sort((a, b) => ms(at(a)) - ms(at(b)))
+}
+
+/** The meals whose waking day changes between two versions of the sleep records. */
 export function movedMeals(meals: Meal[], before: SleepRecord[], after: SleepRecord[]): Meal[] {
-  return meals
-    .filter((m) => dayKey(before, m.eatenAt) !== dayKey(after, m.eatenAt))
-    .sort((a, b) => ms(a.eatenAt) - ms(b.eatenAt))
+  return movedBy(meals, (m) => m.eatenAt, before, after)
 }
 
 const DAY_MIN = 1440
@@ -204,6 +210,9 @@ export function nightStats(sleeps: SleepRecord[], lastN = 7): NightStats {
  * Check one changed or added record against the rest (spec.md > Validation): wake after its sleep
  * start, sleep start after the previous record's wake, no overlaps, and (in your own log) nothing
  * later than `latest`. Null when it is valid; otherwise what is wrong, and nothing is saved.
+ * Build-out item 2.2: an overlap names the other record; a sleep still going on (the latest
+ * record, with no wake yet) leaves no room after it; and a record with no wake can't have records
+ * after it ("needs-wake").
  */
 export function validateSleep(
   sleeps: SleepRecord[],
@@ -218,17 +227,26 @@ export function validateSleep(
   if (latest !== null && times.some((t) => ms(t) > ms(latest))) return { kind: 'future' }
   const start = startOf(changed)
   const end = endOf(changed)
-  for (const o of sortedSleeps(sleeps.filter((r) => r.id !== changed.id))) {
+  const others = sortedSleeps(sleeps.filter((r) => r.id !== changed.id))
+  const last = others[others.length - 1]
+  // The latest record with no wake is a sleep still going on: nothing can start after it began.
+  if (last && last.wake === null && last.sleepStart !== null && startOf(last) <= start) {
+    return { kind: 'overlap', other: last }
+  }
+  for (const o of others) {
     if (startOf(o) <= start) {
       // An earlier record must have ended (woken) before this one starts.
       if (endOf(o) >= start) {
         return o.wake !== null && changed.sleepStart !== null
           ? { kind: 'sleep-before-previous-wake', wake: o.wake }
-          : { kind: 'overlap' }
+          : { kind: 'overlap', other: o }
       }
-    } else if (end >= startOf(o) || changed.wake === null) {
-      // A later record must start after this one ends; a sleep with no wake can't have records after it.
-      return { kind: 'overlap' }
+    } else if (changed.wake === null) {
+      // A sleep with no wake can't have records after it.
+      return { kind: 'needs-wake', other: o }
+    } else if (end >= startOf(o)) {
+      // A later record must start after this one ends.
+      return { kind: 'overlap', other: o }
     }
   }
   return null

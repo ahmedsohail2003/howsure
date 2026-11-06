@@ -7,16 +7,23 @@
 //      calories, and each list's calories counted as the headline counts them. Save applies it;
 //      Change the time goes back; Cancel, Close or Esc changes nothing.
 // Enter in the time step submits it (the footer button is the form's submit button).
-// With no meals logged there is nothing to regroup, so step 1 saves directly.
+// Build-out item 2.2: the time field takes shorthand ("8", "8am", "20:30"; TimeTextInput), read
+// the same way as in the sleep and wake editor, and the line under it shows AM or PM back.
+// Workouts are listed with the meals, as the editor's move warning lists them; each list's
+// calories still count meals only, as the headline does.
+// With no meals or workouts logged there is nothing to regroup, so step 1 saves directly.
 
 import { useId, useMemo, useState } from 'react'
+import { parseClockTime } from '../kernel/parse'
 import type { Meal, SleepRecord } from '../kernel/types'
 import { copy } from './copy'
 import { fmtInt, fmtWeekdayFull, fmtWeekdayTime } from './format'
+import { TimesTogether } from './KeepTogether'
 import { Sheet } from './Sheet'
 import { problemText } from './sleepView'
+import { TimeTextInput } from './WhenField'
+import { ambiguityTip, workoutEntries, type DatedLog, type MovedEntry } from './sleepEdit'
 import {
-  DEFAULT_WAKE_TIME,
   defaultWakeDay,
   defaultWakeLabel,
   regroupForWake,
@@ -29,32 +36,50 @@ import {
 interface SetWakeSheetProps {
   sleeps: SleepRecord[]
   meals: Meal[]
+  /** The log's workouts: dated entries that change day with the meals. */
+  workouts: DatedLog['workouts']
   /** The log's now: the latest time allowed, and where today and yesterday are counted from. */
   nowIso: string
   demo: boolean
   onSave: (sleeps: SleepRecord[]) => void
+  /** Build-out item 2.2: the whole night instead, in the sleep and wake editor. */
+  onAddNight?: () => void
   onClose: () => void
 }
 
-export function SetWakeSheet({ sleeps, meals, nowIso, demo, onSave, onClose }: SetWakeSheetProps) {
+export function SetWakeSheet({ sleeps, meals, workouts, nowIso, demo, onSave, onAddNight, onClose }: SetWakeSheetProps) {
   const id = useId()
   const [day, setDay] = useState<WakeDay>(() => defaultWakeDay(nowIso))
-  const [time, setTime] = useState(DEFAULT_WAKE_TIME)
+  const [time, setTime] = useState(defaultWakeLabel)
   const [tried, setTried] = useState(false)
   const [step, setStep] = useState<'time' | 'preview'>('time')
   const dates = wakeDates(nowIso)
   const iso = wakeIso(nowIso, day, time)
-  const result = useMemo(() => regroupForWake(meals, sleeps, iso, nowIso), [meals, sleeps, iso, nowIso])
-  const error = tried && !result.ok ? problemText(result.problem) : null
-  const hasMeals = meals.length > 0
+  const result = useMemo(
+    () => regroupForWake(meals, sleeps, iso, nowIso, undefined, workouts),
+    [meals, sleeps, iso, nowIso, workouts],
+  )
+  const typed = parseClockTime(time)
+  const error = !tried
+    ? null
+    : typed.kind !== 'value'
+      ? copy.sleepEditor.errors.time
+      : !result.ok
+        ? problemText(result.problem)
+        : null
+  // Anything dated to regroup: then Next shows the preview first.
+  const hasEntries = meals.length > 0 || workoutEntries(workouts).length > 0
   const formId = `${id}-form`
-  // The hint names the default; once the person changes the time it would be out of date.
-  const showHint = time === DEFAULT_WAKE_TIME
+  const hintId = `${id}-hint`
+  // The hint names the filled-in time; it shows only while the field still holds it.
+  const showHint = time === defaultWakeLabel()
+  // A bare hour from 1 to 12 reads on the 24-hour clock; say how to get the other half of the day.
+  const tip = typed.kind === 'value' ? ambiguityTip(typed) : null
 
   function next() {
     setTried(true)
     if (!result.ok) return
-    if (hasMeals) setStep('preview')
+    if (hasEntries) setStep('preview')
     else onSave(result.sleeps)
   }
 
@@ -84,13 +109,19 @@ export function SetWakeSheet({ sleeps, meals, nowIso, demo, onSave, onClose }: S
         <div className="confirm-body">
           <p>{copy.setWake.previewIntro(when)}</p>
         </div>
-        <RegroupGroup testId="regroup-moving" title={copy.setWake.todayFrom(when)} meals={result.moving} />
-        {result.staying.length > 0 && (
+        <RegroupGroup
+          testId="regroup-moving"
+          title={copy.setWake.todayFrom(when)}
+          meals={result.moving}
+          workouts={result.movingWorkouts}
+        />
+        {result.staying.length + result.stayingWorkouts.length > 0 && (
           <RegroupGroup
             testId="regroup-staying"
             title={copy.setWake.earlier}
             note={copy.setWake.earlierNote}
             meals={result.staying}
+            workouts={result.stayingWorkouts}
           />
         )}
         <p className="field-hint regroup-keeps" data-testid="regroup-keeps">
@@ -106,7 +137,7 @@ export function SetWakeSheet({ sleeps, meals, nowIso, demo, onSave, onClose }: S
         {copy.setWake.cancel}
       </button>
       <button type="submit" form={formId} className="btn btn-primary" data-testid="set-wake-save">
-        {hasMeals ? copy.setWake.next : copy.setWake.save}
+        {hasEntries ? copy.setWake.next : copy.setWake.save}
       </button>
     </div>
   )
@@ -142,30 +173,36 @@ export function SetWakeSheet({ sleeps, meals, nowIso, demo, onSave, onClose }: S
         </fieldset>
         <div className="field">
           <label htmlFor={`${id}-time`}>{copy.setWake.time}</label>
-          <input
+          <TimeTextInput
             id={`${id}-time`}
-            type="time"
-            className="num"
             value={time}
-            onChange={(e) => setTime(e.target.value)}
-            aria-invalid={error ? true : undefined}
-            aria-describedby={showHint ? `${id}-hint` : undefined}
-            data-testid="set-wake-time"
+            onChange={setTime}
+            invalid={error !== null}
+            describedBy={showHint ? hintId : undefined}
+            testId="set-wake-time"
           />
           {showHint && (
-            <p className="field-hint" id={`${id}-hint`} data-testid="set-wake-hint">
+            <p className="field-hint" id={hintId} data-testid="set-wake-hint">
               {copy.setWake.timeHint(defaultWakeLabel())}
             </p>
           )}
           {error && (
             <p className="field-error" role="alert" data-testid="set-wake-error">
-              {error}
+              <TimesTogether text={error} />
             </p>
           )}
         </div>
         {iso !== null && error === null && (
           <p className="field-hint" data-testid="set-wake-effect">
-            {copy.setWake.startsDay(fmtWeekdayTime(iso))}
+            <TimesTogether text={copy.setWake.startsDay(fmtWeekdayTime(iso))} />
+            {tip && ` ${tip}`}
+          </p>
+        )}
+        {onAddNight && (
+          <p className="set-wake-night">
+            <button type="button" className="link-btn" onClick={onAddNight} data-testid="set-wake-add-night">
+              {copy.setWake.addNight}
+            </button>
           </p>
         )}
       </form>
@@ -184,14 +221,30 @@ interface RegroupGroupProps {
   title: string
   note?: string
   meals: Meal[]
+  /** Workouts in this list: shown with the meals in time order, outside the calories total. */
+  workouts: MovedEntry[]
   testId: string
 }
 
-function RegroupGroup({ title, note, meals, testId }: RegroupGroupProps) {
+function RegroupGroup({ title, note, meals, workouts, testId }: RegroupGroupProps) {
+  const rows = [
+    ...meals.map((m) => ({
+      key: `meal-${m.id}`,
+      at: m.eatenAt,
+      name: m.name,
+      end: m.kcal === null ? copy.setWake.mealKcalUnknown : copy.setWake.mealKcal(fmtInt(m.kcal)),
+      // A word ("unknown", "workout") is not set in the number style.
+      word: m.kcal === null,
+      testId: 'regroup-meal',
+    })),
+    ...workouts.map((w) => ({ key: `workout-${w.id}`, at: w.at, name: w.name, end: copy.sleepEditor.workout, word: true, testId: 'regroup-workout' })),
+  ].sort((a, b) => Date.parse(a.at) - Date.parse(b.at))
   return (
     <section className="regroup-group" data-testid={testId}>
       <div className="regroup-head">
-        <h3 className="regroup-title">{title}</h3>
+        <h3 className="regroup-title">
+          <TimesTogether text={title} />
+        </h3>
         {meals.length > 0 && (
           <p className="regroup-total num" data-testid="regroup-total">
             {totalText(meals)}
@@ -199,17 +252,15 @@ function RegroupGroup({ title, note, meals, testId }: RegroupGroupProps) {
         )}
       </div>
       {note && <p className="field-hint regroup-note">{note}</p>}
-      {meals.length === 0 ? (
+      {rows.length === 0 ? (
         <p className="regroup-none">{copy.setWake.none}</p>
       ) : (
         <ul className="regroup-list">
-          {meals.map((m) => (
-            <li key={m.id} data-testid="regroup-meal">
-              <span className="regroup-time num">{fmtWeekdayTime(m.eatenAt)}</span>
-              <span className="regroup-name">{m.name}</span>
-              <span className="regroup-kcal num">
-                {m.kcal === null ? copy.setWake.mealKcalUnknown : copy.setWake.mealKcal(fmtInt(m.kcal))}
-              </span>
+          {rows.map((r) => (
+            <li key={r.key} data-testid={r.testId}>
+              <span className="regroup-time num">{fmtWeekdayTime(r.at)}</span>
+              <span className="regroup-name">{r.name}</span>
+              <span className={r.word ? 'regroup-kcal' : 'regroup-kcal num'}>{r.end}</span>
             </li>
           ))}
         </ul>

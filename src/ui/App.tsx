@@ -48,6 +48,8 @@ import { moreEntries, type MoreEntryId } from './moreMenu'
 import { ProfilePrivacy, type DeleteOutcome, type ImportOutcome } from './ProfilePrivacy'
 import { ResetDemoSheet } from './ResetDemoSheet'
 import { SetWakeSheet } from './SetWakeSheet'
+import { missedWakeDate, latestTime, type EditTarget } from './sleepEdit'
+import { SleepEditor, type NightChange } from './SleepEditor'
 import { SleepTimeSheet } from './SleepTimeSheet'
 import { buildSleepView, type SleepAction } from './sleepView'
 import { StorageNotice } from './StorageNotice'
@@ -102,6 +104,8 @@ type SheetState =
   // Build-out item 2.5b: Body details, from Profile and privacy (closing goes back there), More,
   // or the line under the headline that invites adding them.
   | { mode: 'body'; from: 'profile' | 'more' | 'dashboard' }
+  // Build-out item 2.2: the sleep and wake editor, on one night or a new (missed) one.
+  | { mode: 'sleepEdit'; target: EditTarget }
 
 /**
  * The one-line confirmation of the last action: under the header (Reset demo), or in the action
@@ -270,6 +274,28 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
     if (!doc) return
     setViewed(null)
     commit({ ...doc, sleeps })
+  }
+
+  /**
+   * The sleep and wake editor's Save, after the move warning (when anything changed day) was
+   * confirmed: an edited, added or deleted night. In the demo, a time later than the demo's now
+   * moves its clock there, as the sleep buttons do. An earlier day on screen whose own wake was
+   * edited stays on screen at its new wake; when its night was deleted, the day that now holds
+   * that time is shown. Every meal keeps its own date and time.
+   */
+  function saveNight(sleeps: SleepRecord[], change: NightChange) {
+    if (!doc || !at) return
+    let next: LogDoc = { ...doc, sleeps }
+    const last = change.after ? latestTime(change.after) : null
+    if (doc.kind === 'demo' && last !== null && Date.parse(last) > Date.parse(at)) {
+      next = { ...next, clock: reanchorDemoClock(Date.parse(last)) }
+    }
+    const oldWake = change.before?.wake ?? null
+    if (viewed && oldWake !== null && viewed.dayStart === oldWake) {
+      const newWake = change.after?.wake ?? null
+      setViewed({ dayStart: newWake ?? wakingDayStart(sleeps, oldWake) })
+    }
+    commit(next)
   }
 
   /**
@@ -523,6 +549,8 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
         onLogWorkout={openLogWorkout}
         sleep={buildSleepView(doc.sleeps, viewedStart)}
         onSleepAction={(action) => setSheet({ mode: 'sleepTime', action })}
+        onEditNight={(target) => setSheet({ mode: 'sleepEdit', target })}
+        onAddNight={() => setSheet({ mode: 'sleepEdit', target: { kind: 'add', wakeDate: missedWakeDate(doc.sleeps, viewedStart, at) } })}
         nav={navState}
         onPrev={() => showDay(nav.days[nav.index - 1] ?? null)}
         onNext={() => showDay(nav.days[nav.index + 1] ?? null)}
@@ -672,14 +700,27 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
         <SetWakeSheet
           sleeps={doc.sleeps}
           meals={doc.meals}
+          workouts={doc.workouts}
           nowIso={at}
           demo={demo}
           onSave={saveWake}
+          onAddNight={() => setSheet({ mode: 'sleepEdit', target: { kind: 'add', wakeDate: toLocalInput(at).slice(0, 10) } })}
           onClose={() => setSheet(null)}
         />
       )}
       {sheet?.mode === 'resetDemo' && demo && (
         <ResetDemoSheet changes={sheet.changes} onConfirm={() => resetDemo(true)} onClose={() => setSheet(null)} />
+      )}
+      {sheet?.mode === 'sleepEdit' && (
+        <SleepEditor
+          doc={doc}
+          target={sheet.target}
+          nowIso={at}
+          missedDate={missedWakeDate(doc.sleeps, viewedStart, at)}
+          demo={demo}
+          onSave={saveNight}
+          onClose={() => setSheet(null)}
+        />
       )}
       {sleepTime && (
         <SleepTimeSheet
@@ -687,6 +728,7 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
           action={sleepTime.action}
           sleeps={doc.sleeps}
           meals={doc.meals}
+          workouts={doc.workouts}
           nowIso={at}
           dayStart={nav.current}
           demo={demo}

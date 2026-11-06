@@ -69,6 +69,8 @@ export const copy = {
     mealKcalUnknown: 'unknown',
     keepsAll: 'Every meal stays in your log with its own date and time. Nothing changes until you tap Save.',
     back: 'Change the time',
+    // Build-out item 2.2: the sleep and wake editor, for the whole night.
+    addNight: 'Add the whole night instead',
   },
 
   // Build-out item 2.1: Reset demo (prd.md > Demo and My Log; spec.md > Store). It asks first only
@@ -99,6 +101,7 @@ export const copy = {
     year ? `${weekday} ${day} ${month} ${year}` : `${weekday} ${day} ${month}`,
   dateAndTime: (date: string, time: string) => `${date}, ${time}`,
   weekdaysFull: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] as const,
+  monthsShort: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const,
   am: 'AM',
   pm: 'PM',
 
@@ -427,7 +430,10 @@ export const copy = {
     whenHint: 'Starts at now. Change it if it was another time.',
     closesDay: (day: string) => `This closes the waking day that started ${day}.`,
     startsDay: 'This starts a new, empty waking day.',
-    moves: (meals: string) => `These meals are after that time, so they move to the new day: ${meals}`,
+    // When entries after the wake time move to the new day, so it is not empty.
+    startsDayWithMoves: 'This starts a new waking day.',
+    // Meals and any other dated entry (a workout), as the sleep and wake editor's move warning counts them.
+    moves: 'These entries are after that time, so they move to the new day:',
     demoAdvance: 'This is later than the demo’s clock, so the demo moves forward to it.',
     save: 'Save',
     cancel: 'Cancel',
@@ -437,9 +443,95 @@ export const copy = {
         `Waking up has to come after going to sleep (${when}). Nothing was saved; change the time and try again.`,
       sleepBeforeWake: (when: string) =>
         `Going to sleep has to come after the last wake time (${when}). Nothing was saved; change the time and try again.`,
-      overlap: 'That time overlaps another recorded sleep. Nothing was saved.',
+      overlap: (night: string) => `That overlaps another recorded night (${night}). Nothing was saved.`,
+      needsWake: (night: string) =>
+        `A later night is already recorded (${night}), so this one needs a wake time. Nothing was saved.`,
       future: 'That time is later than now. Pick a time up to now.',
     },
+    // A night's two ends, for the messages above and the delete confirmation.
+    nightRange: (sleep: string, wake: string) => `${sleep} to ${wake}`,
+    nightRangeNoSleep: (wake: string) => `sleep time not logged, woke ${wake}`,
+    nightRangeOpen: (sleep: string) => `asleep since ${sleep}, no wake time yet`,
+    // Build-out item 2.2: a time field takes shorthand ("8", "8am", "8:15 pm", "20:30").
+    timePlaceholder: 'e.g. 7:30 am',
+  },
+
+  // Build-out item 2.2 (checklist slice 6; prd.md > Editing Sleep and Wake Times): the sleep and
+  // wake editor. Explicit dates and times, the order check next to each field, a missed night,
+  // deleting a wrong one, and the move warning before any entry changes day.
+  sleepEditor: {
+    titleEdit: 'Edit this night',
+    // A sleep with no wake time yet, matching the button that opens it.
+    titleOpen: 'Edit this sleep',
+    titleAdd: 'Add a missed night',
+    // `day` is the wake's weekday and date ("Thu Nov 5"), so two nights a week apart differ.
+    introEdit: (day: string) => `The night before ${day}. Change either time. A blank sleep time means it wasn’t logged.`,
+    // A sleep with no wake time yet: it is named by when it started.
+    introOpen: (when: string) =>
+      `The sleep that started ${when} and is still going on. Type the wake time to end it, or change when it started.`,
+    introAdd: 'For a night that wasn’t logged. Its wake time starts a new waking day.',
+    // The latest night woke on an earlier date than today, so a night since may be missing.
+    missedSince: (weekday: string) => `Slept since ${weekday}? Add that night with “Add a missed night” below.`,
+    sleepLegend: 'Went to sleep',
+    wakeLegend: 'Woke up',
+    date: 'Date',
+    time: 'Time',
+    readsAs: (when: string) => `Reads as ${when}.`,
+    // Shown when a bare hour from 1 to 12 was typed with no am or pm.
+    typePm: 'Type pm for the evening.',
+    typeAm: 'Type am for midnight.',
+    sleepBlank: 'Blank: the sleep time isn’t logged.',
+    wakeBlank: 'Blank: still asleep, so this must be the latest night.',
+    length: (duration: string) => `${duration} of sleep.`,
+    // Over 16 hours: often a bare hour read on the 24-hour clock ("11" is 11:00 AM). Saving is still allowed.
+    longNight: 'That is a long night. Check AM and PM on both times.',
+    errors: {
+      time: 'Type a time like 8, 8am, 8:15 pm or 20:30.',
+      date: 'Pick a date.',
+      noTimes: 'Type a wake time, a sleep time, or both.',
+      // The date fields start at MIN_NIGHT_DATE (sleepEdit.ts).
+      dateRange: 'Pick a date in 2000 or later.',
+      // The demo only: its clock moves forward to a later time, but not past the day after it.
+      demoDateLimit: (day: string) => `In the demo, pick a date up to ${day}.`,
+    },
+    save: 'Save',
+    cancel: 'Cancel',
+    deleteNight: 'Delete this night',
+    addMissed: 'Add a missed night',
+    // The move warning: what changes day, and to which day, before anything is saved.
+    movesTitle: 'Entries that change day',
+    movesIntro: 'Saving this moves these entries to another waking day. Each keeps its own date and time.',
+    movesGroup: (from: string, to: string) => `From ${from} to ${to}`,
+    // `weekday` is "Tue", or "Tue Nov 3" when both days of a move share a weekday.
+    day: (weekday: string, time: string) => `${weekday}’s day (woke ${time})`,
+    dayNoWake: 'the day with no wake time',
+    workout: 'workout',
+    movesSave: 'Save and move',
+    movesBack: 'Change the times',
+    // Deleting a night: asked first, with the move list when entries change day.
+    deleteTitle: 'Delete this night?',
+    // Neutral about whose log it is: the same words serve the demo and your own log.
+    deleteIntro: (night: string) => `The night ${night} will be removed.`,
+    deleteIntroOpen: (when: string) => `The sleep that started ${when} will be removed.`,
+    deleteIntroNoSleep: (when: string) => `The night that ended ${when} (sleep time not logged) will be removed.`,
+    deleteEffect: 'Sleep lengths and averages are worked out again without it.',
+    deleteNoMoves: 'No entries change day.',
+    deleteMovesIntro: 'Deleting it moves these entries to another waking day. Each keeps its own date and time.',
+    deleteConfirm: 'Delete night',
+    deleteKeep: 'Keep it',
+    // The ways in: the header's wake time, Edit in the sleep section, each night, the timeline.
+    edit: 'Edit',
+    editWake: (line: string) => `${line}, edit the wake time`,
+    editNight: (weekday: string) => `Edit the night before ${weekday}`,
+    // Edit in the sleep section's head says which night it opens.
+    editLastNight: 'Edit last night',
+    editThisSleep: 'Edit this sleep',
+    // The open sleep (asleep now), listed above the nights so it can be corrected too.
+    asleepRow: (when: string) => `Asleep since ${when}`,
+    editAsleep: (when: string) => `Edit the sleep since ${when}`,
+    // The Night timeline's last point on an earlier day: the night after that day.
+    editNightFrom: (when: string) => `Edit the night that started ${when}`,
+    editNightNoStart: 'Sleep time not logged. Edit the night after this day',
   },
 
   // prd.md > Previous Days.

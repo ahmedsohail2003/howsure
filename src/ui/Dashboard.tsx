@@ -46,6 +46,7 @@ import { MacroRow } from './MacroRow'
 import { MealList } from './MealList'
 import { NightTimeline } from './NightTimeline'
 import { SleepSection } from './SleepSection'
+import type { EditTarget } from './sleepEdit'
 import type { SleepAction, SleepView } from './sleepView'
 import { WorkoutSection } from './WorkoutList'
 
@@ -78,6 +79,13 @@ interface DashboardProps {
   onLogWorkout: () => void
   sleep: SleepView
   onSleepAction: (action: SleepAction) => void
+  /**
+   * Opens the sleep and wake editor (build-out item 2.2) on one night: from the header's wake
+   * time, Edit in the sleep section, each night, and the Night timeline's wake and sleep points.
+   */
+  onEditNight: (target: EditTarget) => void
+  /** Opens the editor on a new, missed night. */
+  onAddNight: () => void
   nav: DayNavState
   onPrev: () => void
   onNext: () => void
@@ -127,6 +135,12 @@ export function Dashboard(props: DashboardProps) {
   const { look } = useLook()
   const panel = look === 'panel'
   const night = look === 'night'
+  const dayRecordId = sleep.dayRecordId
+  const editDay = dayRecordId ? () => props.onEditNight({ kind: 'edit', recordId: dayRecordId }) : undefined
+  const editRecord = (recordId: string) => props.onEditNight({ kind: 'edit', recordId })
+  const sleepSection = (
+    <SleepSection sleep={sleep} today={nav.today} nowIso={props.nowIso} onEditNight={editRecord} onAddNight={props.onAddNight} />
+  )
 
   return (
     <main className="page dash-page" data-testid="dashboard">
@@ -137,6 +151,7 @@ export function Dashboard(props: DashboardProps) {
         onOpenProfile={props.onOpenProfile}
         onSwitch={onSwitch}
         onSetWake={props.onSetWake}
+        onEditWake={editDay}
         onOpenMore={props.onOpenMore}
         moreOpen={props.moreOpen}
         fullScreenOn={props.fullScreenOn}
@@ -317,6 +332,7 @@ export function Dashboard(props: DashboardProps) {
               onOpenMeal={onOpenMeal}
               onImprove={onImprove}
               onOpenWorkout={props.onOpenWorkout}
+              onEditNight={editRecord}
             />
           ) : day.status === 'empty' ? (
             <section className="section empty-day" data-testid="empty-day">
@@ -326,6 +342,9 @@ export function Dashboard(props: DashboardProps) {
             <MealList meals={meals} dayStart={dayStart} onOpenMeal={onOpenMeal} biggestId={biggest?.id ?? null} />
           )}
 
+          {/* In the Night look, "Each night" follows its timeline directly, so nothing splits them. */}
+          {night && sleepSection}
+
           {/* Build-out item 2.5a: the day's workouts with Log a workout (Night draws them on its timeline). */}
           <WorkoutSection
             workouts={view.workouts}
@@ -334,7 +353,7 @@ export function Dashboard(props: DashboardProps) {
             onLogWorkout={props.onLogWorkout}
           />
 
-          <SleepSection sleep={sleep} today={nav.today} />
+          {!night && sleepSection}
 
           <DayNav nav={nav} onPrev={props.onPrev} onNext={props.onNext} onPickDate={props.onPickDate} onToday={props.onToday} />
         </div>

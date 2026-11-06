@@ -7,6 +7,7 @@
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { expect, test, type Locator, type Page } from '@playwright/test'
+import { fillWhen } from './sleepFields'
 import { E2E_KEYS } from './storage-keys'
 import { BUILT_LOOKS, LOOKS, lookOnPage, startInLook } from './looks'
 
@@ -53,7 +54,7 @@ async function sleepAction(page: Page, button: string, when: string) {
   await expect(action).toHaveText(button)
   await action.click()
   const sheet = await opened(page, 'sleep-sheet')
-  await sheet.getByTestId('sleep-when-input').fill(when)
+  await fillWhen(sheet, 'sleep', when)
   await sheet.getByTestId('sleep-save').click()
   await expect(sheet).toBeHidden()
 }
@@ -1017,6 +1018,8 @@ test.describe('the Night look in detail', () => {
       ['meal-details', () => row(page, 'Pasta bake (ready meal)').getByTestId('meal-open').click()],
       ['log-meal-sheet', () => page.getByTestId('log-meal').click()],
       ['sleep-sheet', () => page.getByTestId('sleep-action').click()],
+      // Build-out item 2.2: the sleep and wake editor, from the header's wake time.
+      ['sleep-editor', () => page.getByTestId('waking-day').click()],
       ['more-menu', () => page.getByTestId('open-more').click()],
       ['targets-sheet', () => page.getByTestId('headline-target').click()],
     ]

@@ -68,13 +68,13 @@ describe('the Night timeline of a waking day', () => {
   it('a closing night whose sleep start was not logged ends the day with "not logged" (null), never a made-up time', () => {
     // Monday was closed by the night with no sleep start logged (woke Tue 1:05 PM).
     const mon = '2026-10-19T13:15:00-04:00'
-    expect(dayEndOf(demoDoc.sleeps, mon)).toEqual({ kind: 'closed', sleepStart: null })
+    expect(dayEndOf(demoDoc.sleeps, mon)).toEqual({ kind: 'closed', sleepStart: null, recordId: 'sleep-1020' })
     expect(points(demoDoc.sleeps, mon).map(read).pop()).toBe('sleep null')
   })
 
   it('the current day with Sam asleep ends with the sleep start, and no "now"', () => {
     const asleep: SleepRecord[] = [...demoDoc.sleeps, { id: 'n', sleepStart: '2026-10-22T04:40:00-04:00', wake: null }]
-    expect(dayEndOf(asleep, WED)).toEqual({ kind: 'asleep', since: '2026-10-22T04:40:00-04:00' })
+    expect(dayEndOf(asleep, WED)).toEqual({ kind: 'asleep', since: '2026-10-22T04:40:00-04:00', recordId: 'n' })
     expect(points(asleep, WED, '2026-10-22T05:00:00-04:00').map(read).pop()).toBe(
       'asleep since 2026-10-22T04:40:00-04:00 (later date)',
     )

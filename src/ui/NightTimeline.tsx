@@ -9,13 +9,18 @@
 // everything on it, as in the other looks (MealList.tsx). The meal points keep the meal list's
 // test ids and classes (meal-row, meal-open, meal-kcal), so every check that reads the list reads
 // this one too. Dots and the line are drawn for the eye only; every point says what it is in words.
+//
+// Build-out item 2.2: the wake point and the sleep point at the end are buttons too. Each opens
+// that night in the sleep and wake editor (the wake point: the night that started the day), and
+// shows a small "Edit" under its words, so the way in is visible without hover (phones have none).
 
+import type { ReactNode } from 'react'
 import { estimateMeal } from '../kernel/estimate'
 import { estimateWorkout } from '../kernel/net'
 import type { Meal, Workout } from '../kernel/types'
 import { copy } from './copy'
 import type { DayView } from './dayView'
-import { fmtInt, fmtTime, fmtWeekday, fmtWeekdayFull } from './format'
+import { fmtInt, fmtTime, fmtWeekday, fmtWeekdayFull, fmtWeekdayTime } from './format'
 import { mealSourceLabel, mealTimeLabel } from './MealList'
 import { timelinePoints, type TimelinePoint } from './nightTimeline'
 import { fmtDuration, type SleepView } from './sleepView'
@@ -30,9 +35,11 @@ interface NightTimelineProps {
   onImprove: (mealId: string) => void
   /** Opens a workout's details (build-out item 2.5a). */
   onOpenWorkout: (workoutId: string) => void
+  /** Opens the sleep and wake editor on one night (build-out item 2.2). */
+  onEditNight: (recordId: string) => void
 }
 
-export function NightTimeline({ view, sleep, nowIso, onOpenMeal, onImprove, onOpenWorkout }: NightTimelineProps) {
+export function NightTimeline({ view, sleep, nowIso, onOpenMeal, onImprove, onOpenWorkout, onEditNight }: NightTimelineProps) {
   const points = timelinePoints(view, sleep, nowIso)
   const average = sleep.stats.avgMinutes !== null ? copy.night.average(fmtDuration(sleep.stats.avgMinutes)) : copy.night.averageNotAvailable
   return (
@@ -50,6 +57,7 @@ export function NightTimeline({ view, sleep, nowIso, onOpenMeal, onImprove, onOp
             onOpenMeal={onOpenMeal}
             onImprove={onImprove}
             onOpenWorkout={onOpenWorkout}
+            onEditNight={onEditNight}
           />
         ))}
       </ol>
@@ -65,6 +73,38 @@ interface PointProps {
   onOpenMeal: (mealId: string) => void
   onImprove: (mealId: string) => void
   onOpenWorkout: (workoutId: string) => void
+  onEditNight: (recordId: string) => void
+}
+
+/**
+ * A point's row: a button that opens its night in the editor when it has a record, else plain.
+ * The button's name is everything the row says, ending with the visible "Edit" (EditCue).
+ */
+interface NightRowProps {
+  recordId: string | null
+  onEditNight: (id: string) => void
+  /** A short name for the button, when its words (with the 7-night average) would make a long one. */
+  label?: string
+  children: ReactNode
+}
+
+function NightRow({ recordId, onEditNight, label, children }: NightRowProps) {
+  if (recordId === null) return <div className="tl-row">{children}</div>
+  return (
+    <button type="button" className="tl-row tl-open" onClick={() => onEditNight(recordId)} aria-label={label} data-testid="tl-edit">
+      {children}
+    </button>
+  )
+}
+
+/** The visible "Edit" under a point's words, when the point opens the editor. */
+function EditCue({ recordId }: { recordId: string | null }) {
+  if (recordId === null) return null
+  return (
+    <span className="tl-edit-cue" data-testid="tl-edit-cue">
+      {copy.sleepEditor.edit}
+    </span>
+  )
 }
 
 /** A time in the left column; after midnight its weekday sits above it ("Thu" over "12:40 AM"). */
@@ -77,29 +117,28 @@ function Time({ iso, laterDate }: { iso: string; laterDate: boolean }) {
   )
 }
 
-function Point({ point, view, average, onOpenMeal, onImprove, onOpenWorkout }: PointProps) {
+function Point({ point, view, average, onOpenMeal, onImprove, onOpenWorkout, onEditNight }: PointProps) {
   switch (point.kind) {
-    case 'wake':
+    case 'wake': {
+      const slept = point.sleptMinutes !== null ? copy.night.slept(fmtDuration(point.sleptMinutes)) : copy.night.sleepNotLogged
       return (
-        <li className="tl-point tl-row" data-testid="tl-wake">
-          <Time iso={point.at} laterDate={false} />
-          <span className="tl-dot hollow" aria-hidden="true" />
-          <span className="tl-body">
-            <span className="tl-line">
-              <span className="tl-main">{copy.night.wokeUp}</span>
-              {point.sleptMinutes !== null ? (
-                <span className="tl-side" data-testid="last-night">
-                  {copy.night.slept(fmtDuration(point.sleptMinutes))}
+        <li className="tl-point" data-testid="tl-wake">
+          <NightRow recordId={point.recordId} onEditNight={onEditNight}>
+            <Time iso={point.at} laterDate={false} />
+            <span className="tl-dot hollow" aria-hidden="true" />
+            <span className="tl-body">
+              <span className="tl-line">
+                <span className="tl-main">{copy.night.wokeUp}</span>
+                <span className={point.sleptMinutes !== null ? 'tl-side' : 'tl-side not-logged'} data-testid="last-night">
+                  {slept}
                 </span>
-              ) : (
-                <span className="tl-side not-logged" data-testid="last-night">
-                  {copy.night.sleepNotLogged}
-                </span>
-              )}
+              </span>
+              <EditCue recordId={point.recordId} />
             </span>
-          </span>
+          </NightRow>
         </li>
       )
+    }
     case 'noWake':
       return (
         <li className="tl-point tl-row" data-testid="tl-wake">
@@ -142,41 +181,47 @@ function Point({ point, view, average, onOpenMeal, onImprove, onOpenWorkout }: P
         </li>
       )
     case 'asleep':
-    case 'sleep':
+    case 'sleep': {
+      const startAt = point.kind === 'asleep' ? point.since : point.at
+      // The row also shows the 7-night average; the button is named by the night it opens.
+      const label =
+        point.kind === 'asleep'
+          ? copy.sleepEditor.editAsleep(fmtWeekdayTime(point.since))
+          : startAt !== null
+            ? copy.sleepEditor.editNightFrom(fmtWeekdayTime(startAt))
+            : copy.sleepEditor.editNightNoStart
       return (
-        <li className="tl-point tl-row tl-end" data-testid="tl-end">
-          {point.kind === 'asleep' ? (
-            <Time iso={point.since} laterDate={point.laterDate} />
-          ) : point.at !== null ? (
-            <Time iso={point.at} laterDate={point.laterDate} />
-          ) : (
-            <span className="tl-time" />
-          )}
-          <span className="tl-dot hollow" aria-hidden="true" />
-          <span className="tl-body">
-            <span className="tl-line">
-              {point.kind === 'sleep' && point.at === null ? (
-                <span className="tl-main not-logged" data-testid="sleep-status">
-                  {copy.night.sleepStartNotLogged}
+        <li className="tl-point tl-end" data-testid="tl-end">
+          <NightRow recordId={point.recordId} onEditNight={onEditNight} label={label}>
+            {startAt !== null ? <Time iso={startAt} laterDate={point.laterDate} /> : <span className="tl-time" />}
+            <span className="tl-dot hollow" aria-hidden="true" />
+            <span className="tl-body">
+              <span className="tl-line">
+                {point.kind === 'sleep' && point.at === null ? (
+                  <span className="tl-main not-logged" data-testid="sleep-status">
+                    {copy.night.sleepStartNotLogged}
+                  </span>
+                ) : (
+                  <span className="tl-main" data-testid="sleep-status">
+                    {copy.night.wentToSleep}
+                    {point.kind === 'asleep' && (
+                      <span className="tl-note">
+                        {copy.sep}
+                        {copy.night.asleepNow}
+                      </span>
+                    )}
+                  </span>
+                )}
+                <span className="tl-side" data-testid="sleep-average">
+                  {average}
                 </span>
-              ) : (
-                <span className="tl-main" data-testid="sleep-status">
-                  {copy.night.wentToSleep}
-                  {point.kind === 'asleep' && (
-                    <span className="tl-note">
-                      {copy.sep}
-                      {copy.night.asleepNow}
-                    </span>
-                  )}
-                </span>
-              )}
-              <span className="tl-side" data-testid="sleep-average">
-                {average}
               </span>
+              <EditCue recordId={point.recordId} />
             </span>
-          </span>
+          </NightRow>
         </li>
       )
+    }
   }
 }
 

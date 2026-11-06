@@ -1560,6 +1560,11 @@ details.more > summary {
 .regroup-time,
 .regroup-kcal {
   color: var(--ink-soft);
+}
+
+/* Numbers line up; a word in the calories column ("unknown", "workout") keeps the text style. */
+.regroup-time,
+.regroup-kcal.num {
   font-variant-numeric: tabular-nums;
 }
 
@@ -1570,6 +1575,42 @@ details.more > summary {
 .regroup-none {
   color: var(--ink-soft);
   padding: 6px 0;
+}
+
+/* Narrow phones: the time goes on its own line above the name, so names keep room to read. */
+@media (max-width: 359px) {
+  .regroup-list {
+    grid-template-columns: minmax(0, 1fr) max-content;
+  }
+
+  .regroup-list .regroup-time {
+    grid-column: 1 / -1;
+    font-size: 14px;
+  }
+}
+
+/* Set wake time's way to the whole night: a left-aligned link under the form's fields. Its own box
+   hugs the words, so the focus ring does too; the 44 px tap target is an ::after layer centred on
+   the line, and the paragraph's padding keeps that layer inside it, clear of the footer. */
+.set-wake-night {
+  padding-block: 10px;
+}
+
+.set-wake-night .link-btn {
+  position: relative;
+  display: inline-block;
+  border-radius: 2px;
+  text-align: left;
+}
+
+.set-wake-night .link-btn::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: max(100%, 44px);
+  height: 44px;
+  transform: translateY(-50%);
 }
 
 /* ---------- profile and privacy ---------- */
@@ -1642,6 +1683,24 @@ details.more > summary {
   min-width: 112px;
 }
 
+/* On the narrowest phones a footer's two buttons never break their labels over two lines: each
+   keeps its words on one line, and when the pair cannot fit side by side they stack, each the full
+   width. The title steps down a size so a short one ("Entries that change day") fits its line. */
+@media (max-width: 359px) {
+  .sheet-actions {
+    flex-wrap: wrap;
+  }
+
+  .sheet-actions .btn {
+    flex: 1 1 auto;
+    white-space: nowrap;
+  }
+
+  .sheet-title {
+    font-size: 18px;
+  }
+}
+
 /* ---------- log a meal sheet ---------- */
 
 .improve-callout > * + * {
@@ -1675,6 +1734,7 @@ details.more > summary {
 
 .meal-form input[type="text"],
 .meal-form input[type="datetime-local"],
+.meal-form input[type="date"],
 .meal-form input[type="time"],
 .meal-form textarea {
   display: block;
@@ -2180,6 +2240,190 @@ details.more > summary {
 
 .sleep-nights {
   margin-top: var(--s1);
+}
+
+/* Build-out item 2.2: Edit beside the status, and each night with its own Edit. The status and
+   Edit sit on the right and wrap onto two right-aligned lines when the row is narrow (320 px on
+   an earlier day: "Edit the night before Wed"), so nothing runs past the section's edge. */
+.sleep-head-end {
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 4px var(--s2);
+  min-width: 0;
+}
+
+/* Each Edit's own box hugs its words, so its focus ring does too (like the header's wake time);
+   the 44 px tap target is an ::after layer, centred on the line and reaching left from the
+   right-aligned word, so it never runs past the section's edge. */
+.sleep-edit,
+.night-edit {
+  position: relative;
+  display: inline-block;
+  border-radius: 2px;
+  font-size: 14px;
+  text-align: right;
+}
+
+.sleep-edit::after,
+.night-edit::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: 0;
+  width: max(100%, 44px);
+  height: 44px;
+  transform: translateY(-50%);
+}
+
+/* The head's Edit names its night ("Edit last night"): kept on one line; the status wraps instead. */
+.sleep-edit {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.night-row-end {
+  display: flex;
+  flex-shrink: 0;
+  align-items: baseline;
+  gap: var(--s1);
+  text-align: right;
+}
+
+/* A night's length never splits from its unit ("7 h 50 min"); the row's name wraps instead. */
+.night-row-end .num,
+.night-row-end .not-logged {
+  white-space: nowrap;
+}
+
+.sleep-nights .fact-list .k {
+  min-width: 0;
+}
+
+/* "Asleep since Wed 11:10 PM": the weekday and time stay together when the line wraps. */
+.keep-together {
+  white-space: nowrap;
+}
+
+.night-add {
+  margin-top: var(--s1);
+}
+
+/* Add a missed night, in the sleep section and in the editor: a quiet button with a full 44 px
+   tap target, like the Delete this night button beside it. */
+.night-add .btn,
+.editor-add {
+  min-height: 44px;
+}
+
+/* "I woke up": the entries that move to the new day, in the editor's move list. */
+.sleep-moves .regroup-group {
+  margin-top: var(--s1);
+}
+
+/* ---------- the sleep and wake editor (build-out item 2.2) ---------- */
+
+/* A date and a time, side by side, each with a small label; the legend names the moment. */
+.when-field {
+  min-width: 0;
+  margin-right: 0;
+  margin-bottom: 0;
+  margin-left: 0;
+  padding: 0;
+  border: 0;
+}
+
+.when-field > legend {
+  display: block;
+  padding: 0;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.when-row {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  gap: var(--s1);
+}
+
+.when-part > label {
+  display: block;
+  color: var(--ink-soft);
+  font-size: 13px;
+  margin-bottom: 2px;
+}
+
+/* Delete this night and Add a missed night, under the fields. */
+.editor-more {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s1) var(--s2);
+  padding-top: var(--s2);
+  border-top: 1px solid var(--line);
+}
+
+/* The header's wake time opens the editor: a quiet button with a dotted underline. The button's
+   own box hugs the text, so its focus ring does too; the 44 px tap target is an ::after layer
+   that reaches 4 px up (into the gap under Profile and privacy, never over it) and 20 px down.
+   The line keeps 20 px clear below it inside the header in every look, so the target never
+   reaches the first tile or the headline. */
+.waking-day-line {
+  margin-top: 4px;
+  margin-bottom: 4px;
+}
+
+.waking-day-btn {
+  position: relative;
+  display: inline-block;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 2px;
+  background: none;
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+}
+
+.waking-day-btn::after {
+  content: "";
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  bottom: -20px;
+  left: -4px;
+}
+
+[data-look="panel"] .waking-day-line {
+  margin-bottom: 16px;
+}
+
+[data-look="night"] .waking-day-line {
+  margin-bottom: 20px;
+}
+
+.waking-day-btn:hover {
+  color: var(--teal-ink);
+  text-decoration-style: solid;
+}
+
+/* The Night timeline's wake and sleep points open the editor. */
+.tl-open {
+  width: 100%;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  border-radius: var(--radius);
 }
 
 /* ---------- previous / next (prd.md > Screens and Layout, item 10) ---------- */
@@ -3299,6 +3543,31 @@ details.more > summary {
   padding: 8px 0;
 }
 
+[data-look="night"] .tl-point > .tl-row {
+  padding: 8px 0;
+}
+
+[data-look="night"] .tl-open {
+  min-height: 44px;
+}
+
+/* The visible way in on a point that opens the editor (phones have no hover). */
+[data-look="night"] .tl-edit-cue {
+  display: inline-block;
+  margin-top: 2px;
+  color: var(--teal-ink);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+[data-look="night"] .tl-open:hover .tl-main {
+  color: var(--teal-ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 [data-look="night"] .tl .meal-open {
   min-height: 44px;
   padding: 8px 0;
@@ -3490,6 +3759,13 @@ details.more > summary {
 
 [data-look="night"] .night-sleep .sleep-nights {
   margin-top: 0;
+}
+
+/* "Each night" follows its timeline directly; Log a workout comes after the sleep section, set
+   apart by the same rule that opens "Each night", so it doesn't read as a sleep control. */
+[data-look="night"] .night-sleep + .night-log-workout {
+  margin-top: var(--s3);
+  border-top: 1px solid var(--line);
 }
 
 [data-look="night"] .action-bar .btn {

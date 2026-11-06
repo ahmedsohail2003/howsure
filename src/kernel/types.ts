@@ -143,7 +143,8 @@ export type SleepProblem =
   | { kind: 'not-a-time' }
   | { kind: 'wake-before-sleep'; sleepStart: string }
   | { kind: 'sleep-before-previous-wake'; wake: string }
-  | { kind: 'overlap' }
+  | { kind: 'overlap'; other: SleepRecord } // the record it runs into (build-out item 2.2)
+  | { kind: 'needs-wake'; other: SleepRecord } // no wake, but a later record exists
   | { kind: 'future' }
 
 export interface Improvement {
@@ -223,6 +224,7 @@ export type Parsed =
 //              mealsForDay(meals: Meal[], sleeps: SleepRecord[], dayStart: string | null): Meal[]  // null = provisional day
 //              sleepStatus(sleeps): SleepStatus; wakingDays(meals, sleeps, upTo?): (string | null)[]
 //              movedMeals(meals, before: SleepRecord[], after: SleepRecord[]): Meal[]
+//              movedBy(items, at: (item) => string, before, after): items whose waking day changes
 //              circularMeanMinutes(minutes: number[]): number | null; nightStats(sleeps, lastN = 7): NightStats
 //              validateSleep(sleeps, changed: SleepRecord, latest: string | null): SleepProblem | null
 //              workoutsForDay(workouts, sleeps, dayStart): Workout[]   // the waking day a workout started in

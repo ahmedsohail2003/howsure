@@ -4,12 +4,16 @@
 // **I woke up** saves when no sleep was open). Before it is saved, the regroup preview shows which
 // meals move into the day the new wake starts, and which stay before it in the provisional day
 // (spec.md > movedMeals powers it). Nothing disappears: every meal is in one of the two lists.
+// Build-out item 2.2: workouts are listed too, the way the sleep and wake editor's move warning
+// lists them (sleepEdit.ts > movesBetween), so all three ways of setting a wake agree.
 // Pure: no React, no storage, no clock reads (now is passed in).
 
 import { combineDay } from '../kernel/estimate'
-import { mealsForDay, wakesOf } from '../kernel/sleepday'
+import { parseClockTime } from '../kernel/parse'
+import { mealsForDay, wakesOf, wakingDayStart } from '../kernel/sleepday'
 import type { Meal, SleepProblem, SleepRecord, SleepStatus } from '../kernel/types'
 import { fromLocalInput } from './editMeal'
+import { movesBetween, workoutEntries, type DatedLog, type MovedEntry } from './sleepEdit'
 import { fmtClockMinutes, sleepSave } from './sleepView'
 
 export type WakeDay = 'today' | 'yesterday'
@@ -17,10 +21,15 @@ export type WakeDay = 'today' | 'yesterday'
 /** The default wake time: 7:00 AM, on today's date once it has passed, otherwise yesterday's. */
 export const DEFAULT_WAKE_TIME = '07:00'
 
+/** DEFAULT_WAKE_TIME in minutes after midnight (420). */
+export function defaultWakeMinutes(): number {
+  const [h, m] = DEFAULT_WAKE_TIME.split(':').map(Number)
+  return h * 60 + m
+}
+
 /** DEFAULT_WAKE_TIME as the sheet shows it ("7:00 AM"). */
 export function defaultWakeLabel(): string {
-  const [h, m] = DEFAULT_WAKE_TIME.split(':').map(Number)
-  return fmtClockMinutes(h * 60 + m)
+  return fmtClockMinutes(defaultWakeMinutes())
 }
 
 function pad(n: number): string {
@@ -42,14 +51,18 @@ export function wakeDates(nowIso: string): Record<WakeDay, string> {
 /** Which day the sheet starts on: today when 7:00 AM has passed, otherwise yesterday. */
 export function defaultWakeDay(nowIso: string): WakeDay {
   const now = new Date(nowIso)
-  const [h, m] = DEFAULT_WAKE_TIME.split(':').map(Number)
-  return now.getHours() * 60 + now.getMinutes() >= h * 60 + m ? 'today' : 'yesterday'
+  return now.getHours() * 60 + now.getMinutes() >= defaultWakeMinutes() ? 'today' : 'yesterday'
 }
 
-/** The picked day and time ("07:30") as a local-offset ISO string, or null when the time isn't one. */
+/**
+ * The picked day and time as a local-offset ISO string, or null when the time isn't one. Build-out
+ * item 2.2: the time is typed as people say it ("7", "7:30 am", "07:30", "19:30"), read by the
+ * kernel's parseClockTime(), the same reading as the sleep and wake editor.
+ */
 export function wakeIso(nowIso: string, day: WakeDay, time: string): string | null {
-  if (!/^\d{2}:\d{2}$/.test(time)) return null
-  return fromLocalInput(`${wakeDates(nowIso)[day]}T${time}`)
+  const t = parseClockTime(time)
+  if (t.kind !== 'value') return null
+  return fromLocalInput(`${wakeDates(nowIso)[day]}T${pad(Math.floor(t.minutes / 60))}:${pad(t.minutes % 60)}`)
 }
 
 /** True when the log has no wake time and nobody is asleep: the header then offers Set wake time. */
@@ -66,13 +79,18 @@ export type Regroup =
       moving: Meal[]
       /** Meals before the new wake: they stay in the provisional day ("Wake time not set"). */
       staying: Meal[]
+      /** Workouts that move into the new waking day, in time order (sleepEdit.ts > movesBetween). */
+      movingWorkouts: MovedEntry[]
+      /** Workouts before the new wake, staying in the provisional day, in time order. */
+      stayingWorkouts: MovedEntry[]
     }
   | { ok: false; problem: SleepProblem }
 
 /**
  * What saving `wake` as the first wake time would do. A time later than `nowIso` is rejected
  * (your own log), as are times that clash with a recorded sleep. On success `moving` and
- * `staying` together hold every meal that was in the provisional day.
+ * `staying` together hold every meal that was in the provisional day, and `movingWorkouts` and
+ * `stayingWorkouts` every workout that was.
  */
 export function regroupForWake(
   meals: Meal[],
@@ -80,12 +98,20 @@ export function regroupForWake(
   wake: string | null,
   nowIso: string,
   id?: string,
+  workouts: DatedLog['workouts'] = [],
 ): Regroup {
   const res = sleepSave(sleeps, meals, 'wake', wake, nowIso, id)
   if (!res.ok) return res
   const moving = res.moved
   const staying = mealsForDay(meals, res.sleeps, null)
-  return { ok: true, sleeps: res.sleeps, wake: res.record.wake as string, moving, staying }
+  const byTime = (a: MovedEntry, b: MovedEntry) => Date.parse(a.at) - Date.parse(b.at)
+  const movingWorkouts = movesBetween({ meals: [], workouts }, sleeps, res.sleeps)
+    .flatMap((g) => g.entries)
+    .sort(byTime)
+  const stayingWorkouts = workoutEntries(workouts)
+    .filter((w) => wakingDayStart(sleeps, w.at) === null && wakingDayStart(res.sleeps, w.at) === null)
+    .sort(byTime)
+  return { ok: true, sleeps: res.sleeps, wake: res.record.wake as string, moving, staying, movingWorkouts, stayingWorkouts }
 }
 
 /**
