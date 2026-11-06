@@ -73,6 +73,27 @@ export interface Meal {
   lookup?: MealLookup // added: spec.md > Data Model (Tier 2)
 }
 
+/** Build-out item 2.4: the unit a weight was typed in, and the display preference (settings.weightUnit). */
+export type WeightUnit = 'kg' | 'lb'
+
+/**
+ * A weigh-in (spec.md > Data Model: weighIns `{ id, at, kg }`; build-out item 2.4). The weight is
+ * stored in kg; `unit` keeps the unit it was typed in, so an edit shows it back as typed. A
+ * weigh-in belongs to the waking day it was taken in, by the same rule as a meal (sleepday.ts).
+ */
+export interface WeighIn {
+  id: string
+  at: string // ISO 8601 with offset
+  kg: number // above 0
+  unit?: WeightUnit // the unit it was entered in; absent in logs saved before item 2.4 (read as kg)
+  bodyFatPct?: number // optional, 0 < x < 100
+  note?: string
+  /** True when the time was not recorded and was set by a documented rule (an import). */
+  timeApproximate?: boolean
+  /** The original record an import read, kept as it was (src/import/trackerWeighIns.ts). */
+  imported?: Record<string, unknown>
+}
+
 /** A meal the day's maths can count: known calories and a picked source (estimate.ts isKnownMeal). */
 export type KnownMeal = Meal & { kcal: number; source: MealSourceId }
 
@@ -230,3 +251,6 @@ export type Parsed =
 //              workoutsForDay(workouts, sleeps, dayStart): Workout[]   // the waking day a workout started in
 // net.ts       combineBurned(workouts: Workout[]): BurnedEstimate        // per-source grouping, like a day
 //              combine(eaten: DayEstimate, burned: BurnedEstimate): NetDay // N = X - B, sd_N = sqrt(sd_X^2 + sd_B^2)
+// weight.ts    LB_TO_KG = 0.45359237; toKg(value, unit); fromKg(kg, unit)          // item 2.4
+//              weighInsForDay(weighIns, sleeps, dayStart); averageOver(weighIns, asOf, days = 7)
+//              trendRate(weighIns, asOf): least-squares kg per week over 21 days, 6 weigh-ins or more

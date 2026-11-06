@@ -13,7 +13,7 @@ import {
 } from '../clock'
 import { SOURCES } from '../kernel/sources'
 import type { ActivityLevel, BodySex } from '../kernel/energy'
-import type { BurnSourceId, Meal, MealFood, MealLookup, MealSourceId, SleepRecord, Workout } from '../kernel/types'
+import type { BurnSourceId, Meal, MealFood, MealLookup, MealSourceId, SleepRecord, WeighIn, Workout } from '../kernel/types'
 
 /**
  * Body details for the resting-burn estimate (build-out item 2.5b). Every key is optional: a
@@ -75,6 +75,8 @@ export interface LogDoc {
   settings?: Record<string, unknown>
   /** Meals saved as usual (build-out item 2.3). Optional: a log saved before it has none. */
   savedMeals?: SavedMeal[]
+  /** Weigh-ins (build-out item 2.4). Optional: a log saved before it has none. */
+  weighIns?: WeighIn[]
   /** The demo clock's anchor (spec.md > Clock). Demo document only, so a reload continues the timeline. */
   clock?: DemoClockState
 }

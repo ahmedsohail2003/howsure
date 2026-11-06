@@ -16,6 +16,7 @@ import { heightText, weightText } from './body'
 import { copy } from './copy'
 import type { DayView } from './dayView'
 import { fmtInt, fmtPct, fmtRange, fmtSharePct, fmtSigned, fmtSignedPlus, fmtSignedRange, fmtWeekdayTime } from './format'
+import { TimesTogether } from './KeepTogether'
 import { mealSourceLabel, mealTimeLabel } from './MealList'
 import { Sheet } from './Sheet'
 import { BasisTag, SourceBasisItem, SourceBasisList, sourcesUsed } from './SourceBasis'
@@ -274,7 +275,7 @@ function BalanceExplanation({ balance }: { balance: Extract<BalanceView, { kind:
             <span className="k">{t.weight}</span>
             <span>
               {inputs.weightFrom.from === 'weighIn'
-                ? t.weightFromWeighIn(weight, inputs.weightFrom.when)
+                ? <TimesTogether text={t.weightFromWeighIn(weight, inputs.weightFrom.when)} />
                 : t.weightFromProfile(weight)}
             </span>
           </li>

@@ -770,14 +770,22 @@ test.describe('the Panel look in detail', () => {
     expect(list2.x).toBeGreaterThan(day2.x + day2.width - 1)
     expect((await box('sleep-section')).y).toBeGreaterThan((await box('meal-list')).y)
 
-    // Three columns: the day; the meals; sleep and the day controls.
+    // Three columns: the day; the meals; then workouts (item 2.5a), weight (item 2.4), sleep and the
+    // day controls, in that order down the third column, whose first tile is level with the meals.
     await page.setViewportSize({ width: 1440, height: 900 })
     const ring = await box('target-ring')
     const meals = await box('meal-list')
+    const workouts = await box('workout-section')
+    const weight = await box('weight-section')
     const sleep = await box('sleep-section')
     expect(meals.x).toBeGreaterThan(ring.x + ring.width)
-    expect(sleep.x).toBeGreaterThan(meals.x + meals.width)
-    expect(Math.abs(sleep.y - meals.y)).toBeLessThan(80)
+    for (const tile of [workouts, weight, sleep]) {
+      expect(tile.x).toBeGreaterThan(meals.x + meals.width)
+      expect(Math.abs(tile.x - workouts.x)).toBeLessThan(1)
+    }
+    expect(Math.abs(workouts.y - meals.y)).toBeLessThan(80)
+    expect(weight.y).toBeGreaterThan(workouts.y + workouts.height - 1)
+    expect(sleep.y).toBeGreaterThan(weight.y + weight.height - 1)
     expect((await box('day-nav')).y).toBeGreaterThan(sleep.y + sleep.height - 1)
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(1440)
   })

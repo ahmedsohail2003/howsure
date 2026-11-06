@@ -5,7 +5,8 @@
 // meals move into the day the new wake starts, and which stay before it in the provisional day
 // (spec.md > movedMeals powers it). Nothing disappears: every meal is in one of the two lists.
 // Build-out item 2.2: workouts are listed too, the way the sleep and wake editor's move warning
-// lists them (sleepEdit.ts > movesBetween), so all three ways of setting a wake agree.
+// lists them (sleepEdit.ts > movesBetween), so all three ways of setting a wake agree. Build-out
+// item 2.4: so are weigh-ins, which belong to waking days by the same rule.
 // Pure: no React, no storage, no clock reads (now is passed in).
 
 import { combineDay } from '../kernel/estimate'
@@ -13,7 +14,7 @@ import { parseClockTime } from '../kernel/parse'
 import { mealsForDay, wakesOf, wakingDayStart } from '../kernel/sleepday'
 import type { Meal, SleepProblem, SleepRecord, SleepStatus } from '../kernel/types'
 import { fromLocalInput } from './editMeal'
-import { movesBetween, workoutEntries, type DatedLog, type MovedEntry } from './sleepEdit'
+import { movesBetween, weighInEntries, workoutEntries, type DatedLog, type MovedEntry } from './sleepEdit'
 import { fmtClockMinutes, sleepSave } from './sleepView'
 
 export type WakeDay = 'today' | 'yesterday'
@@ -83,14 +84,18 @@ export type Regroup =
       movingWorkouts: MovedEntry[]
       /** Workouts before the new wake, staying in the provisional day, in time order. */
       stayingWorkouts: MovedEntry[]
+      /** Weigh-ins that move into the new waking day, and those staying before it, in time order. */
+      movingWeighIns: MovedEntry[]
+      stayingWeighIns: MovedEntry[]
     }
   | { ok: false; problem: SleepProblem }
 
 /**
  * What saving `wake` as the first wake time would do. A time later than `nowIso` is rejected
  * (your own log), as are times that clash with a recorded sleep. On success `moving` and
- * `staying` together hold every meal that was in the provisional day, and `movingWorkouts` and
- * `stayingWorkouts` every workout that was.
+ * `staying` together hold every meal that was in the provisional day, `movingWorkouts` and
+ * `stayingWorkouts` every workout that was, and `movingWeighIns` and `stayingWeighIns` every
+ * weigh-in (`weight` holds the log's weigh-ins and the settings that name their unit).
  */
 export function regroupForWake(
   meals: Meal[],
@@ -99,6 +104,7 @@ export function regroupForWake(
   nowIso: string,
   id?: string,
   workouts: DatedLog['workouts'] = [],
+  weight: Pick<DatedLog, 'weighIns' | 'settings'> = {},
 ): Regroup {
   const res = sleepSave(sleeps, meals, 'wake', wake, nowIso, id)
   if (!res.ok) return res
@@ -108,10 +114,23 @@ export function regroupForWake(
   const movingWorkouts = movesBetween({ meals: [], workouts }, sleeps, res.sleeps)
     .flatMap((g) => g.entries)
     .sort(byTime)
-  const stayingWorkouts = workoutEntries(workouts)
-    .filter((w) => wakingDayStart(sleeps, w.at) === null && wakingDayStart(res.sleeps, w.at) === null)
+  const provisionalBoth = (e: MovedEntry) => wakingDayStart(sleeps, e.at) === null && wakingDayStart(res.sleeps, e.at) === null
+  const stayingWorkouts = workoutEntries(workouts).filter(provisionalBoth).sort(byTime)
+  const movingWeighIns = movesBetween({ meals: [], workouts: [], ...weight }, sleeps, res.sleeps)
+    .flatMap((g) => g.entries)
     .sort(byTime)
-  return { ok: true, sleeps: res.sleeps, wake: res.record.wake as string, moving, staying, movingWorkouts, stayingWorkouts }
+  const stayingWeighIns = weighInEntries(weight).filter(provisionalBoth).sort(byTime)
+  return {
+    ok: true,
+    sleeps: res.sleeps,
+    wake: res.record.wake as string,
+    moving,
+    staying,
+    movingWorkouts,
+    stayingWorkouts,
+    movingWeighIns,
+    stayingWeighIns,
+  }
 }
 
 /**
@@ -124,4 +143,11 @@ export function regroupTotal(meals: Meal[]): { kcal: number | null; unknown: num
   const day = combineDay(meals)
   const unknown = day.unknownMealIds.length
   return { kcal: meals.length - unknown > 0 ? day.knownTotal : null, unknown }
+}
+
+/** The kinds of entry a regroup preview lists, in words: "meals", "meals and weigh-ins",
+ *  "meals, workouts and weigh-ins". */
+export function joinKinds(kinds: string[]): string {
+  if (kinds.length <= 1) return kinds[0] ?? ''
+  return `${kinds.slice(0, -1).join(', ')} and ${kinds[kinds.length - 1]}`
 }

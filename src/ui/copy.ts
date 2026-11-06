@@ -8,6 +8,9 @@
 
 import { PARSE_ERROR_MESSAGE } from '../kernel/parse'
 
+// Shared by the sleep and weight sheets, whose time starts at now.
+const STARTS_AT_NOW = 'Starts at now. Change it if it was another time.'
+
 export const copy = {
   appName: 'HowSure',
   tagline: 'Food estimates, explained.',
@@ -68,6 +71,15 @@ export const copy = {
     mealKcal: (kcal: string) => `${kcal} kcal`,
     mealKcalUnknown: 'unknown',
     keepsAll: 'Every meal stays in your log with its own date and time. Nothing changes until you tap Save.',
+    // When the log also holds workouts or weigh-ins (or only those), the preview names what it lists,
+    // so it never talks about meals that are not there.
+    previewTitleEntries: 'Where your entries will go',
+    previewIntroKinds: (when: string, kinds: string) => `With a wake time of ${when}, your ${kinds} fall into these days:`,
+    kindMeals: 'meals',
+    kindWorkouts: 'workouts',
+    kindWeighIns: 'weigh-ins',
+    noneEntries: 'Nothing logged',
+    keepsAllEntries: 'Every entry stays in your log with its own date and time. Nothing changes until you tap Save.',
     back: 'Change the time',
     // Build-out item 2.2: the sleep and wake editor, for the whole night.
     addNight: 'Add the whole night instead',
@@ -85,6 +97,7 @@ export const copy = {
     targetsChanged: 'Sam’s targets changed',
     savedMealsChanged: 'Saved meals changed',
     workoutsChanged: 'Workouts changed',
+    weighInsChanged: 'Weigh-ins changed',
     otherChanged: 'Other demo details changed',
     // Build-out item 2.5b.
     bodyChanged: 'Sam’s body details changed',
@@ -222,7 +235,8 @@ export const copy = {
     height: 'Height',
     weight: 'Weight',
     weightFromProfile: (w: string) => `${w}, from body details`,
-    weightFromWeighIn: (w: string, when: string) => `${w}, from your weigh-in on ${when}`,
+    // "from your Wed 7:35 AM weigh-in", "from your Tue 22 Sep weigh-in": reads the same with or without a time.
+    weightFromWeighIn: (w: string, when: string) => `${w}, from your ${when} weigh-in`,
     sexNames: { female: 'Female', male: 'Male', unspecified: 'Prefer not to say' },
     equationTitle: 'The equation',
     equation: (kg: string, cm: string, age: string, s: string) => `Mifflin-St Jeor: 10 × ${kg} kg + 6.25 × ${cm} cm − 5 × ${age} ${s}`,
@@ -427,7 +441,7 @@ export const copy = {
     sheetSleepTitle: 'Going to sleep',
     sheetWakeTitle: 'Woke up',
     when: 'Date and time',
-    whenHint: 'Starts at now. Change it if it was another time.',
+    whenHint: STARTS_AT_NOW,
     closesDay: (day: string) => `This closes the waking day that started ${day}.`,
     startsDay: 'This starts a new, empty waking day.',
     // When entries after the wake time move to the new day, so it is not empty.
@@ -506,6 +520,7 @@ export const copy = {
     day: (weekday: string, time: string) => `${weekday}’s day (woke ${time})`,
     dayNoWake: 'the day with no wake time',
     workout: 'workout',
+    weighIn: 'weigh-in',
     movesSave: 'Save and move',
     movesBack: 'Change the times',
     // Deleting a night: asked first, with the move list when entries change day.
@@ -574,6 +589,8 @@ export const copy = {
     plates: (n: number) => (n === 1 ? '1 saved plate' : `${n} saved plates`),
     // Build-out item 2.3: meals saved as usual.
     savedMeals: (n: number) => (n === 1 ? '1 saved meal' : `${n} saved meals`),
+    // Build-out item 2.4.
+    weighIns: (n: number) => (n === 1 ? '1 weigh-in' : `${n} weigh-ins`),
     span: (from: string, to: string) => (from === to ? `On ${from}` : `From ${from} to ${to}`),
     noTimes: 'No meals or sleep logged yet.',
 
@@ -658,6 +675,9 @@ export const copy = {
     body: 'Body details',
     bodyHint: 'Age, sex, height, weight and everyday activity, for the estimated deficit or surplus.',
     bodyHintDemo: 'Sam’s made-up body details, for the estimated deficit or surplus.',
+    // Build-out item 2.4: the weight details, in both logs.
+    weight: 'Weight',
+    weightHint: 'Your weigh-ins, the 7-day average and the trend.',
     // Build-out item 2.1: in the demo only.
     resetDemo: 'Reset demo',
     resetDemoHint: 'Puts back Sam’s week as it started. Your own log is not affected.',
@@ -813,7 +833,7 @@ export const copy = {
     weightKg: 'Weight (kg)',
     weightLb: 'Weight (lb)',
     weightUnit: 'Weight in',
-    weighInHint: (w: string, when: string) => `Your weigh-in on ${when} (${w}) is used while it is the latest. This weight counts when there is none.`,
+    weighInHint: (w: string, when: string) => `Your ${when} weigh-in (${w}) is used while it is the latest. This weight counts when there is none.`,
     activity: 'Everyday activity, not counting workouts',
     activityOptions: {
       sitting: 'Mostly sitting',
@@ -947,6 +967,130 @@ export const copy = {
     renamed: (from: string, to: string) => `Renamed ${from} to ${to}.`,
     deleted: (name: string) => `Deleted the saved meal ${name}. Meals you already logged are unchanged.`,
     meta: (kcal: string, source: string) => `${kcal} · ${source}`,
+  },
+
+  // Build-out item 2.4 (prd.md > Weight Log, checklist slice 20): weigh-ins with a unit, the 7-day
+  // average with its count, and the trend over 21 days, which describes the past and is never a
+  // prediction. Weights are shown in the unit chosen (settings.weightUnit), stored in kg.
+  weight: {
+    title: 'Weight',
+    logWeight: 'Log weight',
+    noWeighInToday: 'No weigh-in today',
+    noWeighInThatDay: 'No weigh-in that day',
+    noWeighInsYet: 'No weigh-ins yet.',
+    // A non-breaking space, so the number and its unit stay on one line.
+    value: (n: string, unit: string) => `${n}\u00a0${unit}`,
+    unitName: { kg: 'kg', lb: 'lb' },
+    at: (time: string) => `at ${time}`,
+    when: (date: string, time: string) => `${date}, ${time}`,
+    approxTime: 'time not recorded',
+    // After the weight on the dashboard, in brackets so it never runs on from the number.
+    approxTimeAfter: '(time not recorded)',
+    moreThisDay: (n: number) => (n === 1 ? '1 more weigh-in this day' : `${n} more weigh-ins this day`),
+    average: '7-day average',
+    averageOf: (n: number) => (n === 1 ? 'average of 1 weigh-in' : `average of ${n} weigh-ins`),
+    // A status sentence, drawn in normal weight where the average would be. Today and an earlier day
+    // differ. No-break hyphens (U+2011) in these status lines, so "weigh-ins" never splits.
+    averageNone: 'No weigh\u2011ins in the last 7 days',
+    averageNoneThen: 'No weigh\u2011ins in the 7 days to the end of that day',
+    // An earlier day that ran on for days (no sleep logged in between): its real end is named.
+    averageNoneTo: (when: string) => `No weigh\u2011ins in the 7 days to ${when}, when that day ended`,
+    trend: 'Trend',
+    trendDown: (n: string, unit: string) => `down ${n} ${unit} a week`,
+    trendUp: (n: string, unit: string) => `up ${n} ${unit} a week`,
+    trendLevel: (unit: string) => `about level, under 0.1 ${unit} a week`,
+    trendFrom: (n: number) => `from ${n} weigh-ins in 21 days`,
+    // While the trend needs more weigh-ins: the count is the value, the rule is its note. The note
+    // names both conditions (count and spread), so the value is never the whole story when it isn't.
+    trendNeedsMore: (n: number) => (n === 1 ? '1 more weigh-in needed' : `${n} more weigh-ins needed`),
+    // A no-break hyphen (U+2011) in "weigh‑ins", so a narrow phone never splits the word.
+    trendRule: 'shown from 6 weigh\u2011ins in 21 days, over at least 4 days',
+    // Enough weigh-ins, but over too few days for a weekly rate (6 in one morning would read noise as a trend).
+    trendNeedsSpan: 'needs weigh\u2011ins spread over 4 days',
+    // How far apart the first and last are, exactly: "under 3 days" for 2.5, never a rounded-down "2 days".
+    trendSpanNote: (n: number, spanDays: number) => {
+      if (!(spanDays > 0)) return `these ${n} all have the same time`
+      const days = (d: number) => (d === 1 ? '1 day' : `${d} days`)
+      return Number.isInteger(spanDays) ? `these ${n} span ${days(spanDays)}` : `these ${n} span under ${days(Math.ceil(spanDays))}`
+    },
+    // prd.md > Weight Log, word for word (with a capital and a full stop).
+    swings: 'Daily weight swings with water and food; watch the trend.',
+    notPrediction: 'The trend describes your past weigh-ins. It is not a prediction.',
+    averageMethod: 'The 7-day average is the mean of your weigh-ins in the last 7 days.',
+    averageMethodThen: 'The 7-day average is the mean of your weigh-ins in the 7 days to the end of that day.',
+    trendMethod:
+      'HowSure’s calculation from your weigh-ins: a straight line fitted by least squares through the last 21 days, given per week. It is shown once there are 6 weigh-ins in that time, spread over at least 4 days.',
+    trendMethodThen:
+      'HowSure’s calculation from your weigh-ins: a straight line fitted by least squares through the 21 days to the end of that day, given per week. It is shown once there are 6 weigh-ins in that time, spread over at least 4 days.',
+    // Read last by screen readers: the dashboard summary is one button that opens the details.
+    openHidden: 'Opens your weigh-ins.',
+
+    detailsSub: 'Your weigh-ins, the 7-day average and the trend.',
+    latest: 'Latest',
+    latestNone: 'None by then',
+    // The current day, when every weigh-in is timed later than now (only an import can do that).
+    latestNoneYet: 'None up to now',
+    // On an earlier day the details are worked out as that day ended, and say so.
+    asOfDay: (day: string) => `As of the end of ${day}, the day you are viewing.`,
+    asOfDayRanOn: (day: string, end: string) =>
+      `As of ${end}, when the day you are viewing ended. It started ${day} and ran on, as no sleep was logged in between.`,
+    // The provisional day (before the log's first wake) ended at that wake, not at the end of its date.
+    asOfProvisional: (end: string) => `As of ${end}, when the day you are viewing ended: it is the provisional day before your first recorded wake time.`,
+    howTitle: 'How these are worked out',
+    showIn: 'Show weights in',
+    chartTitle: 'Last 30 days',
+    chartTitleTo: (day: string) => `30 days to the end of ${day}`,
+    chartTitleToWhen: (when: string) => `30 days to ${when}`,
+    // A no-break hyphen (U+2011) in "7‑day", so the caption never splits it on a narrow phone.
+    chartCaption: 'Dots are weigh-ins and the line is the 7\u2011day average. Every weigh-in is listed below.',
+    // When the line's first points count weigh-ins from before the 30 days (not drawn as dots).
+    chartCaptionEarlier: 'Near the left edge, the line also counts weigh-ins from just before these 30 days.',
+    chartNeedsTwo: 'The chart needs 2 weigh-ins in these 30 days.',
+    listTitle: 'Every weigh-in',
+    // On an earlier day the list still runs to the newest weigh-in: rows later than the viewed day say so.
+    listLaterNote: 'This list runs past the day you are viewing; later weigh-ins are marked.',
+    laterThanDay: 'after the day you are viewing',
+    bodyFat: (pct: string) => `body fat ${pct}%`,
+    // Read last by screen readers: each row opens that weigh-in.
+    rowHidden: 'Opens it to edit or delete.',
+
+    sheetNew: 'Log weight',
+    sheetEdit: 'Edit weigh-in',
+    weightLabel: 'Weight',
+    unitLegend: 'Unit',
+    // What the unit does: a number typed (a new weigh-in, or one typed over the saved weight) is read
+    // in it; while the box still shows the saved weight, switching converts it.
+    // A new weigh-in's unit always becomes how weights are shown; an edited one's only when it is
+    // switched (weighInEdit.ts > unitToRemember), so the edit hints say "if you switch it".
+    unitHintNew: 'The unit of the weight you type. Weights are then shown in it.',
+    unitHintEdit: 'Switching the unit converts the saved weight in the box, and weights are then shown in it.',
+    unitHintTyped: 'The unit of the weight you type. If you switch it, weights are then shown in it.',
+    whenLabel: 'Date and time',
+    whenHint: STARTS_AT_NOW,
+    whenHintDay: 'Starts on the day you are viewing. Change it if it was another time.',
+    bodyFatLabel: 'Body fat % (optional)',
+    noteLabel: 'Note (optional)',
+    dayHint: (date: string, time: string) => `It goes in the waking day that started ${date}, ${time}.`,
+    dayHintNoWake: 'No wake time is set yet, so it goes in the day you are logging now.',
+    // Before the log's first wake: the provisional day, named by the wake it ends at.
+    dayHintBeforeFirstWake: (date: string, time: string) =>
+      `It is before your first recorded wake time, ${date}, ${time}, so it goes in the provisional day that ends then.`,
+    // The time an import gave a weigh-in whose time was not recorded (trackerWeighIns.ts).
+    approxNote: (time: string) => `The time was not recorded, so it was set to ${time} on its date. Change it if you know it.`,
+    save: 'Save',
+    cancel: 'Cancel',
+    delete: 'Delete',
+    confirmDelete: (weight: string, when: string) => `Delete the weigh-in of ${weight} on ${when}?`,
+    deleteConfirm: 'Delete weigh-in',
+    keep: 'Keep it',
+    errors: {
+      weightNeeded: 'Type your weight.',
+      digits: 'Use digits, e.g. 72.5',
+      range: (lo: string, hi: string, unit: string) => `Type a weight from ${lo} to ${hi} ${unit}.`,
+      bodyFat: 'Body fat is a percentage above 0 and below 100. Leave it blank if you don’t know it.',
+      notATime: 'Pick a date and time.',
+      future: 'That time is later than now. Pick a time up to now.',
+    },
   },
 
   preview: {

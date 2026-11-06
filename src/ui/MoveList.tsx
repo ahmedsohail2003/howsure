@@ -1,5 +1,6 @@
 // What would move, from which day to which day (build-out item 2.2): each entry with its own
-// date and time, and a meal's calories (a workout reads "workout"). The sleep and wake editor's
+// date and time, and a meal's calories (a workout reads "workout", a weigh-in "weigh-in" after its
+// weight). The sleep and wake editor's
 // move warning, its delete confirmation and "I woke up" all show moves with this one list.
 
 import { copy } from './copy'
@@ -26,9 +27,11 @@ export function MoveList({ groups }: { groups: MoveGroup[] }) {
                 <span className={e.kind === 'meal' && e.kcal !== null ? 'regroup-kcal num' : 'regroup-kcal'}>
                   {e.kind === 'workout'
                     ? copy.sleepEditor.workout
-                    : e.kcal === null
-                      ? copy.setWake.mealKcalUnknown
-                      : copy.setWake.mealKcal(fmtInt(e.kcal))}
+                    : e.kind === 'weigh-in'
+                      ? copy.sleepEditor.weighIn
+                      : e.kcal === null
+                        ? copy.setWake.mealKcalUnknown
+                        : copy.setWake.mealKcal(fmtInt(e.kcal))}
                 </span>
               </li>
             ))}

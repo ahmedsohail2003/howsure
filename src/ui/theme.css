@@ -1162,10 +1162,23 @@ button {
   margin-bottom: 0;
 }
 
-.log-workout-btn {
+/* A section's log button (Log a workout, Log weight): it looks 40 px tall, quieter than the action
+   bar's buttons, and its tap area reaches 44 px with an invisible layer centred on it (::after), so
+   the box itself never grows lopsidedly and its focus ring still hugs it. */
+.log-workout-btn,
+.weight-log {
+  position: relative;
   min-height: 40px;
   padding: 6px 14px;
   font-size: 15px;
+}
+
+.log-workout-btn::after,
+.weight-log::after {
+  content: "";
+  position: absolute;
+  /* From the padding box: 1 px border + 3 px each way = 46 px, a little over 44. */
+  inset: -4px -1px;
 }
 
 .workout-none {
@@ -2426,6 +2439,302 @@ details.more > summary {
   border-radius: var(--radius);
 }
 
+/* ---------- weight (build-out item 2.4; prd.md > Weight Log) ---------- */
+
+/* The heading with Log weight beside it, then one button: the day's weigh-in, the 7-day average and
+   the trend, which opens the weight details. Smaller than the calorie headline, which dominates. */
+.weight-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--s2);
+  margin-bottom: 4px;
+}
+
+.weight-head .section-title {
+  margin-bottom: 0;
+}
+
+.weight-open {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.weight-day,
+.weight-facts,
+.weight-more {
+  display: block;
+}
+
+/* The average and the trend as two rows, name on the left and the number on the right with its
+   count under it, like the sleep section's rows. */
+.weight-fact {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--s2);
+  padding: 8px 0;
+  border-top: 1px solid var(--line);
+}
+
+.weight-fact-v {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  text-align: right;
+  min-width: 0;
+}
+
+.weight-figure {
+  font-size: 26px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.weight-open:hover .weight-figure,
+.weight-open:hover .weight-none {
+  color: var(--teal-ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.weight-when,
+.weight-more,
+.weight-note {
+  color: var(--ink-soft);
+  font-size: 14px;
+}
+
+/* A note or value that wraps on a narrow phone splits into even lines, never one word alone. */
+.weight-note,
+.weight-fact .v,
+.weight-summary-main {
+  text-wrap: balance;
+}
+
+.weight-fact .k,
+.weight-summary .k {
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+
+.weight-none {
+  font-weight: 600;
+}
+
+.weight-fact .v {
+  font-weight: 600;
+}
+
+.weight-fact .v.weight-needs,
+.weight-summary-main.weight-needs {
+  font-weight: 400;
+}
+
+/* A status sentence ("No weigh-ins in the 7 days to Sat Oct 31, 7:00 AM, when that day ended")
+   on a narrow block: it goes on its own full-width line under its name, left-aligned, instead of
+   wrapping into a thin right-aligned column. Measured on the block itself, so it holds in every look. */
+.weight-facts {
+  container-type: inline-size;
+}
+
+@container (max-width: 330px) {
+  .weight-fact.is-status {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 2px;
+  }
+
+  .weight-fact.is-status .weight-fact-v {
+    align-items: flex-start;
+    text-align: left;
+  }
+}
+
+.weight-empty {
+  color: var(--ink-soft);
+}
+
+/* The weight details. */
+.weight-summary li {
+  align-items: baseline;
+}
+
+.weight-summary-v {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  text-align: right;
+}
+
+.weight-summary-main {
+  font-weight: 600;
+}
+
+.weight-swings {
+  margin-top: var(--s2);
+}
+
+/* On an earlier day: the day the latest, the average, the trend and the chart stand at. */
+.weight-as-of {
+  margin-bottom: var(--s1);
+  color: var(--ink-soft);
+  font-size: 14px;
+}
+
+.weight-unit-pref {
+  margin-top: var(--s2);
+}
+
+.unit-options {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  max-width: 240px;
+}
+
+/* The chart is drawn for the eye only (aria-hidden); every point is in the list under it. It is laid
+   out at the width it is shown at (WeightDetails measures .weight-chart-box), so one viewBox unit is
+   one pixel and its 11px labels stay 11px on a phone and in the desktop sheet. */
+.weight-chart {
+  margin: var(--s3) 0 0;
+}
+
+.weight-chart figcaption {
+  display: block;
+}
+
+.weight-chart figcaption .section-title,
+.weight-chart-caption {
+  display: block;
+}
+
+.weight-chart-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 220px;
+  margin-top: var(--s1);
+}
+
+.weight-chart-box {
+  width: 100%;
+}
+
+.chart-grid {
+  stroke: var(--line);
+  stroke-width: 1;
+}
+
+.chart-label {
+  fill: var(--ink-soft);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.chart-average {
+  fill: none;
+  stroke: var(--ink-soft);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.chart-point {
+  fill: var(--teal);
+  stroke: var(--surface);
+  stroke-width: 1.5;
+}
+
+.weigh-in-list {
+  margin-top: 4px;
+}
+
+.weigh-in-row {
+  border-bottom: 1px solid var(--line);
+}
+
+.weigh-in-row:last-child {
+  border-bottom: 0;
+}
+
+.weigh-in-open {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px var(--s2);
+  width: 100%;
+  min-height: 48px;
+  padding: 8px 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.weigh-in-open:hover .weigh-in-when {
+  color: var(--teal-ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.weigh-in-value {
+  font-weight: 600;
+  text-align: right;
+}
+
+/* Set apart in words, never by colour alone. */
+.weigh-in-later {
+  grid-column: 1 / -1;
+  color: var(--ink-soft);
+  font-size: 14px;
+  font-style: italic;
+}
+
+.weigh-in-extra {
+  grid-column: 1 / -1;
+  color: var(--ink-soft);
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+/* The Log weight sheet's error lines are scrolled into view as they appear (WeighInSheet), clear
+   of the sticky header above and the pinned Cancel and Save bar below. */
+.weigh-in-form .field-error {
+  scroll-margin: 150px 0 96px;
+}
+
+/* The Log weight sheet: the weight and its unit side by side. */
+.weigh-in-weight {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--s2);
+  align-items: end;
+}
+
+.weigh-in-weight .unit-field {
+  margin-top: 0;
+}
+
+.weigh-in-weight .unit-options {
+  width: 168px;
+}
+
+.meal-form .weigh-in-weight-error,
+.meal-form .weigh-in-weight + .field-hint {
+  margin-top: 4px;
+}
+
+.meal-form input.weigh-in-short {
+  max-width: 160px;
+}
+
 /* ---------- previous / next (prd.md > Screens and Layout, item 10) ---------- */
 
 .day-nav {
@@ -3202,6 +3511,31 @@ details.more > summary {
   border-radius: 14px;
 }
 
+/* Weight (build-out item 2.4): the summary is a tappable band inside the tile, like a meal row,
+   with the day's figure on the left and the average and trend beside it once there is room. */
+/* The band reaches 8px past the tile's content on each side, so its own padding keeps the figure and
+   rows flush with the WEIGHT heading and with the sleep tile's rows. */
+[data-look="panel"] .weight-open {
+  grid-template-columns: minmax(0, 1fr);
+  width: calc(100% + 16px);
+  margin-inline: -8px;
+  padding: 8px;
+  border-radius: 10px;
+  transition: transform var(--t) ease-out, background-color var(--t);
+}
+
+[data-look="panel"] .weight-open:hover {
+  background: var(--teal-bg);
+}
+
+[data-look="panel"] .weight-open:active {
+  transform: perspective(600px) rotateX(5deg) scale(.985);
+}
+
+[data-look="panel"] .weight-figure {
+  font-size: 28px;
+}
+
 /* Sheets: rounder corners, to match the tiles. */
 [data-look="panel"] .sheet {
   border-radius: 20px 20px 0 0;
@@ -3285,7 +3619,7 @@ details.more > summary {
   [data-look="panel"] .dash-col + .dash-col {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    grid-template-rows: auto auto auto auto 1fr;
+    grid-template-rows: auto auto auto auto auto 1fr;
     align-items: start;
     gap: 12px var(--s2);
   }
@@ -3296,23 +3630,29 @@ details.more > summary {
 
   [data-look="panel"] .dash-col + .dash-col > .section {
     grid-column: 1;
-    grid-row: 2 / span 4;
+    grid-row: 2 / span 5;
   }
 
-  /* Build-out item 2.5a: the day's workouts head the second column, above sleep. */
+  /* Build-out item 2.5a: the day's workouts head the second column, above weight and sleep. */
   [data-look="panel"] .dash-col + .dash-col > .section.workout-section {
     grid-column: 2;
     grid-row: 2;
   }
 
-  [data-look="panel"] .dash-col + .dash-col > .sleep-section {
+  /* Weight (build-out item 2.4) comes before sleep, as it does on a phone; the day controls under them. */
+  [data-look="panel"] .dash-col + .dash-col > .weight-section {
     grid-column: 2;
     grid-row: 3;
   }
 
-  [data-look="panel"] .dash-col + .dash-col > .day-nav {
+  [data-look="panel"] .dash-col + .dash-col > .sleep-section {
     grid-column: 2;
     grid-row: 4;
+  }
+
+  [data-look="panel"] .dash-col + .dash-col > .day-nav {
+    grid-column: 2;
+    grid-row: 5;
   }
 }
 
@@ -3768,6 +4108,36 @@ details.more > summary {
   border-top: 1px solid var(--line);
 }
 
+/* Weight (build-out item 2.4): a big, thin figure like the headline's, but smaller, so the calories
+   stay the largest number; the average and trend on their own lines under it. */
+[data-look="night"] .weight-section {
+  padding-top: var(--s3);
+}
+
+/* Room under Log weight for its 44 px tap layer, clear of the framed summary below it. */
+[data-look="night"] .weight-head {
+  margin-bottom: var(--s1);
+}
+
+[data-look="night"] .weight-figure {
+  font-size: 32px;
+  font-weight: 300;
+  letter-spacing: -.01em;
+}
+
+/* The summary, and the empty state in its place, sit in one framed block on the 8 px rhythm. */
+[data-look="night"] .weight-open,
+[data-look="night"] .weight-empty {
+  padding: var(--s1) var(--s2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+[data-look="night"] .weight-open:hover {
+  border-color: var(--line-strong);
+}
+
 [data-look="night"] .action-bar .btn {
   min-height: 48px;
 }
@@ -3880,7 +4250,8 @@ details.more > summary {
   [data-look="panel"] .meal-open:active,
   [data-look="panel"] .range-summary:active,
   [data-look="panel"] .improve-btn:active,
-  [data-look="panel"] .action-bar .btn:active {
+  [data-look="panel"] .action-bar .btn:active,
+  [data-look="panel"] .weight-open:active {
     transform: none;
   }
 }

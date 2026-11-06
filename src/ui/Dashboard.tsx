@@ -49,6 +49,8 @@ import { SleepSection } from './SleepSection'
 import type { EditTarget } from './sleepEdit'
 import type { SleepAction, SleepView } from './sleepView'
 import { WorkoutSection } from './WorkoutList'
+import { WeightSection } from './WeightSection'
+import type { WeightView } from './weightView'
 
 interface DashboardProps {
   kind: LogKind
@@ -86,6 +88,10 @@ interface DashboardProps {
   onEditNight: (target: EditTarget) => void
   /** Opens the editor on a new, missed night. */
   onAddNight: () => void
+  /** The viewed day's weight (build-out item 2.4), the weight details, and Log weight. */
+  weight: WeightView
+  onOpenWeight: () => void
+  onLogWeight: () => void
   nav: DayNavState
   onPrev: () => void
   onNext: () => void
@@ -140,6 +146,9 @@ export function Dashboard(props: DashboardProps) {
   const editRecord = (recordId: string) => props.onEditNight({ kind: 'edit', recordId })
   const sleepSection = (
     <SleepSection sleep={sleep} today={nav.today} nowIso={props.nowIso} onEditNight={editRecord} onAddNight={props.onAddNight} />
+  )
+  const weightSection = (
+    <WeightSection weight={props.weight} today={nav.today} onOpen={props.onOpenWeight} onLog={props.onLogWeight} />
   )
 
   return (
@@ -352,6 +361,9 @@ export function Dashboard(props: DashboardProps) {
             onOpenWorkout={props.onOpenWorkout}
             onLogWorkout={props.onLogWorkout}
           />
+
+          {/* Build-out item 2.4: the day's weigh-in with the 7-day average and the trend. */}
+          {weightSection}
 
           {!night && sleepSection}
 

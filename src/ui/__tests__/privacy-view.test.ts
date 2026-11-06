@@ -11,11 +11,12 @@ const SAM: LogSummary = {
   workouts: 1,
   plates: 1,
   savedMeals: 0,
+  weighIns: 0,
   first: '2026-10-28T07:40:00-04:00',
   last: '2026-11-03T23:30:00+00:00',
 }
 
-const EMPTY: LogSummary = { name: '', meals: 0, nights: 0, workouts: 0, plates: 0, savedMeals: 0, first: null, last: null }
+const EMPTY: LogSummary = { name: '', meals: 0, nights: 0, workouts: 0, plates: 0, savedMeals: 0, weighIns: 0, first: null, last: null }
 const NONE = { backups: 0, original: false }
 
 describe('privacy panel words', () => {
@@ -37,6 +38,13 @@ describe('privacy panel words', () => {
     expect(holdsText({ ...EMPTY, savedMeals: 1 })).toBe('0 meals, 0 nights of sleep and 1 saved meal')
     expect(hasContent({ ...EMPTY, savedMeals: 1 })).toBe(true)
     expect(deleteItems({ ...EMPTY, savedMeals: 3 }, null, NONE)).toContain('3 saved meals')
+  })
+
+  it('counts weigh-ins (build-out item 2.4) only when there are some', () => {
+    expect(holdsText({ ...SAM, weighIns: 1 })).toBe('6 meals, 3 nights of sleep, 1 workout, 1 saved plate and 1 weigh-in')
+    expect(holdsText({ ...EMPTY, weighIns: 10 })).toBe('0 meals, 0 nights of sleep and 10 weigh-ins')
+    expect(hasContent({ ...EMPTY, weighIns: 1 })).toBe(true)
+    expect(deleteItems({ ...EMPTY, weighIns: 4 }, null, NONE)).toContain('4 weigh-ins')
   })
 
   it('gives the span in local dates (Toronto: 23:30 UTC on Nov 3 is 18:30 on Nov 3)', () => {

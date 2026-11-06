@@ -311,6 +311,27 @@ describe('what moves', () => {
     ])
   })
 
+  it('a weigh-in moves with a corrected wake: weighed at 7:30, wake changed from 7:20 to 7:40', () => {
+    // Build-out item 2.4: weigh-ins belong to waking days by the meals' rule, so the move warning
+    // lists one even when no meal or workout moves. It is named by its weight, in the unit shown.
+    const weighed: LogDoc = {
+      ...DOC,
+      meals: DOC.meals.filter((m) => m.id !== 'm5' && m.id !== 'm6'),
+      weighIns: [{ id: 'wi1', at: '2026-11-05T07:30:00-05:00', kg: 79.37866475, unit: 'lb' }],
+    }
+    const c = checkNight(weighed, { kind: 'edit', recordId: 'n3' }, draft('2026-11-04', '11:10 pm', '2026-11-05', '7:40'), NOW)
+    expect(c.save?.moves).toEqual([
+      { from: N3.wake, to: N1.wake, entries: [{ kind: 'weigh-in', id: 'wi1', name: '175.0\u00a0lb', at: '2026-11-05T07:30:00-05:00', kcal: null }] },
+    ])
+    // The log's unit preference names it in kg instead.
+    const inKg = checkNight({ ...weighed, settings: { weightUnit: 'kg' } }, { kind: 'edit', recordId: 'n3' }, draft('2026-11-04', '11:10 pm', '2026-11-05', '7:40'), NOW)
+    expect(inKg.save?.moves[0].entries[0].name).toBe('79.4\u00a0kg')
+    // Deleting the night moves it too.
+    expect(deleteNight(weighed, 'n3').moves[0].entries.map((e) => e.kind)).toEqual(['weigh-in'])
+    // A log saved before weigh-ins existed has none to move.
+    expect(deleteNight(DOC, 'n3').moves[0].entries.map((e) => e.kind)).toEqual(['meal', 'meal'])
+  })
+
   it('deleting a night joins its day to the one before: Thursday’s entries move to Tue’s day', () => {
     const d = deleteNight(DOC, 'n3')
     expect(d.sleeps).toEqual([N1])

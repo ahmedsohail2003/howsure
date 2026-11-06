@@ -27,6 +27,7 @@ export function changeLines(c: DemoChanges): string[] {
     c.bodyChanged ? t.bodyChanged : null,
     c.savedMealsChanged ? t.savedMealsChanged : null,
     c.workoutsChanged ? t.workoutsChanged : null,
+    c.weighInsChanged ? t.weighInsChanged : null,
     c.otherChanged ? t.otherChanged : null,
   ].filter((l): l is string => l !== null)
 }

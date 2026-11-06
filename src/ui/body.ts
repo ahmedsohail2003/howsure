@@ -5,11 +5,13 @@
 
 import { ACTIVITY_LEVELS, DEFAULT_ACTIVITY, yearsSince, type ActivityLevel, type BodySex } from '../kernel/energy'
 import { parseAmount } from '../kernel/parse'
+import { LB_TO_KG } from '../kernel/weight'
 import type { BodyDetails, LogDoc, Profile } from '../store/log'
 import { copy } from './copy'
 
 export const CM_PER_INCH = 2.54
-export const KG_PER_LB = 0.45359237
+/** kg in one pound, exactly: the kernel's constant (kernel/weight.ts), so there is one. */
+export const KG_PER_LB = LB_TO_KG
 
 export const AGE_MIN = 18
 export const AGE_MAX = 120

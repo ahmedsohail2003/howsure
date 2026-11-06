@@ -12,7 +12,7 @@
 // the keys to use (default: this build's namespace, keys.ts).
 
 import type { LogKind } from '../clock'
-import type { Meal, SleepRecord } from '../kernel/types'
+import type { Meal, SleepRecord, WeighIn } from '../kernel/types'
 import { backupKey, storageKeys, type StorageKeys } from './keys'
 import type { LogDoc, SavedMeal } from './log'
 import { MIGRATIONS, upgradeDoc, versionOf, type Migrations } from './migrations'
@@ -142,7 +142,7 @@ export function parseLogText(raw: string, migrations: Migrations = MIGRATIONS): 
     return { status: 'unreadable', reason: first ? `${first.path.join('.')}: ${first.message}` : 'invalid' }
   }
   const { version: _version, ...rest } = parsed.data
-  const { savedMeals, ...others } = rest
+  const { savedMeals, weighIns, ...others } = rest
   const doc: LogDoc = {
     ...others,
     meals: rest.meals as Meal[],
@@ -150,6 +150,8 @@ export function parseLogText(raw: string, migrations: Migrations = MIGRATIONS): 
   }
   // Only when the document has them, so a log saved before build-out item 2.3 reads back unchanged.
   if (savedMeals !== undefined) doc.savedMeals = savedMeals as SavedMeal[]
+  // The same for weigh-ins (build-out item 2.4).
+  if (weighIns !== undefined) doc.weighIns = weighIns as WeighIn[]
   return up.status === 'current' ? { status: 'ok', doc } : { status: 'ok', doc, upgradedFrom: up.from }
 }
 

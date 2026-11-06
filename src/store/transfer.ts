@@ -179,7 +179,9 @@ export interface LogSummary {
   plates: number
   /** Meals saved as usual (build-out item 2.3). */
   savedMeals: number
-  /** The earliest and latest time in the log (meals and sleep), as stored; null when it has none. */
+  /** Weigh-ins (build-out item 2.4). */
+  weighIns: number
+  /** The earliest and latest time in the log (meals, sleep and weigh-ins), as stored; null when it has none. */
   first: string | null
   last: string | null
 }
@@ -192,6 +194,7 @@ export function summarize(doc: LogDoc): LogSummary {
     if (s.sleepStart) times.push(s.sleepStart)
     if (s.wake) times.push(s.wake)
   }
+  for (const w of doc.weighIns ?? []) times.push(w.at)
   let first: string | null = null
   let last: string | null = null
   for (const t of times) {
@@ -207,6 +210,7 @@ export function summarize(doc: LogDoc): LogSummary {
     workouts: doc.workouts.length,
     plates: doc.plates.length,
     savedMeals: doc.savedMeals?.length ?? 0,
+    weighIns: doc.weighIns?.length ?? 0,
     first,
     last,
   }

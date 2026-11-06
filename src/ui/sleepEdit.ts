@@ -6,18 +6,20 @@
 //   - The order check is the kernel's validateSleep(); each problem is put next to the field it is
 //     about, in plain words.
 //   - Before an edit, a new night or a deletion changes which waking day an entry (a meal, or any
-//     other dated entry such as a workout) belongs to, movesBetween() lists what moves, from which
-//     day to which day. Nothing moves, nothing is listed.
+//     other dated entry: a workout or a weigh-in) belongs to, movesBetween() lists what moves, from
+//     which day to which day. Nothing moves, nothing is listed.
 // Pure: no React, no storage, no clock reads (now is passed in).
 
 import { parseClockTime } from '../kernel/parse'
 import { movedBy, validateSleep, wakingDayStart } from '../kernel/sleepday'
 import type { SleepProblem, SleepRecord } from '../kernel/types'
+import { sortedWeighIns } from '../kernel/weight'
 import type { LogDoc } from '../store/log'
 import { copy } from './copy'
 import { fromLocalInput, toLocalInput } from './editMeal'
 import { fmtTime, fmtWeekday, fmtWeekdayDate, fmtWeekdayDateTime, fmtWeekdayTime } from './format'
 import { fmtClockMinutes, fmtDuration, newSleepId, nightGoneBySince, nightRangeText, problemText } from './sleepView'
+import { fmtWeight, weightUnitOf } from './weightView'
 
 /** One time as typed: a date field ("2026-11-05") and a time field ("8", "8:00 AM"). */
 export interface WhenDraft {
@@ -194,11 +196,12 @@ export function nightSinceMissing(sleeps: SleepRecord[], r: SleepRecord, nowIso:
 
 /** An entry whose waking day would change. */
 export interface MovedEntry {
-  kind: 'meal' | 'workout'
+  kind: 'meal' | 'workout' | 'weigh-in'
   id: string
+  /** A meal's or workout's name; a weigh-in's weight ("78.6 kg"), in the unit weights are shown in. */
   name: string
   at: string
-  /** A meal's calories (null when unknown); always null for a workout. */
+  /** A meal's calories (null when unknown); always null for a workout or a weigh-in. */
   kcal: number | null
 }
 
@@ -209,13 +212,25 @@ export interface MoveGroup {
   entries: MovedEntry[]
 }
 
-/** The parts of a log whose entries have a date and time. */
-export type DatedLog = Pick<LogDoc, 'meals' | 'workouts'>
+/** The parts of a log whose entries have a date and time (`settings` picks the unit weigh-ins are named in). */
+export type DatedLog = Pick<LogDoc, 'meals' | 'workouts'> & Partial<Pick<LogDoc, 'weighIns' | 'settings'>>
 
-/** Every dated entry in the log: meals and workouts. */
+/** Every dated entry in the log: meals, workouts and weigh-ins. */
 function datedEntries(doc: DatedLog): MovedEntry[] {
   const meals: MovedEntry[] = doc.meals.map((m) => ({ kind: 'meal', id: m.id, name: m.name, at: m.eatenAt, kcal: m.kcal }))
-  return [...meals, ...workoutEntries(doc.workouts)]
+  return [...meals, ...workoutEntries(doc.workouts), ...weighInEntries(doc)]
+}
+
+/**
+ * The log's weigh-ins as dated entries, each named by its weight in the unit weights are shown in
+ * (weightView.ts > weightUnitOf). A weigh-in belongs to a waking day by the meals' rule, so a wake
+ * moved past it moves it too (weighed at 7:30, wake corrected from 7:00 to 7:40).
+ */
+export function weighInEntries(doc: Partial<Pick<LogDoc, 'weighIns' | 'settings'>>): MovedEntry[] {
+  const weighIns = sortedWeighIns(doc.weighIns ?? [])
+  if (weighIns.length === 0) return []
+  const unit = weightUnitOf({ settings: doc.settings, weighIns })
+  return weighIns.map((w) => ({ kind: 'weigh-in', id: w.id, name: fmtWeight(w.kg, unit), at: w.at, kcal: null }))
 }
 
 /**

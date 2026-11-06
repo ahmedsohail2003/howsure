@@ -146,6 +146,22 @@ export const bodySchema = z.looseObject({
   activity: z.enum(['sitting', 'light', 'moderate']).optional(),
 })
 
+/**
+ * A weigh-in (build-out item 2.4; spec.md > Data Model: `{ id, at, kg }`). Every other field is
+ * optional, so a weigh-in saved as `{ id, at, kg }` (fixtures/saved/v1-mine.json) loads and saves
+ * back unchanged.
+ */
+export const weighInSchema = z.looseObject({
+  id: z.string().min(1),
+  at: isoWithOffset,
+  kg: z.number().positive(),
+  unit: z.enum(['kg', 'lb']).optional(),
+  bodyFatPct: z.number().gt(0).lt(100).optional(),
+  note: z.string().optional(),
+  timeApproximate: z.boolean().optional(),
+  imported: z.looseObject({}).optional(),
+})
+
 export const profileSchema = z.looseObject({
   name: z.string(),
   kind: z.enum(['guest', 'demo']),
@@ -177,9 +193,12 @@ export const logDocSchema = z.looseObject({
   // Tier 2: workouts (slice 10, build-out item 2.5a). Plates (slice 11) are carried through untouched until then.
   workouts: z.array(workoutSchema),
   plates: z.array(z.looseObject({ id: z.string() })),
-  settings: z.looseObject({}).optional(),
+  // weightUnit (build-out item 2.4): how weights are shown, and the unit the weigh-in sheet starts in.
+  settings: z.looseObject({ weightUnit: z.enum(['kg', 'lb']).optional() }).optional(),
   // Build-out item 2.3: optional, so a log saved before it loads unchanged (no version bump).
   savedMeals: z.array(savedMealSchema).optional(),
+  // Build-out item 2.4: optional for the same reason.
+  weighIns: z.array(weighInSchema).optional(),
   clock: clockSchema.optional(),
 })
 

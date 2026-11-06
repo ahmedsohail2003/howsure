@@ -6,7 +6,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { nowIso, reanchorDemoClock, type LogKind } from '../clock'
 import { sleepStatus, wakingDayStart } from '../kernel/sleepday'
-import type { Meal, SleepRecord, Workout } from '../kernel/types'
+import type { Meal, SleepRecord, WeighIn, WeightUnit, Workout } from '../kernel/types'
 import { demoChanges, isDemoEdited, pristineDemo, type DemoChanges } from '../store/demoReset'
 import { emptyLog, startDemo, type BodyDetails, type LogDoc } from '../store/log'
 import { DEFAULT_LOOK, saveLook, type Look } from '../store/look'
@@ -71,6 +71,10 @@ import { canSetWake } from './wakeSet'
 import { WorkoutDetails } from './WorkoutDetails'
 import { WorkoutListSheet } from './WorkoutList'
 import { WorkoutSheet } from './WorkoutSheet'
+import { WeighInSheet } from './WeighInSheet'
+import { unitToRemember, withoutWeighIn, withWeighIn, withWeightUnit } from './weighInEdit'
+import { WeightDetails } from './WeightDetails'
+import { buildWeightView } from './weightView'
 
 type SheetState =
   | ExplainMode
@@ -106,6 +110,10 @@ type SheetState =
   | { mode: 'body'; from: 'profile' | 'more' | 'dashboard' }
   // Build-out item 2.2: the sleep and wake editor, on one night or a new (missed) one.
   | { mode: 'sleepEdit'; target: EditTarget }
+  // Build-out item 2.4: the weight details, and Log weight (id null) or a weigh-in's edit sheet.
+  // Closing the sheet goes back to where it was opened from: the details or the dashboard.
+  | { mode: 'weight'; focusId?: string | null }
+  | { mode: 'weighIn'; id: string | null; from: 'dashboard' | 'weight'; startAt: string }
 
 /**
  * The one-line confirmation of the last action: under the header (Reset demo), or in the action
@@ -205,6 +213,8 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
   const viewedStart = nav ? (nav.days[nav.index] ?? null) : null
   // `tick` is read so the current day is recomputed as time passes.
   const view = useMemo(() => (doc && nav ? buildDayViewFor(doc, viewedStart) : null), [doc, nav !== null, viewedStart, tick])
+  // The viewed day's weight (build-out item 2.4), worked out once for the dashboard and the details.
+  const weight = useMemo(() => (doc && at && nav ? buildWeightView(doc, viewedStart, at) : null), [doc, nav !== null, viewedStart, tick])
   // The older copies the panel offers, counted when it opens and after Delete or Import change
   // your own log (not on every render: it scans the device's keys).
   const profileOpen = sheet?.mode === 'profile'
@@ -408,6 +418,9 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
       case 'body':
         setSheet({ mode: 'body', from: 'more' })
         return
+      case 'weight':
+        setSheet({ mode: 'weight' })
+        return
       case 'look':
         setSheet({ mode: 'look' })
         return
@@ -479,6 +492,40 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
     else update(withSavedMeal(doc, savedFromMeal(meal, name, newSavedMealId(), nowIso(active))))
   }
 
+  /** Log weight: a blank weigh-in dated now, or on the viewed waking day when that isn't today's. */
+  function openLogWeight(from: 'dashboard' | 'weight') {
+    if (!doc || !view || !at) return
+    setSheet({ mode: 'weighIn', id: null, from, startAt: defaultMealTime(doc.sleeps, view.dayStart, at) })
+  }
+
+  /** Back to where the weigh-in sheet was opened from; in the details, focus goes back to the row opened. */
+  function closeWeighIn(from: 'dashboard' | 'weight', id: string | null) {
+    setSheet(from === 'weight' ? { mode: 'weight', focusId: id } : null)
+  }
+
+  /**
+   * Save a weigh-in (new or edited). A new weigh-in's unit, or one changed while editing, becomes
+   * how weights are shown (settings.weightUnit). The dashboard shows the current day, or the day on screen.
+   */
+  function saveWeighIn(w: WeighIn, original: WeighIn | null, from: 'dashboard' | 'weight') {
+    if (!doc || !weight) return
+    const saved = withWeighIn(doc, w)
+    const unit = unitToRemember(w, original, weight.unit)
+    update(unit === null ? saved : withWeightUnit(saved, unit))
+    closeWeighIn(from, original?.id ?? null)
+  }
+
+  function deleteWeighIn(id: string, from: 'dashboard' | 'weight') {
+    if (!doc) return
+    update(withoutWeighIn(doc, id))
+    closeWeighIn(from, null)
+  }
+
+  /** The weight details' unit choice: how weights are shown. Nothing stored is converted. */
+  function setWeightUnit(unit: WeightUnit) {
+    if (doc) update(withWeightUnit(doc, unit))
+  }
+
   /** Closing Saved meals goes back to where it was opened from: Log a meal, a meal's details, or the dashboard. */
   function closeSavedMeals(from: 'more' | 'logMeal' | 'details', mealId?: string) {
     if (from === 'logMeal') openLogMeal()
@@ -490,7 +537,7 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
     <StorageNotice blocked={!storageOk} problem={active !== null ? problems[active] : null} canExport={active === 'mine'} />
   )
 
-  if (!active || !doc || !view || !at || !nav) {
+  if (!active || !doc || !view || !at || !nav || !weight) {
     return (
       <LookContext.Provider value={lookState}>
         {notice}
@@ -528,6 +575,8 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
   const workoutDetails = sheet?.mode === 'workout' ? findWorkout(sheet.workoutId) : undefined
   const editingWorkout =
     sheet?.mode === 'newWorkout' ? sheet.workout : sheet?.mode === 'editWorkout' ? findWorkout(sheet.workoutId) : undefined
+  const weighIn = sheet?.mode === 'weighIn' ? sheet : null
+  const editingWeighIn = weighIn?.id ? (doc.weighIns ?? []).find((w) => w.id === weighIn.id) : undefined
   return (
     <LookContext.Provider value={lookState}>
       {demo && <FictionalBanner sticky />}
@@ -548,6 +597,9 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
         onOpenWorkout={(workoutId) => setSheet({ mode: 'workout', workoutId })}
         onLogWorkout={openLogWorkout}
         sleep={buildSleepView(doc.sleeps, viewedStart)}
+        weight={weight}
+        onOpenWeight={() => setSheet({ mode: 'weight' })}
+        onLogWeight={() => openLogWeight('dashboard')}
         onSleepAction={(action) => setSheet({ mode: 'sleepTime', action })}
         onEditNight={(target) => setSheet({ mode: 'sleepEdit', target })}
         onAddNight={() => setSheet({ mode: 'sleepEdit', target: { kind: 'add', wakeDate: missedWakeDate(doc.sleeps, viewedStart, at) } })}
@@ -673,6 +725,32 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
           }
         />
       )}
+      {sheet?.mode === 'weight' && (
+        <WeightDetails
+          weight={weight}
+          demo={demo}
+          onClose={() => setSheet(null)}
+          onLog={() => openLogWeight('weight')}
+          onEdit={(id) => setSheet({ mode: 'weighIn', id, from: 'weight', startAt: at })}
+          onUnit={setWeightUnit}
+          focusId={sheet.focusId ?? null}
+        />
+      )}
+      {weighIn && (weighIn.id === null || editingWeighIn) && (
+        <WeighInSheet
+          key={weighIn.id ?? 'new'}
+          existing={editingWeighIn ?? null}
+          startAt={weighIn.startAt}
+          startsOnEarlierDay={weighIn.id === null && weight.asOfDay !== null}
+          unit={weight.unit}
+          sleeps={doc.sleeps}
+          nowIso={at}
+          demo={demo}
+          onSave={(w) => saveWeighIn(w, editingWeighIn ?? null, weighIn.from)}
+          onDelete={(id) => deleteWeighIn(id, weighIn.from)}
+          onClose={() => closeWeighIn(weighIn.from, weighIn.id)}
+        />
+      )}
       {sheet?.mode === 'savedMeals' && (
         <SavedMealsSheet
           saved={doc.savedMeals ?? []}
@@ -701,6 +779,8 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
           sleeps={doc.sleeps}
           meals={doc.meals}
           workouts={doc.workouts}
+          weighIns={doc.weighIns}
+          settings={doc.settings}
           nowIso={at}
           demo={demo}
           onSave={saveWake}
@@ -729,6 +809,8 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
           sleeps={doc.sleeps}
           meals={doc.meals}
           workouts={doc.workouts}
+          weighIns={doc.weighIns}
+          settings={doc.settings}
           nowIso={at}
           dayStart={nav.current}
           demo={demo}

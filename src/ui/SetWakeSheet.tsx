@@ -2,16 +2,18 @@
 // set). Two steps:
 //   1. the time: today or yesterday, and a time that starts at 7:00 AM (wakeSet.ts). A time later
 //      than now, or one that clashes with a recorded sleep, shows inline and nothing is saved;
-//   2. the regroup preview, when the log has meals: which meals fall into the day the new wake
+//   2. the regroup preview, when the log has entries: which meals fall into the day the new wake
 //      starts (today, after Save) and which stay earlier, each with its own date, time and
 //      calories, and each list's calories counted as the headline counts them. Save applies it;
 //      Change the time goes back; Cancel, Close or Esc changes nothing.
 // Enter in the time step submits it (the footer button is the form's submit button).
 // Build-out item 2.2: the time field takes shorthand ("8", "8am", "20:30"; TimeTextInput), read
 // the same way as in the sleep and wake editor, and the line under it shows AM or PM back.
-// Workouts are listed with the meals, as the editor's move warning lists them; each list's
-// calories still count meals only, as the headline does.
-// With no meals or workouts logged there is nothing to regroup, so step 1 saves directly.
+// Workouts and weigh-ins (build-out item 2.4) are listed with the meals, as the editor's move
+// warning lists them; each list's calories still count meals only, as the headline does.
+// With no meals, workouts or weigh-ins logged there is nothing to regroup, so step 1 saves directly.
+// The preview's words name what it lists: the meal wording when the log holds only meals, otherwise
+// "entries" and the kinds there are ("your weigh-ins fall into these days").
 
 import { useId, useMemo, useState } from 'react'
 import { parseClockTime } from '../kernel/parse'
@@ -22,10 +24,11 @@ import { TimesTogether } from './KeepTogether'
 import { Sheet } from './Sheet'
 import { problemText } from './sleepView'
 import { TimeTextInput } from './WhenField'
-import { ambiguityTip, workoutEntries, type DatedLog, type MovedEntry } from './sleepEdit'
+import { ambiguityTip, weighInEntries, workoutEntries, type DatedLog, type MovedEntry } from './sleepEdit'
 import {
   defaultWakeDay,
   defaultWakeLabel,
+  joinKinds,
   regroupForWake,
   regroupTotal,
   wakeDates,
@@ -38,6 +41,9 @@ interface SetWakeSheetProps {
   meals: Meal[]
   /** The log's workouts: dated entries that change day with the meals. */
   workouts: DatedLog['workouts']
+  /** The log's weigh-ins, which change day too, and its settings (the unit they are named in). */
+  weighIns?: DatedLog['weighIns']
+  settings?: DatedLog['settings']
   /** The log's now: the latest time allowed, and where today and yesterday are counted from. */
   nowIso: string
   demo: boolean
@@ -47,7 +53,7 @@ interface SetWakeSheetProps {
   onClose: () => void
 }
 
-export function SetWakeSheet({ sleeps, meals, workouts, nowIso, demo, onSave, onAddNight, onClose }: SetWakeSheetProps) {
+export function SetWakeSheet({ sleeps, meals, workouts, weighIns, settings, nowIso, demo, onSave, onAddNight, onClose }: SetWakeSheetProps) {
   const id = useId()
   const [day, setDay] = useState<WakeDay>(() => defaultWakeDay(nowIso))
   const [time, setTime] = useState(defaultWakeLabel)
@@ -56,8 +62,8 @@ export function SetWakeSheet({ sleeps, meals, workouts, nowIso, demo, onSave, on
   const dates = wakeDates(nowIso)
   const iso = wakeIso(nowIso, day, time)
   const result = useMemo(
-    () => regroupForWake(meals, sleeps, iso, nowIso, undefined, workouts),
-    [meals, sleeps, iso, nowIso, workouts],
+    () => regroupForWake(meals, sleeps, iso, nowIso, undefined, workouts, { weighIns, settings }),
+    [meals, sleeps, iso, nowIso, workouts, weighIns, settings],
   )
   const typed = parseClockTime(time)
   const error = !tried
@@ -68,7 +74,17 @@ export function SetWakeSheet({ sleeps, meals, workouts, nowIso, demo, onSave, on
         ? problemText(result.problem)
         : null
   // Anything dated to regroup: then Next shows the preview first.
-  const hasEntries = meals.length > 0 || workoutEntries(workouts).length > 0
+  const hasWorkouts = workoutEntries(workouts).length > 0
+  const hasWeighIns = weighInEntries({ weighIns }).length > 0
+  const hasEntries = meals.length > 0 || hasWorkouts || hasWeighIns
+  // The preview's words name what the log holds: "meals" alone keeps the meal wording; with
+  // workouts or weigh-ins it says "entries" and names each kind ("meals and weigh-ins").
+  const onlyMeals = !hasWorkouts && !hasWeighIns
+  const kinds = joinKinds([
+    ...(meals.length > 0 ? [copy.setWake.kindMeals] : []),
+    ...(hasWorkouts ? [copy.setWake.kindWorkouts] : []),
+    ...(hasWeighIns ? [copy.setWake.kindWeighIns] : []),
+  ])
   const formId = `${id}-form`
   const hintId = `${id}-hint`
   // The hint names the filled-in time; it shows only while the field still holds it.
@@ -105,27 +121,29 @@ export function SetWakeSheet({ sleeps, meals, workouts, nowIso, demo, onSave, on
       </div>
     )
     return (
-      <Sheet key="preview" title={copy.setWake.previewTitle} demo={demo} onClose={onClose} testId="regroup-preview" footer={footer}>
+      <Sheet key="preview" title={onlyMeals ? copy.setWake.previewTitle : copy.setWake.previewTitleEntries} demo={demo} onClose={onClose} testId="regroup-preview" footer={footer}>
         <div className="confirm-body">
-          <p>{copy.setWake.previewIntro(when)}</p>
+          <p data-testid="regroup-intro">{onlyMeals ? copy.setWake.previewIntro(when) : copy.setWake.previewIntroKinds(when, kinds)}</p>
         </div>
         <RegroupGroup
           testId="regroup-moving"
           title={copy.setWake.todayFrom(when)}
           meals={result.moving}
-          workouts={result.movingWorkouts}
+          others={[...result.movingWorkouts, ...result.movingWeighIns]}
+          none={onlyMeals ? copy.setWake.none : copy.setWake.noneEntries}
         />
-        {result.staying.length + result.stayingWorkouts.length > 0 && (
+        {result.staying.length + result.stayingWorkouts.length + result.stayingWeighIns.length > 0 && (
           <RegroupGroup
             testId="regroup-staying"
             title={copy.setWake.earlier}
             note={copy.setWake.earlierNote}
             meals={result.staying}
-            workouts={result.stayingWorkouts}
+            others={[...result.stayingWorkouts, ...result.stayingWeighIns]}
+            none={onlyMeals ? copy.setWake.none : copy.setWake.noneEntries}
           />
         )}
         <p className="field-hint regroup-keeps" data-testid="regroup-keeps">
-          {copy.setWake.keepsAll}
+          {onlyMeals ? copy.setWake.keepsAll : copy.setWake.keepsAllEntries}
         </p>
       </Sheet>
     )
@@ -221,12 +239,14 @@ interface RegroupGroupProps {
   title: string
   note?: string
   meals: Meal[]
-  /** Workouts in this list: shown with the meals in time order, outside the calories total. */
-  workouts: MovedEntry[]
+  /** Workouts and weigh-ins in this list: shown with the meals in time order, outside the calories total. */
+  others: MovedEntry[]
+  /** What an empty list says: "No meals", or "Nothing logged" when the log holds other entries. */
+  none: string
   testId: string
 }
 
-function RegroupGroup({ title, note, meals, workouts, testId }: RegroupGroupProps) {
+function RegroupGroup({ title, note, meals, others, none, testId }: RegroupGroupProps) {
   const rows = [
     ...meals.map((m) => ({
       key: `meal-${m.id}`,
@@ -237,7 +257,14 @@ function RegroupGroup({ title, note, meals, workouts, testId }: RegroupGroupProp
       word: m.kcal === null,
       testId: 'regroup-meal',
     })),
-    ...workouts.map((w) => ({ key: `workout-${w.id}`, at: w.at, name: w.name, end: copy.sleepEditor.workout, word: true, testId: 'regroup-workout' })),
+    ...others.map((e) => ({
+      key: `${e.kind}-${e.id}`,
+      at: e.at,
+      name: e.name,
+      end: e.kind === 'weigh-in' ? copy.sleepEditor.weighIn : copy.sleepEditor.workout,
+      word: true,
+      testId: e.kind === 'weigh-in' ? 'regroup-weigh-in' : 'regroup-workout',
+    })),
   ].sort((a, b) => Date.parse(a.at) - Date.parse(b.at))
   return (
     <section className="regroup-group" data-testid={testId}>
@@ -253,7 +280,7 @@ function RegroupGroup({ title, note, meals, workouts, testId }: RegroupGroupProp
       </div>
       {note && <p className="field-hint regroup-note">{note}</p>}
       {rows.length === 0 ? (
-        <p className="regroup-none">{copy.setWake.none}</p>
+        <p className="regroup-none">{none}</p>
       ) : (
         <ul className="regroup-list">
           {rows.map((r) => (

@@ -6,7 +6,7 @@
 // Build-out item 2.2: the date and time are two fields (WhenField.tsx), and the time takes
 // shorthand, so "I woke at 8" is: I woke up, type 8, Save. Enter in either field saves (the footer
 // button is the form's submit button). What moves to the new day is shown with the editor's move
-// list (MoveList.tsx), counted the same way (sleepEdit.ts > movesBetween): meals and workouts.
+// list (MoveList.tsx), counted the same way (sleepEdit.ts > movesBetween): meals, workouts and weigh-ins.
 
 import { useId, useMemo, useState } from 'react'
 import type { Meal, SleepRecord } from '../kernel/types'
@@ -25,6 +25,9 @@ interface SleepTimeSheetProps {
   meals: Meal[]
   /** The log's workouts: dated entries that can change day too. */
   workouts: DatedLog['workouts']
+  /** The log's weigh-ins, which change day too, and its settings (the unit they are named in). */
+  weighIns?: DatedLog['weighIns']
+  settings?: DatedLog['settings']
   /** The active log's now: the default time, and (in your own log) the latest allowed. */
   nowIso: string
   /** The wake that started the current waking day, for "This closes the waking day that started …". */
@@ -34,7 +37,7 @@ interface SleepTimeSheetProps {
   onClose: () => void
 }
 
-export function SleepTimeSheet({ action, sleeps, meals, workouts, nowIso, dayStart, demo, onSave, onClose }: SleepTimeSheetProps) {
+export function SleepTimeSheet({ action, sleeps, meals, workouts, weighIns, settings, nowIso, dayStart, demo, onSave, onClose }: SleepTimeSheetProps) {
   const id = useId()
   const formId = `${id}-form`
   // What the fields were filled in with: the "Starts at now" hint shows only while they still hold it.
@@ -61,8 +64,8 @@ export function SleepTimeSheet({ action, sleeps, meals, workouts, nowIso, daySta
           : null
   const advances = demo && iso !== null && Date.parse(iso) > Date.parse(nowIso)
   const moves = useMemo(
-    () => (result.ok ? movesBetween({ meals, workouts }, sleeps, result.sleeps) : []),
-    [result, meals, workouts, sleeps],
+    () => (result.ok ? movesBetween({ meals, workouts, weighIns, settings }, sleeps, result.sleeps) : []),
+    [result, meals, workouts, weighIns, settings, sleeps],
   )
 
   function save() {

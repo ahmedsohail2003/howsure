@@ -9,7 +9,7 @@ import { copy } from './copy'
 import type { FullScreenMode } from './fullScreen'
 import { lookDef } from './looks'
 
-export type MoreEntryId = 'profile' | 'targets' | 'body' | 'savedMeals' | 'look' | 'fullScreen' | 'resetDemo'
+export type MoreEntryId = 'profile' | 'targets' | 'body' | 'savedMeals' | 'weight' | 'look' | 'fullScreen' | 'resetDemo'
 
 /** What an entry may depend on: which log is open, the full-screen view's state, the look. */
 export interface MoreContext {
@@ -54,6 +54,13 @@ export const MORE_ENTRIES: readonly MoreEntryDef[] = [
     shows: () => true,
     label: () => copy.moreMenu.savedMeals,
     hint: () => copy.moreMenu.savedMealsHint,
+  },
+  {
+    // Build-out item 2.4: the weight details (weigh-ins, the 7-day average and the trend). In both logs.
+    id: 'weight',
+    shows: () => true,
+    label: () => copy.moreMenu.weight,
+    hint: () => copy.moreMenu.weightHint,
   },
   {
     // Build-out item 1.5.2: the Look sheet. A device setting, so it shows in both logs.

@@ -18,7 +18,8 @@ const V1_DEMO = readFileSync(fixturePath('v1-demo.json'), 'utf8')
 const MINE_NOW = new Date('2026-10-28T20:00:00-04:00')
 const FILE_NAME = 'howsure-log-2026-10-28.json'
 const SAM_MEALS = ['Oats with blueberries', 'Leftover soup', 'Samosa from the office', 'Black coffee']
-const HOLDS = '6 meals, 3 nights of sleep, 1 workout and 1 saved plate'
+// Build-out item 2.4 counts the fixture's one weigh-in too.
+const HOLDS = '6 meals, 3 nights of sleep, 1 workout, 1 saved plate and 1 weigh-in'
 
 async function seed(page: Page, items: Record<string, string>) {
   await page.evaluate((entries) => {
@@ -87,6 +88,7 @@ test.describe('item 1.2: export, import and delete your own log', () => {
       '3 nights of sleep',
       '1 workout',
       '1 saved plate',
+      '1 weigh-in',
       'your guest name, targets, body details and settings',
     ])
     await expect(confirm).toContainText('The fictional demo is not affected.')

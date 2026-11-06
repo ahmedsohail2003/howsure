@@ -49,6 +49,8 @@ const SAM_SUMMARY = {
   workouts: 1,
   plates: 1,
   savedMeals: 0,
+  // One weigh-in, Thu 2026-10-29 07:30 (build-out item 2.4); it is neither the first nor the last time.
+  weighIns: 1,
   first: '2026-10-28T07:40:00-04:00',
   last: '2026-11-03T23:30:00+00:00',
 }
@@ -224,7 +226,7 @@ describe('summarize', () => {
   })
 
   it('an empty log has no times', () => {
-    expect(summarize(emptyLog())).toEqual({ name: '', meals: 0, nights: 0, workouts: 0, plates: 0, savedMeals: 0, first: null, last: null })
+    expect(summarize(emptyLog())).toEqual({ name: '', meals: 0, nights: 0, workouts: 0, plates: 0, savedMeals: 0, weighIns: 0, first: null, last: null })
   })
 })
 
@@ -476,5 +478,76 @@ describe('saved meals (build-out item 2.3) travel with the log', () => {
     for (const s of [{ ...one, name: '' }, { ...one, savedAt: '2026-10-28T20:00:00' }]) {
       expect(readImport(JSON.stringify({ ...V1_MINE, savedMeals: [s] }))).toMatchObject({ status: 'refused', problem: 'unreadable' })
     }
+  })
+})
+
+describe('weigh-ins (build-out item 2.4) travel with the log', () => {
+  /** Sam's own log with three made-up weigh-ins: one in lb with body fat, one with a note, one imported with an approximate time. */
+  function withWeighIns(): LogDoc {
+    return {
+      ...mineDoc(),
+      settings: { weightUnit: 'lb', connectorOn: false },
+      weighIns: [
+        { id: 'weigh-mine-1', at: '2026-10-29T07:30:00-04:00', kg: 72.4 },
+        { id: 'weigh-2', at: '2026-10-30T07:05:00-04:00', kg: 160 * 0.45359237, unit: 'lb', bodyFatPct: 19.5 },
+        { id: 'weigh-3', at: '2026-10-31T07:20:00-04:00', kg: 72.1, unit: 'kg', note: 'After a run' },
+        {
+          id: 'weighin-tracker-2026-11-01',
+          at: '2026-11-01T12:00:00-05:00',
+          kg: 159.2 * 0.45359237,
+          unit: 'lb',
+          timeApproximate: true,
+          imported: { date: '2026-11-01', lb: 159.2 },
+        },
+      ],
+    }
+  }
+
+  it('the frozen v1 log keeps its weigh-in as written, with no fields added', () => {
+    const read = readImport(V1_MINE_TEXT)
+    if (read.status !== 'ok') throw new Error('fixture did not import')
+    expect(read.doc.weighIns).toStrictEqual([{ id: 'weigh-mine-1', at: '2026-10-29T07:30:00-04:00', kg: 72.4 }])
+    expect(JSON.parse(serializeLog(read.doc))).toStrictEqual(V1_MINE)
+  })
+
+  it('export, delete, import keeps every weigh-in and the unit preference, field for field', () => {
+    const store = new MemoryStore()
+    expect(saveLog(withWeighIns(), store)).toBe(true)
+    const file = exportOwnLog(withWeighIns(), null, store)
+    expect(JSON.parse(file).weighIns).toHaveLength(4)
+    expect(deleteOwnLog(store).ok).toBe(true)
+    const read = readImport(file)
+    if (read.status !== 'ok') throw new Error('export did not import')
+    expect(read.doc.weighIns).toStrictEqual(withWeighIns().weighIns)
+    expect(read.doc.settings).toStrictEqual({ weightUnit: 'lb', connectorOn: false })
+    expect(read.summary.weighIns).toBe(4)
+    expect(read.summary.last).toBe('2026-11-03T23:30:00+00:00')
+    expect(replaceOwnLog(read.doc, store)).toEqual({ ok: true })
+    expect(loadLog('mine', store)).toStrictEqual({ status: 'ok', doc: withWeighIns() })
+  })
+
+  it('a log with no weigh-ins loads with none', () => {
+    const { weighIns: _w, ...rest } = V1_MINE
+    const read = readImport(JSON.stringify(rest))
+    if (read.status !== 'ok') throw new Error('did not import')
+    expect('weighIns' in read.doc).toBe(false)
+    expect(read.summary.weighIns).toBe(0)
+  })
+
+  it('refuses a weigh-in with no weight, a weight of 0, a time with no offset, an odd unit or body fat outside 0–100', () => {
+    const one = { id: 'w', at: '2026-10-29T07:30:00-04:00', kg: 72.4 }
+    const bad = [
+      { id: 'w', at: one.at },
+      { ...one, kg: 0 },
+      { ...one, kg: -70 },
+      { ...one, at: '2026-10-29T07:30:00' },
+      { ...one, unit: 'stone' },
+      { ...one, bodyFatPct: 0 },
+      { ...one, bodyFatPct: 100 },
+    ]
+    for (const w of bad) {
+      expect(readImport(JSON.stringify({ ...V1_MINE, weighIns: [w] }))).toMatchObject({ status: 'refused', problem: 'unreadable' })
+    }
+    expect(readImport(JSON.stringify({ ...V1_MINE, settings: { weightUnit: 'stone' } }))).toMatchObject({ status: 'refused' })
   })
 })

@@ -45,6 +45,10 @@ Add your age, sex (female, male, or prefer not to say), height (cm, or feet and 
 
 Your daily calorie target is a target for eating, so it is always compared with calories eaten: Journal's range bar shows net once net is the headline and leaves the target off it (the target line says it is for calories eaten), Panel's ring keeps showing eaten against the target, with net in its centre labelled "kcal net" and "Ring: eaten, 95% of 2,400" under the ring, and Night's target chip reads "for eaten". A net range with an end below 0 is written "−140 to 3,140" in every look, and Journal's bar marks where 0 falls.
 
+### Weight
+
+The dashboard's **Weight** shows the day's weigh-in (or "No weigh-in today"), the **7-day average** with how many weigh-ins it holds, and the **trend**: the slope of a straight line fitted by least squares through the last 21 days of weigh-ins, given per week. The trend shows once there are 6 weigh-ins in those 21 days, spread over at least 4 days first to last (so weighing in each morning shows it from the 6th morning); until then it says what it still needs. It describes past weigh-ins and is not a prediction. **Log weight** takes the weight in kg or lb (30 to 300 kg, the same range as Body details; a saved weight left as it is is never re-checked, so its note or time can always change), the date and time (now, unless you change it), and an optional body fat % and note. A weigh-in belongs to the waking day it was taken in, like a meal, so correcting a wake time can move it to another day; the sleep editor's move warning lists it before you save, with the meals and workouts. Weights are stored in kg (1 lb = 0.45359237 kg), each keeping the unit it was typed in, and shown in the unit you pick. Switching the unit while editing a weigh-in converts the saved weight in the box, so the stored weight stays the same; a number typed over it is read in the unit picked, and the hint under the unit says which. The estimated deficit or surplus uses the latest weigh-in up to the end of the day it counts, and its explanation names that weigh-in; the weight in Body details counts only when there is none. Tap the weight to see every weigh-in, a chart of the last 30 days (every point on it is also in the list), and how the numbers are worked out; tap a weigh-in to edit or delete it. Weigh-ins are part of your log, so Export and Import carry them. `python3 scripts/golden.py` works out golden values for the average, the trend and its span rule on its own (`fixtures/golden-weight.json`), and the unit tests check the app against them.
+
 ## How the numbers work
 
 - **Typical error per source.** Each way of knowing a meal's calories has a typical error: weighed 8%, nutrition label 10%, published menu 21%, description 41%, photo estimate 46%.
@@ -88,7 +92,7 @@ In your own log, tap your name at the top (or "Your log") to open **Profile and 
 
 ### More: targets, look and full screen
 
-**More**, at the top of the dashboard, lists the app's other places: Profile and privacy (your own log), **Targets**, **Saved meals**, **Look** and **Show full screen**.
+**More**, at the top of the dashboard, lists the app's other places: Profile and privacy (your own log), **Targets**, **Saved meals**, **Weight**, **Look** and **Show full screen**.
 
 - **Targets** holds your daily calories, protein, carbs and fat. A blank box means no target; 0 and negative numbers are refused. A target shows as a plain line beside the estimate score and under its macro. In the demo these are Sam's made-up targets, and a change stays in the demo.
 - **Look** chooses how the dashboard is drawn. Every look shows the same numbers, details and actions. **Journal**, the default, is light and warm: the two ranges sit on one labelled bar with every number also written as text, Log a meal and the sleep button stay pinned to the bottom on a phone, and a wide screen shows the day on the left and the meals and sleep on the right. The choice applies at once and is kept on this device, apart from both logs, so Export, Import and Delete leave it alone.
@@ -137,7 +141,7 @@ These are designed in `devpost/prd.md` but not built for this submission:
 - groups and leaderboards;
 - a 3-day timeline;
 - room left as foods;
-- a weight log;
+- the week view's weight row (the weight log itself is built);
 - nutrients and the processed-food share;
 - meal photos;
 - night tags;

@@ -51,8 +51,11 @@ function dayBounds(sleeps: SleepRecord[], dayStart: string | null): [number, num
   return [from, to]
 }
 
-/** The items whose time falls in the waking day, in time order. */
-function itemsForDay<T>(items: T[], timeOf: (item: T) => string, sleeps: SleepRecord[], dayStart: string | null): T[] {
+/**
+ * Anything timed, in the waking day starting at dayStart, by the meals' rule (the latest wake <= its
+ * time), in time order. Meals, workouts and weigh-ins (build-out item 2.4) are placed with it.
+ */
+export function inWakingDay<T>(items: T[], timeOf: (item: T) => string, sleeps: SleepRecord[], dayStart: string | null): T[] {
   const [from, to] = dayBounds(sleeps, dayStart)
   return items
     .filter((i) => {
@@ -68,7 +71,7 @@ function itemsForDay<T>(items: T[], timeOf: (item: T) => string, sleeps: SleepRe
  * no wake is recorded).
  */
 export function mealsForDay(meals: Meal[], sleeps: SleepRecord[], dayStart: string | null): Meal[] {
-  return itemsForDay(meals, (m) => m.eatenAt, sleeps, dayStart)
+  return inWakingDay(meals, (m) => m.eatenAt, sleeps, dayStart)
 }
 
 /**
@@ -76,7 +79,7 @@ export function mealsForDay(meals: Meal[], sleeps: SleepRecord[], dayStart: stri
  * workout belongs to the waking day it started in, like a meal), in time order.
  */
 export function workoutsForDay(workouts: Workout[], sleeps: SleepRecord[], dayStart: string | null): Workout[] {
-  return itemsForDay(workouts, (w) => w.startedAt, sleeps, dayStart)
+  return inWakingDay(workouts, (w) => w.startedAt, sleeps, dayStart)
 }
 
 /* ---------------- slice 4: status, the list of days, nights, moved meals, validation ---------------- */

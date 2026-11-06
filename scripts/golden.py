@@ -16,6 +16,8 @@ them to fixtures/golden.json, which the future tests read
 Cases E1 (resting burn) and E2 (estimated deficit or surplus), spec.md > Maths Core: Energy
 Balance (build-out item 2.5b), are computed here from the spec's words with fictional inputs and
 written to fixtures/golden-energy.json, which src/kernel/__tests__/energy.test.ts asserts.
+W1 (weight, build-out item 2.4): the 7-day average and the 21-day least-squares trend,
+written to fixtures/golden-weight.json and asserted by src/kernel/__tests__/weight.test.ts.
 
 Run from the repo root:
   python3 scripts/golden.py          check every case against the spec, and check
@@ -312,6 +314,169 @@ def g10_week():
             "daysIndependentEPercent": r4(sd_ind / avg * 100),
         },
     }
+
+
+LB_TO_KG = 0.45359237  # exactly: the international pound (1959)
+# The fewest days the trend's weigh-ins must span, first to last: daily weigh-ins qualify from the 6th.
+TREND_SPAN_DAYS = 4
+GOLDEN_WEIGHT_JSON = ROOT / "fixtures" / "golden-weight.json"
+
+
+def parse_iso(text):
+    return datetime.fromisoformat(text)
+
+
+def weigh_window(items, as_of, days):
+    """The weigh-ins in (as_of - days, as_of], oldest first."""
+    end = parse_iso(as_of).timestamp()
+    start = end - days * 86400
+    out = [w for w in items if start < parse_iso(w["at"]).timestamp() <= end]
+    return sorted(out, key=lambda w: parse_iso(w["at"]).timestamp())
+
+
+def kg_of(w):
+    return w["value"] * LB_TO_KG if w["unit"] == "lb" else w["value"]
+
+
+def least_squares_per_week(items):
+    """Slope of kg against time in days, by the textbook formula, times 7."""
+    t0 = parse_iso(items[0]["at"]).timestamp()
+    xs = [(parse_iso(w["at"]).timestamp() - t0) / 86400 for w in items]
+    ys = [kg_of(w) for w in items]
+    n = len(items)
+    mx = sum(xs) / n
+    my = sum(ys) / n
+    sxy = sum((x - mx) * (y - my) for x, y in zip(xs, ys))
+    sxx = sum((x - mx) ** 2 for x in xs)
+    return sxy / sxx * 7
+
+
+def weight_golden():
+    """prd.md > Weight Log and build-out item 2.4: the 7-day average of the weigh-ins in
+    (asOf - 7 d, asOf], and the trend: a least-squares line through the weigh-ins of the last
+    21 days, per week, only with 6 or more weigh-ins (else how many more). Sam's weigh-ins are
+    made up; two are typed in lb (1 lb = 0.45359237 kg exactly)."""
+    items = [
+        {"id": "w01", "at": "2026-09-28T07:30:00-04:00", "value": 81.0, "unit": "kg"},
+        {"id": "w02", "at": "2026-10-02T07:15:00-04:00", "value": 80.1, "unit": "kg"},
+        {"id": "w03", "at": "2026-10-05T07:40:00-04:00", "value": 176.0, "unit": "lb"},
+        {"id": "w04", "at": "2026-10-08T07:05:00-04:00", "value": 79.9, "unit": "kg"},
+        {"id": "w05", "at": "2026-10-11T08:10:00-04:00", "value": 79.4, "unit": "kg"},
+        {"id": "w06", "at": "2026-10-14T07:30:00-04:00", "value": 175.0, "unit": "lb"},
+        {"id": "w07", "at": "2026-10-15T07:25:00-04:00", "value": 79.2, "unit": "kg", "bodyFatPct": 21.5},
+        {"id": "w08", "at": "2026-10-17T07:50:00-04:00", "value": 78.9, "unit": "kg"},
+        {"id": "w09", "at": "2026-10-19T07:10:00-04:00", "value": 79.1, "unit": "kg"},
+        {"id": "w10", "at": "2026-10-21T07:35:00-04:00", "value": 78.6, "unit": "kg"},
+    ]
+
+    # Six made-up weigh-ins over 2 days (a span under 4 days: no trend), and the same six with the
+    # first moved to exactly 4 days before the last (a trend). Then 6 and 7 morning weigh-ins on
+    # days in a row, at times that drift (first to last a little under 5 and 6 days): someone who
+    # weighs in daily gets the trend from the 6th weigh-in.
+    short_span = [
+        {"id": f"s{i + 1}", "at": at, "value": v, "unit": "kg"}
+        for i, (at, v) in enumerate([
+            ("2026-10-19T07:00:00-04:00", 80.0), ("2026-10-19T21:00:00-04:00", 81.2),
+            ("2026-10-20T07:00:00-04:00", 80.3), ("2026-10-20T21:00:00-04:00", 81.0),
+            ("2026-10-21T07:00:00-04:00", 80.4), ("2026-10-21T19:00:00-04:00", 81.4),
+        ])
+    ]
+    four_day_span = [{**short_span[0], "at": "2026-10-17T19:00:00-04:00"}] + short_span[1:]
+    daily = [
+        {"id": f"d{i + 1}", "at": at, "value": v, "unit": "kg"}
+        for i, (at, v) in enumerate([
+            ("2026-10-15T08:20:00-04:00", 80.6), ("2026-10-16T07:05:00-04:00", 80.9),
+            ("2026-10-17T07:45:00-04:00", 80.2), ("2026-10-18T06:50:00-04:00", 80.4),
+            ("2026-10-19T07:30:00-04:00", 80.1), ("2026-10-20T06:40:00-04:00", 80.3),
+            ("2026-10-21T07:10:00-04:00", 79.8),
+        ])
+    ]
+
+    def case(as_of, pool=items):
+        avg_items = weigh_window(pool, as_of, 7)
+        trend_items = weigh_window(pool, as_of, 21)
+        out = {"asOf": as_of}
+        out["average"] = None if not avg_items else {
+            "kg": round(sum(kg_of(w) for w in avg_items) / len(avg_items), 9),
+            "count": len(avg_items),
+            "ids": [w["id"] for w in avg_items],
+            "label": f"average of {len(avg_items)} weigh-in{'s' if len(avg_items) != 1 else ''}",
+        }
+        span_days = 0 if not trend_items else (
+            parse_iso(trend_items[-1]["at"]).timestamp() - parse_iso(trend_items[0]["at"]).timestamp()) / 86400
+        if len(trend_items) >= 6 and span_days < TREND_SPAN_DAYS:
+            out["trend"] = {"status": "needSpan", "count": len(trend_items), "spanDays": round(span_days, 9)}
+        elif len(trend_items) >= 6:
+            rate = least_squares_per_week(trend_items)
+            out["trend"] = {"status": "ok", "count": len(trend_items),
+                            "ids": [w["id"] for w in trend_items],
+                            "kgPerWeek": round(rate, 9), "lbPerWeek": round(rate / LB_TO_KG, 9)}
+        else:
+            out["trend"] = {"status": "needMore", "count": len(trend_items),
+                            "needed": 6 - len(trend_items)}
+        return out
+
+    return {
+        "_about": ("Golden values for src/kernel/weight.ts, written by scripts/golden.py --write "
+                   "(build-out item 2.4). The person is the fictional Sam; every weigh-in is made "
+                   "up. src/kernel/__tests__/weight.test.ts asserts them."),
+        "lbToKg": LB_TO_KG,
+        "conversions": [{"lb": v, "kg": round(v * LB_TO_KG, 9)} for v in (1.0, 171.4, 175.0, 176.0)],
+        "weighIns": [{**w, "kg": round(kg_of(w), 9)} for w in items],
+        "cases": [
+            case("2026-10-21T20:00:00-04:00"),
+            # Exactly 7 days after w06: the window is open at its start, so w06 is out.
+            case("2026-10-21T07:30:00-04:00"),
+            # Early on: only 4 weigh-ins in the 21 days, so the trend needs 2 more.
+            case("2026-10-08T20:00:00-04:00"),
+            # Before any weigh-in: no average, and 6 more needed.
+            case("2026-09-01T12:00:00-04:00"),
+        ],
+        # The trend's span rule: 6 weigh-ins are enough only when first to last they cover 4 days.
+        "spanCases": [
+            {"weighIns": [{**w, "kg": round(kg_of(w), 9)} for w in pool],
+             **case(as_of, pool)}
+            for pool, as_of in (
+                (short_span, "2026-10-21T20:00:00-04:00"),
+                (four_day_span, "2026-10-21T20:00:00-04:00"),
+                (daily[:6], "2026-10-20T20:00:00-04:00"),
+                (daily, "2026-10-21T20:00:00-04:00"),
+            )
+        ],
+    }
+
+
+def check_weight(w):
+    """Hand-checked anchors for the weight golden (worked out on paper, 2026-11-05)."""
+    bad = []
+    c = w["cases"][0]
+    if c["average"]["ids"] != ["w07", "w08", "w09", "w10"] or not near(c["average"]["kg"], 78.95, 1e-9):
+        bad.append(f"7-day average {c['average']} != 78.95 from w07-w10")
+    if c["trend"]["status"] != "ok" or c["trend"]["count"] != 9:
+        bad.append(f"trend {c['trend']} should use 9 weigh-ins (w02-w10)")
+    elif not -0.6 < c["trend"]["kgPerWeek"] < -0.3:
+        bad.append(f"trend {c['trend']['kgPerWeek']} kg/week is not a gentle fall")
+    # As of 2026-10-21 07:30: w06 is exactly 7 days back (out), w10 five minutes later (out).
+    if w["cases"][1]["average"]["ids"] != ["w07", "w08", "w09"]:
+        bad.append("the 7-day window should leave out a weigh-in exactly 7 days before")
+    if w["cases"][2]["trend"] != {"status": "needMore", "count": 4, "needed": 2}:
+        bad.append(f"early trend {w['cases'][2]['trend']} != needs 2 more of 4")
+    if w["cases"][3]["average"] is not None or w["cases"][3]["trend"]["needed"] != 6:
+        bad.append("before any weigh-in there is no average and 6 are needed")
+    short, four, daily6, daily7 = w["spanCases"]
+    if short["trend"]["status"] != "needSpan" or not near(short["trend"]["spanDays"], 2.5, 1e-9):
+        bad.append(f"6 weigh-ins over 2.5 days {short['trend']} should wait for a 4-day span")
+    if four["trend"]["status"] != "ok" or four["trend"]["count"] != 6:
+        bad.append(f"6 weigh-ins spanning exactly 4 days {four['trend']} should give a trend")
+    # 6 daily weigh-ins, Oct 15 08:20 to Oct 20 06:40: 4 days 22 h 20 min.
+    if daily6["trend"]["status"] != "ok" or daily6["trend"]["count"] != 6:
+        bad.append(f"6 daily weigh-ins {daily6['trend']} should give a trend")
+    if daily7["trend"]["status"] != "ok" or daily7["trend"]["count"] != 7:
+        bad.append(f"7 daily weigh-ins {daily7['trend']} should give a trend")
+    if not near(w["conversions"][1]["kg"], 77.745732218, 1e-9):
+        bad.append(f"171.4 lb = {w['conversions'][1]['kg']} kg, expected 77.745732218")
+    FAILS.extend(("weight", [msg]) for msg in bad)
+    return bad
 
 
 def later_cases():
@@ -674,6 +839,23 @@ def main(write=False):
         if current != etext:
             FAILS.append(("golden-energy.json", [
                 f"{ENERGY_JSON.relative_to(ROOT)} is missing or out of date; run with --write"]))
+    # Weight (build-out item 2.4): the 7-day average and the 21-day trend.
+    wg = weight_golden()
+    bad_w = check_weight(wg)
+    c0 = wg["cases"][0]
+    print(f"W1    weight as of {c0['asOf']}: {c0['average']['label']} = {c0['average']['kg']:.4f} kg; "
+          f"trend {c0['trend']['kgPerWeek']:.4f} kg/week from {c0['trend']['count']} weigh-ins")
+    print(f"      vs hand check: {'OK' if not bad_w else 'MISMATCH'}")
+    wtext = json.dumps(wg, indent=2, ensure_ascii=False) + "\n"
+    if write:
+        if not FAILS:
+            GOLDEN_WEIGHT_JSON.write_text(wtext, encoding="utf-8")
+            print(f"Wrote {GOLDEN_WEIGHT_JSON.relative_to(ROOT)}")
+    else:
+        current = GOLDEN_WEIGHT_JSON.read_text(encoding="utf-8") if GOLDEN_WEIGHT_JSON.exists() else None
+        if current != wtext:
+            FAILS.append(("golden-weight.json", [
+                f"{GOLDEN_WEIGHT_JSON.relative_to(ROOT)} is missing or out of date; run with --write"]))
 
     print()
     if FAILS:
@@ -682,7 +864,8 @@ def main(write=False):
             print(f"  {case}: {'; '.join(bad)}")
         return 1
     print("All golden cases match the spec (G1, G1 improve, G2, G3, G4, G4b, G5, G11, G11b, G12,"
-          " G6, G7, G9, G10, and E1, E2), and fixtures/golden.json and fixtures/golden-energy.json are current.")
+          " G6, G7, G9, G10, E1, E2 and W1 weight), and fixtures/golden.json,"
+          " fixtures/golden-energy.json and fixtures/golden-weight.json are current.")
     return 0
 
 

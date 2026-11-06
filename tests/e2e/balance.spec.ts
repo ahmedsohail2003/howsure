@@ -339,13 +339,13 @@ for (const { id: look, name: lookName } of LOOKS) {
       await page.reload()
       await headline(page).getByTestId('balance').click()
       const explain = await opened(page, 'explain-balance')
-      await expect(explain.getByTestId('balance-weight')).toContainText('63 kg, from your weigh-in on Tue 22 Sep')
+      await expect(explain.getByTestId('balance-weight')).toContainText('63 kg, from your Tue 22 Sep weigh-in')
       await page.keyboard.press('Escape')
       await page.getByTestId('open-more').click()
       await page.getByTestId('more-body').click()
       const sheet = await opened(page, 'body-sheet')
       await expect(sheet.getByTestId('body-weighin-hint')).toHaveText(
-        'Your weigh-in on Tue 22 Sep (63 kg) is used while it is the latest. This weight counts when there is none.',
+        'Your Tue 22 Sep weigh-in (63 kg) is used while it is the latest. This weight counts when there is none.',
       )
     })
 

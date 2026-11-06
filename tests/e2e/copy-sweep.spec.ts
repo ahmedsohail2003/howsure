@@ -24,6 +24,8 @@
 // messages, the estimated deficit or surplus under the eaten and the net headline, its
 // explanation, the lines for a day with no wake time and with no known calories, and Body details
 // in Profile and privacy.
+// Build-out item 2.4: the dashboard's weight, Log weight with its messages, the weight details in
+// kg and lb, editing a weigh-in (one with no recorded time too) and its delete confirmation.
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { expect, test, type Page } from '@playwright/test'
@@ -39,6 +41,12 @@ const V1_MINE = readFileSync(fileURLToPath(new URL('../../fixtures/saved/v1-mine
 const DEMO_NOW = new Date('2026-10-22T01:30:00-04:00')
 // Sam's Wednesday 2026-10-28, 8 PM, in the own-log fixture.
 const MINE_NOW = new Date('2026-10-28T20:00:00-04:00')
+
+// Build-out item 2.4: Sam's golden weigh-ins, seen on Wed 2026-10-21 at 8 PM.
+const WEIGHT_GOLDEN = JSON.parse(readFileSync(fileURLToPath(new URL('../../fixtures/golden-weight.json', import.meta.url)), 'utf8')) as {
+  weighIns: { id: string; at: string; kg: number; unit: 'kg' | 'lb' }[]
+}
+const WEIGHT_NOW = new Date('2026-10-21T20:00:00-04:00')
 
 /** Study titles may say "accuracy" (spec.md > Screens > Copy checks). */
 const STUDY_TITLES = Object.values(SOURCES).flatMap((s) => (s.basis.cite ? [s.basis.cite] : []))
@@ -447,6 +455,119 @@ for (const { id: look, name: lookName } of LOOKS) {
       await sweep.take('own log with no wake time yet')
 
       sweep.check(15)
+    })
+
+    test('weight (build-out item 2.4): the dashboard, Log weight with its messages, the details, edit and delete', async ({ page }) => {
+      const sweep = new Sweep(page)
+      // Sam's golden weigh-ins (fixtures/golden-weight.json), one of them imported with no recorded time.
+      const weighIns = WEIGHT_GOLDEN.weighIns.map((w) => ({ id: w.id, at: w.at, kg: w.kg, unit: w.unit }))
+      weighIns[1] = { ...weighIns[1], at: '2026-10-02T12:00:00-04:00', timeApproximate: true, bodyFatPct: 22.1, note: 'From the old tracker' } as (typeof weighIns)[number]
+      const log = { version: 1, kind: 'mine', profile: { name: '', kind: 'guest' }, meals: [], sleeps: [], workouts: [], plates: [], weighIns }
+      await seedAndOpen(page, WEIGHT_NOW, { [E2E_KEYS.mine]: JSON.stringify(log), [E2E_KEYS.active]: 'mine' })
+      await expect(page.getByTestId('weight-rate')).toBeVisible()
+      await sweep.take('dashboard with a weight trend')
+
+      await page.getByTestId('log-weight').click()
+      const sheet = await opened(page, 'weigh-in-sheet')
+      await sweep.take('Log weight')
+      await sheet.getByTestId('weigh-in-weight').fill('abc')
+      await sheet.getByTestId('weigh-in-body-fat').fill('120')
+      await sheet.getByTestId('weigh-in-when').fill('2026-10-21T21:00')
+      await expect(sheet.getByTestId('weigh-in-when-error')).toBeVisible()
+      await sweep.take('Log weight, with its messages')
+      await sheet.getByTestId('weigh-in-weight').fill('900')
+      await sheet.getByTestId('weigh-in-unit-lb').check()
+      await sweep.take('Log weight, out of range in lb')
+      await closeWithEsc(page, 'weigh-in-sheet')
+
+      await page.getByTestId('weight-open').click()
+      const details = await opened(page, 'weight-details')
+      await sweep.take('weight details')
+      await details.getByTestId('weight-show-lb').check()
+      await sweep.take('weight details in lb')
+      await details.getByTestId('weigh-in-row').last().click()
+      await opened(page, 'weigh-in-sheet')
+      await sweep.take('edit a weigh-in')
+      await page.keyboard.press('Escape')
+      await opened(page, 'weight-details')
+      await page.getByTestId('weigh-in-row').nth(8).click()
+      const approx = await opened(page, 'weigh-in-sheet')
+      await sweep.take('edit an imported weigh-in with no recorded time')
+      await approx.getByTestId('weigh-in-delete').click()
+      await expect(approx.getByTestId('weigh-in-delete-confirm')).toBeVisible()
+      await sweep.take('weigh-in delete confirmation')
+      await closeWithEsc(page, 'weigh-in-sheet')
+      await closeWithEsc(page, 'weight-details')
+
+      // An earlier day with no weigh-in, and a log whose trend still needs more.
+      await seedAndOpen(page, WEIGHT_NOW, {
+        [E2E_KEYS.mine]: JSON.stringify({ ...log, weighIns: weighIns.slice(8) }),
+        [E2E_KEYS.active]: 'mine',
+      })
+      await sweep.take('dashboard, trend needs more weigh-ins')
+      await page.getByTestId('weight-open').click()
+      await opened(page, 'weight-details')
+      await sweep.take('weight details, trend needs more weigh-ins')
+      await closeWithEsc(page, 'weight-details')
+
+      // An earlier day: the details say they stand at the end of it, and Log weight starts on it.
+      const sleeps = [
+        { id: 's1', sleepStart: '2026-10-18T23:00:00-04:00', wake: '2026-10-19T06:30:00-04:00' },
+        { id: 's2', sleepStart: '2026-10-19T23:10:00-04:00', wake: '2026-10-20T07:00:00-04:00' },
+        { id: 's3', sleepStart: '2026-10-20T23:20:00-04:00', wake: '2026-10-21T06:50:00-04:00' },
+      ]
+      await seedAndOpen(page, WEIGHT_NOW, { [E2E_KEYS.mine]: JSON.stringify({ ...log, sleeps }), [E2E_KEYS.active]: 'mine' })
+      await page.getByTestId('day-prev').click()
+      await expect(page.getByTestId('weight-day')).toHaveText('No weigh-in that day')
+      await sweep.take('dashboard, an earlier day with no weigh-in')
+      await page.getByTestId('weight-open').click()
+      const earlier = await opened(page, 'weight-details')
+      await expect(earlier.getByTestId('weight-as-of')).toBeVisible()
+      await sweep.take('weight details on an earlier day')
+      await earlier.getByTestId('weight-details-log').click()
+      await opened(page, 'weigh-in-sheet')
+      await sweep.take('Log weight on an earlier day')
+      await closeWithEsc(page, 'weigh-in-sheet')
+      await closeWithEsc(page, 'weight-details')
+
+      // Ten days after the last weigh-in: no 7-day average, today and on the earlier day.
+      const later = new Date('2026-10-31T10:00:00-04:00')
+      const laterSleeps = [...sleeps, { id: 's4', sleepStart: '2026-10-30T23:00:00-04:00', wake: '2026-10-31T07:00:00-04:00' }]
+      await seedAndOpen(page, later, { [E2E_KEYS.mine]: JSON.stringify({ ...log, sleeps: laterSleeps }), [E2E_KEYS.active]: 'mine' })
+      await expect(page.getByTestId('weight-average-value')).toBeVisible()
+      await sweep.take('dashboard, no weigh-ins in the last 7 days')
+      await page.getByTestId('weight-open').click()
+      await opened(page, 'weight-details')
+      await sweep.take('weight details, no weigh-ins in the last 7 days')
+      await closeWithEsc(page, 'weight-details')
+      await page.getByTestId('day-prev').click()
+      await sweep.take('dashboard, an earlier day with no weigh-ins in its 7 days')
+      await page.getByTestId('weight-open').click()
+      await opened(page, 'weight-details')
+      await sweep.take('weight details, an earlier day that ran on for days')
+      await closeWithEsc(page, 'weight-details')
+
+      // Six weigh-ins over two and a half days: the trend waits for a 4-day span.
+      const burst = ['19T08:00', '19T18:00', '20T08:00', '20T18:00', '21T08:00', '21T18:00'].map((t, i) => ({
+        id: `b${i}`,
+        at: `2026-10-${t}:00-04:00`,
+        kg: 80 + (i % 2),
+        unit: 'kg',
+      }))
+      await seedAndOpen(page, WEIGHT_NOW, { [E2E_KEYS.mine]: JSON.stringify({ ...log, sleeps, weighIns: burst }), [E2E_KEYS.active]: 'mine' })
+      await expect(page.getByTestId('weight-rate')).toHaveText(copy.weight.trendNeedsSpan)
+      await sweep.take('dashboard, trend waits for a 4-day span')
+
+      // A wake time corrected past this morning's weigh-in: the move warning lists it.
+      await page.getByTestId('waking-day').click()
+      const editor = await opened(page, 'sleep-editor')
+      await editor.getByTestId('edit-wake-time-input').fill('8:30')
+      await editor.getByTestId('edit-night-save').click()
+      const warning = await opened(page, 'move-warning')
+      await expect(warning.getByTestId('move-entry').filter({ hasText: 'weigh-in' }).first()).toBeVisible()
+      await sweep.take('move warning with a weigh-in')
+
+      sweep.check(20)
     })
 
     test('an empty own log, Set wake time and the regroup preview', async ({ page }) => {

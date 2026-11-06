@@ -14,7 +14,7 @@ import { sleepStatus } from '../../kernel/sleepday'
 import { emptyLog, type LogDoc } from '../../store/log'
 import { buildDayViewFor } from '../dayView'
 import { dayNav } from '../days'
-import { canSetWake, defaultWakeDay, defaultWakeLabel, regroupForWake, regroupTotal, wakeDates, wakeIso } from '../wakeSet'
+import { canSetWake, defaultWakeDay, defaultWakeLabel, joinKinds, regroupForWake, regroupTotal, wakeDates, wakeIso } from '../wakeSet'
 
 const NOW = '2026-11-05T10:00:00-05:00'
 const oatBar = meal('label', 190, { id: 'a', name: 'Oat bar', eatenAt: '2026-11-04T22:30:00-05:00' })
@@ -111,6 +111,21 @@ describe('the regroup preview (regroupForWake)', () => {
     expect(plain.ok && [plain.movingWorkouts, plain.stayingWorkouts]).toEqual([[], []])
   })
 
+  it('lists weigh-ins too: wake Thu 07:00 moves the Thu 07:20 weigh-in in and keeps the Wed 21:00 one before it', () => {
+    // Build-out item 2.4: weigh-ins belong to waking days by the same rule.
+    const weighIns = [
+      { id: 'a', at: '2026-11-04T21:00:00-05:00', kg: 80.2, unit: 'kg' as const },
+      { id: 'b', at: '2026-11-05T07:20:00-05:00', kg: 79.6, unit: 'kg' as const },
+    ]
+    const r = regroupForWake(MEALS, [], '2026-11-05T07:00:00-05:00', NOW, 'w', [], { weighIns })
+    if (!r.ok) throw new Error('expected ok')
+    expect(r.movingWeighIns).toEqual([{ kind: 'weigh-in', id: 'b', name: '79.6\u00a0kg', at: '2026-11-05T07:20:00-05:00', kcal: null }])
+    expect(r.stayingWeighIns).toEqual([{ kind: 'weigh-in', id: 'a', name: '80.2\u00a0kg', at: '2026-11-04T21:00:00-05:00', kcal: null }])
+    expect(regroupTotal(r.moving)).toEqual({ kcal: 255, unknown: 0 })
+    const plain = regroupForWake(MEALS, [], '2026-11-05T07:00:00-05:00', NOW)
+    expect(plain.ok && [plain.movingWeighIns, plain.stayingWeighIns]).toEqual([[], []])
+  })
+
   it('with no meals there is nothing to move', () => {
     const r = regroupForWake([], [], '2026-11-05T07:00:00-05:00', NOW)
     expect(r.ok && [r.moving, r.staying]).toEqual([[], []])
@@ -153,5 +168,15 @@ describe('each list’s calories in the preview (regroupTotal)', () => {
 describe('the time field’s default', () => {
   it('is shown as 7:00 AM', () => {
     expect(defaultWakeLabel()).toBe('7:00 AM')
+  })
+})
+
+describe('the preview names what it lists', () => {
+  it('joins the kinds of entry in plain words', () => {
+    expect(joinKinds(['meals'])).toBe('meals')
+    expect(joinKinds(['weigh-ins'])).toBe('weigh-ins')
+    expect(joinKinds(['meals', 'weigh-ins'])).toBe('meals and weigh-ins')
+    expect(joinKinds(['meals', 'workouts', 'weigh-ins'])).toBe('meals, workouts and weigh-ins')
+    expect(joinKinds([])).toBe('')
   })
 })
