@@ -183,8 +183,8 @@ export function fieldList(fields: BodyField[]): string {
   return `${words.slice(0, -1).join(', ')}${copy.balance.and}${words[words.length - 1]}`
 }
 
-/** Deficit-scale ends of a balance range (deficit = −balance), rounded. */
-function rangeWords(r: Range, short: boolean): string {
+/** Deficit-scale ends of a balance range (deficit = −balance), rounded. The week view (item 2.7) reads it too. */
+export function rangeWords(r: Range, short: boolean): string {
   const dLo = Math.round(-r.hi)
   const dHi = Math.round(-r.lo)
   const unit = short ? '' : copy.balance.kcalSpace

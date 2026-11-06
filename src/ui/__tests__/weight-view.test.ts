@@ -129,8 +129,8 @@ describe('the weight view for a day', () => {
   it('with few weigh-ins, says how many more the trend needs', () => {
     const v = buildWeightView(samLog({ weighIns: SAM.slice(8) }), WED, NOW)
     expect(v.trend).toEqual({ status: 'needMore', count: 2, needed: 4 })
-    // "weigh‑ins" with a no-break hyphen (U+2011), so it never splits at the hyphen.
-    expect(trendParts(v.trend, 'kg')).toEqual({ value: '4 more weigh-ins needed', note: 'shown from 6 weigh\u2011ins in 21 days, over at least 4 days', ok: false })
+    // "weigh-ins" with a word joiner (U+2060) after the hyphen, so it never splits there.
+    expect(trendParts(v.trend, 'kg')).toEqual({ value: '4 more weigh-ins needed', note: 'shown from 6 weigh-\u2060ins in 21 days, over at least 4 days', ok: false })
     const one = buildWeightView(samLog({ weighIns: SAM.slice(5) }), WED, NOW)
     expect(trendParts(one.trend, 'kg').value).toBe('1 more weigh-in needed')
     expect(trendParts(buildWeightView(samLog(), WED, NOW).trend, 'kg')).toEqual({
@@ -175,7 +175,7 @@ describe('the weight view for a day', () => {
     const v = buildWeightView(samLog({ weighIns: burst }), WED, NOW)
     expect(v.trend).toMatchObject({ status: 'needSpan', count: 6 })
     // First to last: 2 days 12 h, so "under 3 days", never a rounded-down "2 days".
-    expect(trendParts(v.trend, 'kg')).toEqual({ value: 'needs weigh\u2011ins spread over 4 days', note: 'these 6 span under 3 days', ok: false })
+    expect(trendParts(v.trend, 'kg')).toEqual({ value: 'needs weigh-\u2060ins spread over 4 days', note: 'these 6 span under 3 days', ok: false })
     const sameMoment = burst.map((w) => ({ ...w, at: '2026-10-21T07:00:00-04:00' }))
     expect(trendParts(buildWeightView(samLog({ weighIns: sameMoment }), WED, NOW).trend, 'kg').note).toBe('these 6 all have the same time')
     // 11 PM one evening to 7 AM the next morning: two dates, 8 hours.
@@ -186,14 +186,14 @@ describe('the weight view for a day', () => {
   })
 
   it('no weigh-ins in the last 7 days: a status sentence for today, another for an earlier day', () => {
-    expect(averageText(null, 'kg', true)).toEqual({ value: 'No weigh\u2011ins in the last 7 days', note: '', ok: false })
-    expect(averageText(null, 'kg', false)).toEqual({ value: 'No weigh\u2011ins in the 7 days to the end of that day', note: '', ok: false })
+    expect(averageText(null, 'kg', true)).toEqual({ value: 'No weigh-\u2060ins in the last 7 days', note: '', ok: false })
+    expect(averageText(null, 'kg', false)).toEqual({ value: 'No weigh-\u2060ins in the 7 days to the end of that day', note: '', ok: false })
     expect(averageText({ kg: 78.95, count: 4 }, 'kg', true)).toEqual({ value: `79.0${NBSP}kg`, note: 'average of 4 weigh-ins', ok: true })
     // Sam's weigh-ins with the clock 10 days after the last one: none in the 7 days, the trend still from 21.
     const later = '2026-10-31T20:00:00-04:00'
     const v = buildWeightView(samLog(), WED, later)
     expect(v.average).toBeNull()
-    expect(averageText(v.average, v.unit, v.asOfDay === null).value).toBe('No weigh\u2011ins in the last 7 days')
+    expect(averageText(v.average, v.unit, v.asOfDay === null).value).toBe('No weigh-\u2060ins in the last 7 days')
   })
 })
 
@@ -208,7 +208,7 @@ describe('an earlier day that ran on for days', () => {
     expect(v.ranOnTo).toBe('Sat Oct 31, 7:00 AM')
     expect(v.latest?.id).toBe('w10')
     expect(v.average).toBeNull()
-    expect(averageText(v.average, v.unit, false, v.ranOnTo).value).toBe('No weigh\u2011ins in the 7 days to Sat Oct 31, 7:00 AM, when that day ended')
+    expect(averageText(v.average, v.unit, false, v.ranOnTo).value).toBe('No weigh-\u2060ins in the 7 days to Sat Oct 31, 7:00 AM, when that day ended')
     expect(v.chartTitle).toBe('30 days to Sat Oct 31, 7:00 AM')
     expect(v.chart?.xEnd).toBe('Sat Oct 31')
   })
@@ -217,7 +217,7 @@ describe('an earlier day that ran on for days', () => {
     const v = buildWeightView(samLog(), TUE, NOW)
     expect(v.ranOnTo).toBeNull()
     expect(v.chartTitle).toBe('30 days to the end of Tue Oct 20')
-    expect(averageText(null, v.unit, false, v.ranOnTo).value).toBe('No weigh\u2011ins in the 7 days to the end of that day')
+    expect(averageText(null, v.unit, false, v.ranOnTo).value).toBe('No weigh-\u2060ins in the 7 days to the end of that day')
   })
 })
 

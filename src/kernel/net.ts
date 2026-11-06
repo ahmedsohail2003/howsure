@@ -130,16 +130,22 @@ export function combine(eaten: DayEstimate, burned: BurnedEstimate): NetDay {
   const eatenSd = daySd(eaten)
   let net: NetEstimate | null = null
   if (hasKnown(eaten.status) && hasKnown(burned.status)) {
-    const total = eaten.knownTotal - burned.knownTotal
-    const sd = Math.sqrt(eatenSd * eatenSd + burned.sd * burned.sd)
     net = {
-      total,
-      sd,
-      likely: normalRange(total, sd, Z80),
-      veryLikely: normalRange(total, sd, Z95),
+      ...netOf(eaten.knownTotal, eatenSd, burned.knownTotal, burned.sd),
       score: null,
       knownOnly: eaten.status === 'partial' || burned.status === 'partial',
     }
   }
   return { eaten, eatenSd, burned, net }
+}
+
+/**
+ * Net from its two sides: N = eaten - burned, sd_N = sqrt(sd_eaten^2 + sd_burned^2), normal ranges.
+ * combine() uses it for a day; the week view's net breakdown (item 2.7) uses it for a day with no
+ * workouts too, which burns 0 in workouts.
+ */
+export function netOf(eatenTotal: number, eatenSd: number, burnedTotal: number, burnedSd: number): Pick<NetEstimate, 'total' | 'sd' | 'likely' | 'veryLikely'> {
+  const total = eatenTotal - burnedTotal
+  const sd = Math.sqrt(eatenSd * eatenSd + burnedSd * burnedSd)
+  return { total, sd, likely: normalRange(total, sd, Z80), veryLikely: normalRange(total, sd, Z95) }
 }

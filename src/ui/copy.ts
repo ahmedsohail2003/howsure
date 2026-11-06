@@ -784,6 +784,9 @@ export const copy = {
     // Build-out item 2.4: the weight details, in both logs.
     weight: 'Weight',
     weightHint: 'Your weigh-ins, the 7-day average and the trend.',
+    // Build-out item 2.7: the week view, in both logs.
+    week: 'Week',
+    weekHint: 'The averages of every stat over up to 7 waking days, ending at the day on screen.',
     // Build-out item 2.1: in the demo only.
     resetDemo: 'Reset demo',
     resetDemoHint: 'Puts back Sam’s week as it started. Your own log is not affected.',
@@ -1096,11 +1099,11 @@ export const copy = {
     average: '7-day average',
     averageOf: (n: number) => (n === 1 ? 'average of 1 weigh-in' : `average of ${n} weigh-ins`),
     // A status sentence, drawn in normal weight where the average would be. Today and an earlier day
-    // differ. No-break hyphens (U+2011) in these status lines, so "weigh-ins" never splits.
-    averageNone: 'No weigh\u2011ins in the last 7 days',
-    averageNoneThen: 'No weigh\u2011ins in the 7 days to the end of that day',
+    // differ. "weigh-ins" has a word joiner (U+2060) after its hyphen, so it never splits.
+    averageNone: 'No weigh-\u2060ins in the last 7 days',
+    averageNoneThen: 'No weigh-\u2060ins in the 7 days to the end of that day',
     // An earlier day that ran on for days (no sleep logged in between): its real end is named.
-    averageNoneTo: (when: string) => `No weigh\u2011ins in the 7 days to ${when}, when that day ended`,
+    averageNoneTo: (when: string) => `No weigh-\u2060ins in the 7 days to ${when}, when that day ended`,
     trend: 'Trend',
     trendDown: (n: string, unit: string) => `down ${n} ${unit} a week`,
     trendUp: (n: string, unit: string) => `up ${n} ${unit} a week`,
@@ -1109,10 +1112,11 @@ export const copy = {
     // While the trend needs more weigh-ins: the count is the value, the rule is its note. The note
     // names both conditions (count and spread), so the value is never the whole story when it isn't.
     trendNeedsMore: (n: number) => (n === 1 ? '1 more weigh-in needed' : `${n} more weigh-ins needed`),
-    // A no-break hyphen (U+2011) in "weigh‑ins", so a narrow phone never splits the word.
-    trendRule: 'shown from 6 weigh\u2011ins in 21 days, over at least 4 days',
+    // A word joiner (U+2060) after the hyphen in "weigh-ins", so a narrow phone never splits the word
+    // (a no-break hyphen glyph is missing from some fonts and left a gap).
+    trendRule: 'shown from 6 weigh-\u2060ins in 21 days, over at least 4 days',
     // Enough weigh-ins, but over too few days for a weekly rate (6 in one morning would read noise as a trend).
-    trendNeedsSpan: 'needs weigh\u2011ins spread over 4 days',
+    trendNeedsSpan: 'needs weigh-\u2060ins spread over 4 days',
     // How far apart the first and last are, exactly: "under 3 days" for 2.5, never a rounded-down "2 days".
     trendSpanNote: (n: number, spanDays: number) => {
       if (!(spanDays > 0)) return `these ${n} all have the same time`
@@ -1147,8 +1151,8 @@ export const copy = {
     chartTitle: 'Last 30 days',
     chartTitleTo: (day: string) => `30 days to the end of ${day}`,
     chartTitleToWhen: (when: string) => `30 days to ${when}`,
-    // A no-break hyphen (U+2011) in "7‑day", so the caption never splits it on a narrow phone.
-    chartCaption: 'Dots are weigh-ins and the line is the 7\u2011day average. Every weigh-in is listed below.',
+    // A word joiner (U+2060) after the hyphen in "7-day", so the caption never splits it on a narrow phone.
+    chartCaption: 'Dots are weigh-ins and the line is the 7-\u2060day average. Every weigh-in is listed below.',
     // When the line's first points count weigh-ins from before the 30 days (not drawn as dots).
     chartCaptionEarlier: 'Near the left edge, the line also counts weigh-ins from just before these 30 days.',
     chartNeedsTwo: 'The chart needs 2 weigh-ins in these 30 days.',
@@ -1353,6 +1357,185 @@ export const copy = {
     // Build-out item 2.5b: once body details are in, the line under the headline adds resting burn.
     balancePointer:
       'The estimated deficit or surplus under the headline adds an estimate of your resting burn and everyday activity, from your body details.',
+  },
+
+  // Build-out item 2.7 (checklist slice 8; prd.md > Week View): the week view, the averages of every
+  // stat over the waking days ending at the day on screen, and each average's day-by-day breakdown.
+  // Unknown is never 0: a day with an unknown value is left out of an average and counted.
+  week: {
+    title: 'Week',
+    // The dashboard's way in, beside previous and next, and its spoken name.
+    open: 'Week',
+    openLabel: 'Week: the averages of up to 7 waking days, ending at the day on screen',
+    // "The 7 waking days to Wed Oct 21". Fewer only when the log starts later than a week before the
+    // day on screen, which is true on any day, today or earlier. `whose` is "your" or "Sam’s".
+    window: (n: number, last: string, whose: string) =>
+      n === 7
+        ? `The 7 waking days to ${last}`
+        : `The ${n} waking ${n === 1 ? 'day' : 'days'} to ${last}, from the start of ${whose} log`,
+    whose: (demo: boolean) => (demo ? 'Sam’s' : 'your'),
+    todayNote: 'Today counts with what is logged so far.',
+    // Viewing the day before the log's first wake time: the week holds that day alone. With no
+    // wake time in the log at all yet, there is no "first wake time" to name.
+    windowProvisional: (whose: string, hasWake: boolean) =>
+      hasWake ? `The day before ${whose} first wake time` : `${whose === 'your' ? 'Your' : whose} log so far: no wake time yet`,
+    // When no average in the week has a number: one line instead of a list of empty rows.
+    empty: 'Nothing is logged here yet. Each average shows here once meals, workouts, sleep or weigh-ins are logged.',
+    groups: { food: 'Food', activity: 'Workouts and balance', sleep: 'Sleep', body: 'Weight' },
+    titles: {
+      eaten: 'Calories eaten',
+      score: 'Estimate score',
+      protein: 'Protein',
+      carbs: 'Carbs',
+      fat: 'Fat',
+      net: 'Net calories',
+      burned: 'Burned in workouts',
+      burnedScore: 'Burned’s Estimate score',
+      balance: 'Estimated deficit or surplus',
+      workoutTime: 'Workout time',
+      gym: 'Sets per gym session',
+      sleepLength: 'Sleep length',
+      bedtime: 'Went to sleep',
+      wakeTime: 'Woke up',
+      weight: 'Weight',
+      bodyFat: 'Body fat',
+    },
+    // Lower case, inside a sentence ("a meal without its protein").
+    macroWords: { protein: 'protein', carbs: 'carbs', fat: 'fat' },
+    notAvailable: 'Not available yet',
+    kcal: (n: string) => `${n} kcal`,
+    grams: (n: string) => `${n} g`,
+    minutes: (n: string) => `${n} min`,
+    percent: (n: string) => `${n}%`,
+    likely: (range: string) => `likely ${range}`,
+    veryLikely: (range: string) => `very likely ${range}`,
+    // The deficit or surplus as a value: "350 kcal deficit".
+    deficit: (kcal: string) => `${kcal} kcal deficit`,
+    surplus: (kcal: string) => `${kcal} kcal surplus`,
+    even: 'about even (0 kcal)',
+    // How each average counts its days. The calorie label is the PRD's, word for word. `today`: the
+    // current day, still going, is one of the days counted; it is named apart, since more can still
+    // be logged on it ("average of 5 complete days and today so far"), and `n` is the earlier days.
+    completeDays: (n: number, leftOut: number, today = false) => {
+      const out = leftOut > 0 ? ` (${leftOut} incomplete left out)` : ''
+      if (today && n === 0) return `today so far only${out}`
+      return `average of ${n} complete ${n === 1 ? 'day' : 'days'}${today ? ' and today so far' : ''}${out}`
+    },
+    noCompleteDay: (leftOut: number) => (leftOut > 0 ? `no complete day yet (${leftOut} incomplete left out)` : 'no day logged yet'),
+    // A score's count: incomplete days and complete days with nothing above 0 kcal are told apart,
+    // since only the first are incomplete. `kind` says which days count: complete days of meals, or
+    // days with workouts. `today`, as in completeDays: the current day is counted, named apart, and
+    // `counted` is the earlier days.
+    scoreDays: (counted: number, incomplete: number, unscored: number, kind: 'eaten' | 'burned', today = false) => {
+      const parts = [incomplete > 0 ? `${incomplete} incomplete` : '', unscored > 0 ? `${unscored} at 0 kcal` : ''].filter(Boolean)
+      const out = parts.length > 0 ? ` (${parts.join(' and ')} left out)` : ''
+      const noun = kind === 'eaten' ? (counted === 1 ? 'complete day' : 'complete days') : counted === 1 ? 'day with workouts' : 'days with workouts'
+      if (today && counted === 0) return `today so far only${out}`
+      if (counted > 0) return `average of ${counted} ${noun}${today ? ' and today so far' : ''}${out}`
+      if (parts.length > 0) return `no day with a score yet${out}`
+      return kind === 'eaten' ? 'no day logged yet' : 'no workouts in these days'
+    },
+    noNights: 'no night logged yet',
+    nights: (complete: number, total: number) => `${complete} of ${total} ${total === 1 ? 'night' : 'nights'}`,
+    weighIns: (count: number, days: number, total: number) =>
+      `average of ${count} ${count === 1 ? 'weigh-in' : 'weigh-ins'} on ${days} of ${total} ${total === 1 ? 'day' : 'days'}`,
+    bodyFatCount: (count: number) => `average of ${count} ${count === 1 ? 'weigh-in' : 'weigh-ins'} with body fat`,
+    setsAverage: (n: string) => `${n} ${n === '1' ? 'set' : 'sets'}`,
+    sessions: (n: number, total: number) =>
+      `average of ${n} ${n === 1 ? 'session' : 'sessions'} in these ${total} ${total === 1 ? 'day' : 'days'}`,
+    // Status sentences, drawn in normal weight where an average would be. "weigh-ins" has a word
+    // joiner (U+2060) after its hyphen, so a narrow phone never splits it, in every look's font.
+    noWeighIns: 'No weigh-\u2060ins in these days',
+    noBodyFat: 'No body fat % logged in these days',
+    noSessions: 'No gym sessions in these days',
+    sleepVaries: 'Sleep times vary too much to average',
+    wakeVaries: 'Wake times vary too much to average',
+    // Under the calorie average (prd.md > Week View, word for word).
+    steadier: 'Weekly totals are steadier than single meals, but photo estimates tend to run low on big plates.',
+    trend: (value: string, note: string) => `Trend: ${value}, ${note}`,
+    trendStatus: (value: string) => `Trend: ${value}`,
+    // A row's spoken name: what it shows (its ranges or trend too), and that it opens the breakdown.
+    // `lines`: the row's further lines as sentences, already joined ("likely 1,116–1,963 kcal.").
+    rowLabel: (title: string, value: string, count: string, lines = '') =>
+      `${title}: ${value}, ${count}.${lines ? ` ${lines}` : ''} Opens each day.`,
+    // The breakdown.
+    breakdownTitle: (title: string) => `${title}, day by day`,
+    average: 'Week average',
+    counted: 'Counted',
+    notLogged: 'Not logged',
+    none: 'Nothing to count',
+    leftOut: (why: string) => `Left out: ${why}`,
+    why: {
+      unknownMeal: 'a meal with unknown calories',
+      missingMacro: (macro: string) => `a meal without its ${macro}`,
+      noScore: 'no calories above 0',
+      noBurnedScore: 'no calories burned above 0',
+      unknownWorkout: 'a workout with unknown calories',
+      unknownMinutes: 'a workout with no duration',
+      noMeals: 'no meals logged',
+      unknownEntry: 'a meal and a workout with unknown calories',
+      noWake: 'no wake time to count the day from',
+      notWorkedOut: 'it could not be worked out that day',
+      sleepNotLogged: 'the sleep time was not logged',
+      // A night whose sleep time is its wake time: both are logged, but it has no length.
+      noLength: 'the sleep time is the same as the wake time',
+    },
+    unknown: 'unknown',
+    // A day left out of a score average: no score is given for it.
+    notScored: 'not scored',
+    knownOnlyNote: 'Known meals only (incomplete)',
+    knownWorkoutsOnly: 'Known workouts only (incomplete)',
+    workoutCount: (n: number) => (n === 1 ? '1 workout' : `${n} workouts`),
+    sessionCount: (n: number) => (n === 1 ? '1 gym session' : `${n} gym sessions`),
+    noBodyFatDay: 'No body fat %',
+    provisionalShort: 'Before',
+    noWorkouts: 'No workouts',
+    noGym: 'No gym session',
+    noWeighIn: 'No weigh-in',
+    setsValue: (n: string) => `${n} ${n === '1' ? 'set' : 'sets'}`,
+    dayWeighIns: (n: number) => `average of ${n} weigh-ins`,
+    nightSpan: (sleep: string, wake: string) => `${sleep} to ${wake}`,
+    provisional: 'Before the first wake time',
+    // The current day in a breakdown. "so far" only where more can still be logged on it (not on
+    // the night before it, which is over). No-break spaces keep the parenthesis on one line; it may
+    // go under the date on a narrow phone.
+    dayName: (day: string, today: 'soFar' | 'plain' | null) =>
+      today === 'soFar' ? `${day} (today,\u00a0so\u00a0far)` : today === 'plain' ? `${day} (today)` : day,
+    // A day not logged has no value: its status says so once.
+    dayLabel: (day: string, value: string, status: string) => (value ? `${day}: ${value}. ${status}. Opens this day.` : `${day}: ${status}. Opens this day.`),
+    // How each breakdown counts.
+    intro: {
+      eaten:
+        'A day counts when every meal on it has known calories. A day with an unknown meal shows its known meals only and is left out; a day with no meals is not logged. Neither counts as 0.',
+      score: 'Each complete day’s Estimate score. A day with an unknown meal is left out: its score would cover its known meals only.',
+      macro: (macro: string) =>
+        `A day counts when every meal on it has its ${macro}. A day with a meal missing it is left out, never counted as 0.`,
+      net: 'Calories eaten minus burned in workouts, on days where both are known. A day with no workouts burns 0 in workouts. The resting burn isn’t counted.',
+      burned:
+        'Calories burned in the workouts you logged. A day with meals and no workouts counts 0; a workout with unknown calories leaves its day out.',
+      burnedScore:
+        'Each day’s Estimate score for its calories burned, as shown at the top of that day’s workout list. A day with no workouts has nothing to score; a workout with unknown calories leaves its day out.',
+      balance:
+        'The estimated deficit or surplus on each day, worked out as under the headline: eaten minus the resting burn, everyday activity and workouts. A day with an unknown meal or workout is left out.',
+      workoutTime: 'Minutes of the workouts you logged. A day with meals and no workouts counts 0 min; a workout with no duration leaves its day out.',
+      gym: 'The sets in each gym session, warm-ups and drop sets included, averaged over the sessions in these days.',
+      sleepLength: 'The night before each day. A night with a missing sleep time is not logged and left out, never 0 h.',
+      bedtime: 'Averaged as clock times, so 11:50 PM and 12:10 AM average to 12:00 AM. A night with a missing time is left out.',
+      wakeTime:
+        'Averaged as clock times, so 11:50 PM and 12:10 AM average to 12:00 AM. A night with a missing sleep time is left out, as in the 7-night average.',
+      // `current`: the last day here is today, still going, so its trend runs up to now.
+      weight: (current: boolean) =>
+        `Every weigh-in in these days counts once. The trend is the one on the dashboard, ${current ? 'worked out up to now' : 'up to the end of the last day here'}.`,
+      bodyFat: 'The weigh-ins in these days that have a body fat %.',
+    },
+    // How the calorie average's ranges are worked out (spec.md > Week Summary).
+    method:
+      'The average’s ranges group every meal on the counted days by source, as a day does, so errors from the same kind of source never average out across the week.',
+    // How the deficit or surplus average's ranges are worked out (src/kernel/week.ts balanceAverage).
+    balanceMethod:
+      'The average’s ranges count the resting-burn equation’s error as leaning the same way on every day, an assumption since it is one equation for one person, so they don’t narrow as days are added.',
+    chartLegend:
+      'Bars: calories eaten. Thick line: likely range; thin line: very likely range. Dashed outline: known meals only. No bar: not logged, or no known calories. Dashed line across: the average.',
   },
 
   more: {

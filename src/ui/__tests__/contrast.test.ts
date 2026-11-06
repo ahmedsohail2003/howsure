@@ -828,6 +828,30 @@ describe.each(analyses.map((a) => [a.look, a] as const))('the %s look', (_look, 
       expect(textFailures(a.surfacePairs)).toEqual([])
     })
 
+    // Build-out item 2.7: the week breakdown's chart, drawn on the sheet. The bars' --teal edge and
+    // the dashed --amber outline (known meals only) are checked as signals above; here the strokes in
+    // text colours: the whiskers (--ink) over a bar's --teal-bg fill and the sheet, and the dashed
+    // average line (--ink-soft) across both, at 3:1 like any other non-text mark.
+    it('the week chart: its rules use these tokens, and every stroke is 3:1 on what it crosses', () => {
+      const decl = (sel: string, prop: string) => a.rules.filter((r) => r.selector === sel).map((r) => r.decls.get(prop)).find(Boolean)
+      expect(decl('.week-bar', 'fill')).toBe('var(--teal-bg)')
+      expect(decl('.week-bar', 'stroke')).toBe('var(--teal)')
+      expect(decl('.week-bar.incomplete', 'stroke')).toBe('var(--amber)')
+      expect(decl('.week-whisker', 'stroke')).toBe('var(--ink)')
+      expect(decl('.week-avg-line', 'stroke')).toBe('var(--ink-soft)')
+      const hex = (t: string) => solid(`var(${t})`, a.tokens) as string
+      for (const [mark, under] of [
+        ['--teal', '--surface'],
+        ['--amber', '--surface'],
+        ['--ink', '--teal-bg'],
+        ['--ink', '--surface'],
+        ['--ink-soft', '--teal-bg'],
+        ['--ink-soft', '--surface'],
+      ]) {
+        expect(ratio(hex(mark), hex(under)), `${mark} on ${under}`).toBeGreaterThanOrEqual(3)
+      }
+    })
+
     it('--teal and --amber are never used as text colours (the -ink tokens are)', () => {
       const misuse = a.rules.filter((r) => /^var\(--(teal|amber)\)$/.test(r.decls.get('color') ?? '')).map((r) => r.selector)
       expect(misuse).toEqual([])

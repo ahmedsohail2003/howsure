@@ -3170,6 +3170,325 @@ details.more > summary {
   }
 }
 
+/* Build-out item 2.7: Week and Back to today under previous and next. Each link's box (and focus
+   ring) hugs its words; an ::after layer makes the tap target 44 px tall, as for the gym log link. */
+.day-nav-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: var(--s1) var(--s3);
+  margin-top: var(--s2);
+}
+
+.day-nav-links .link-btn {
+  position: relative;
+  display: inline-block;
+  border-radius: 2px;
+  line-height: 24px;
+}
+
+.day-nav-links .link-btn::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: max(100%, 44px);
+  height: 44px;
+  transform: translateY(-50%);
+}
+
+.day-nav-links .day-today {
+  margin-top: 0;
+}
+
+/* ---------- week view (build-out item 2.7; checklist slice 8) ---------- */
+
+/* Each stat is one row button: its name on the left and the average on the right, then its count,
+   ranges or trend across the whole row. When the name and a long average ("386 kcal deficit") don't
+   fit side by side on a narrow phone, the average moves under the name instead of squeezing it. A
+   status sentence ("Not available yet") takes its own line in normal weight, never the number
+   style. */
+.week-note {
+  color: var(--ink-soft);
+  font-size: 14px;
+  margin-bottom: var(--s2);
+}
+
+.week-group + .week-group {
+  margin-top: var(--s3);
+}
+
+.week-group-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink-soft);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  margin: 0 0 4px;
+}
+
+.week-row {
+  border-bottom: 1px solid var(--line);
+}
+
+.week-row:last-child {
+  border-bottom: 0;
+}
+
+.week-open {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px var(--s2);
+  width: 100%;
+  min-height: 56px;
+  padding: 10px 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+/* The name's own width decides: when it and the average don't fit side by side, the average goes
+   under it, so a name never breaks into a narrow column of short lines. */
+.week-open .week-title {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.week-open .week-value {
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+.week-open .week-value.status,
+.week-open .week-count,
+.week-open .week-lines {
+  flex: 1 1 100%;
+}
+
+.week-day-open {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 2px var(--s2);
+  width: 100%;
+  min-height: 56px;
+  padding: 10px 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.week-title,
+.week-count,
+.week-lines,
+.week-line,
+.week-day-name,
+.week-day-status,
+.week-day-value,
+.week-day-detail {
+  display: block;
+}
+
+.week-title,
+.week-day-name {
+  font-weight: 600;
+}
+
+.week-open:hover .week-title,
+.week-day-open:hover .week-day-name {
+  color: var(--teal-ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.week-count,
+.week-line,
+.week-day-detail {
+  color: var(--ink-soft);
+  font-size: 14px;
+}
+
+/* Ranges and values like "1,160–2,071 kcal" or "7 h 50 min" never split inside; the words around
+   them wrap instead. */
+.week-value,
+.week-day-value {
+  font-weight: 600;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.week-value {
+  font-size: 18px;
+}
+
+.week-value.status,
+.week-day-value.status {
+  font-weight: 400;
+  white-space: normal;
+}
+
+.week-value.status {
+  margin-left: 0;
+  font-size: 16px;
+  text-align: left;
+}
+
+/* One line for a week with nothing logged, in place of a list of empty rows. */
+.week-empty {
+  color: var(--ink-soft);
+  font-size: 16px;
+}
+
+.week-day-value.status {
+  max-width: 11em;
+  color: var(--ink-soft);
+}
+
+.week-keep {
+  white-space: nowrap;
+}
+
+/* The day's ranges or times run across the whole breakdown row. Like the count and ranges under
+   each average, these lines carry no .num class: they are text with numbers in it, so they keep
+   proportional digits (tabular ones also widen the hyphen in words like "weigh-ins"). */
+.week-lines,
+.week-day-detail {
+  grid-column: 1 / -1;
+}
+
+.week-day-status {
+  grid-column: 1 / -1;
+  font-size: 14px;
+  color: var(--ink-soft);
+}
+
+/* A focused row (Tab or Shift+Tab with the sheet scrolled) stops clear of the sheet's sticky
+   header, whose height Sheet.tsx keeps in --sheet-head-h (it grows with the fictional banner and a
+   title or window that wraps on a narrow phone), with room for the focus ring. */
+.week-open,
+.week-day-open {
+  scroll-margin: calc(var(--sheet-head-h, 150px) + 12px) 0 12px;
+}
+
+/* Left out and not logged are incomplete information: amber text, with the words saying why. */
+.week-day-status.leftOut,
+.week-day-status.notLogged {
+  color: var(--amber-ink);
+}
+
+.week-day + .week-day {
+  border-top: 1px solid var(--line);
+}
+
+/* The breakdown's average, set apart from the days under it. */
+.week-avg {
+  padding-bottom: var(--s2);
+  margin-bottom: var(--s2);
+  border-bottom: 1px solid var(--line);
+}
+
+.week-avg-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink-soft);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+
+.week-avg-value {
+  font-size: 26px;
+  font-weight: 600;
+  line-height: 1.25;
+  white-space: nowrap;
+}
+
+.week-avg-value.status {
+  font-size: 18px;
+  font-weight: 400;
+  white-space: normal;
+}
+
+.week-intro {
+  color: var(--ink-soft);
+  font-size: 14px;
+  margin-bottom: var(--s1);
+}
+
+/* The calorie chart: drawn for the eye only (aria-hidden); every number is in the list under it.
+   Strokes keep their width however the drawing is stretched to the sheet's width. */
+.week-chart {
+  margin: var(--s2) 0;
+}
+
+.week-chart-svg {
+  display: block;
+  width: 100%;
+  height: 140px;
+  overflow: visible;
+}
+
+.week-chart-base {
+  stroke: var(--line-strong);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.week-bar {
+  fill: var(--teal-bg);
+  stroke: var(--teal);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+
+/* Known meals only: a dashed amber outline and no fill, so it reads apart without colour too. */
+.week-bar.incomplete {
+  fill: none;
+  stroke: var(--amber);
+  stroke-dasharray: 4 3;
+}
+
+.week-whisker {
+  stroke: var(--ink);
+  stroke-width: 3;
+  vector-effect: non-scaling-stroke;
+}
+
+.week-whisker.thin {
+  stroke-width: 1.25;
+}
+
+.week-avg-line {
+  stroke: var(--ink-soft);
+  stroke-width: 1.5;
+  stroke-dasharray: 6 4;
+  vector-effect: non-scaling-stroke;
+}
+
+.week-chart-days {
+  display: grid;
+  margin-top: 4px;
+  color: var(--ink-soft);
+  font-size: 13px;
+  text-align: center;
+}
+
+/* The day of the month under its weekday, when weekdays alone would repeat or skip a day. */
+.week-chart-date {
+  display: block;
+}
+
+.week-chart-legend {
+  margin-top: var(--s1);
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+
 @keyframes sheet-in {
   from {
     transform: perspective(900px) translateY(16px) rotateX(6deg);
@@ -4688,7 +5007,9 @@ details.more > summary {
   [data-look="panel"] .range-summary:active,
   [data-look="panel"] .improve-btn:active,
   [data-look="panel"] .action-bar .btn:active,
-  [data-look="panel"] .weight-open:active {
+  [data-look="panel"] .weight-open:active,
+  [data-look="panel"] .week-open:active,
+  [data-look="panel"] .week-day-open:active {
     transform: none;
   }
 }
@@ -4737,4 +5058,88 @@ details.more > summary {
 
 [data-look="night"] .body-choice .amount-option {
   border-radius: 999px;
+}
+
+/* Panel: the week view's groups as tiles on the page tone inside the sheet, each stat a tappable
+   band like a meal row (build-out item 2.7). */
+[data-look="panel"] .week-group {
+  padding: 6px 12px;
+  border-radius: 14px;
+  background: var(--bg);
+}
+
+[data-look="panel"] .week-group + .week-group {
+  margin-top: 12px;
+}
+
+[data-look="panel"] .week-group-title {
+  margin-top: 6px;
+}
+
+[data-look="panel"] .week-open,
+[data-look="panel"] .week-day-open {
+  width: calc(100% + 12px);
+  margin-inline: -6px;
+  padding: 10px 6px;
+  border-radius: 10px;
+  transition: transform var(--t) ease-out, background-color var(--t);
+}
+
+[data-look="panel"] .week-open:hover,
+[data-look="panel"] .week-day-open:hover {
+  background: var(--teal-bg);
+}
+
+[data-look="panel"] .week-open:active,
+[data-look="panel"] .week-day-open:active {
+  transform: perspective(600px) rotateX(5deg) scale(.985);
+}
+
+[data-look="panel"] .week-avg {
+  padding: 12px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--bg);
+}
+
+/* Night: the averages as big, thin figures like the headline's, and each group in a framed block
+   on the dark surface (build-out item 2.7). */
+[data-look="night"] .week-group {
+  padding: 4px var(--s2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+[data-look="night"] .week-group-title {
+  margin-top: var(--s1);
+}
+
+[data-look="night"] .week-value {
+  font-size: 22px;
+  font-weight: 300;
+  letter-spacing: -.01em;
+}
+
+[data-look="night"] .week-value.status {
+  font-size: 16px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+/* The days' values in a list, as Night's other lists draw them (the timeline's calories): regular
+   weight, so only the averages are the big thin figures. */
+[data-look="night"] .week-day-value.num {
+  font-weight: 400;
+}
+
+[data-look="night"] .week-avg-value {
+  font-size: 32px;
+  font-weight: 300;
+  letter-spacing: -.01em;
+}
+
+[data-look="night"] .week-avg-value.status {
+  font-size: 18px;
+  font-weight: 400;
+  letter-spacing: 0;
 }

@@ -29,6 +29,23 @@ export function Sheet({ title, sub, demo, onClose, children, testId, footer, ini
   const titleId = useId()
   const panelRef = useRef<HTMLDivElement>(null)
   const closeRef = useRef<HTMLButtonElement>(null)
+  const headRef = useRef<HTMLElement>(null)
+
+  // The sticky header's height, kept in --sheet-head-h on the sheet, so a control that takes focus
+  // can stop clear of it (scroll-margin in theme.css). It changes with the banner, a title or
+  // subtitle that wraps, and the screen width.
+  useEffect(() => {
+    const head = headRef.current
+    const panel = panelRef.current
+    if (!head || !panel) return
+    // offsetHeight: the layout height, unaffected by the opening tilt (a transform).
+    const update = () => panel.style.setProperty('--sheet-head-h', `${head.offsetHeight}px`)
+    update()
+    if (typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(update)
+    ro.observe(head)
+    return () => ro.disconnect()
+  }, [])
 
   useEffect(() => {
     const opener = document.activeElement as HTMLElement | null
@@ -84,7 +101,7 @@ export function Sheet({ title, sub, demo, onClose, children, testId, footer, ini
         onKeyDown={onKeyDown}
         data-testid={testId}
       >
-        <header>
+        <header ref={headRef}>
           {demo && <FictionalBanner />}
           <div className="sheet-header">
             <div>

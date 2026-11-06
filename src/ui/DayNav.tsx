@@ -20,9 +20,11 @@ interface DayNavProps {
   onNext: () => void
   onPickDate: (date: string) => void
   onToday: () => void
+  /** Build-out item 2.7: the week view, the averages of the 7 waking days to the viewed one. */
+  onOpenWeek: () => void
 }
 
-export function DayNav({ nav, onPrev, onNext, onPickDate, onToday }: DayNavProps) {
+export function DayNav({ nav, onPrev, onNext, onPickDate, onToday, onOpenWeek }: DayNavProps) {
   return (
     <nav className="day-nav" aria-label={copy.nav.label} data-testid="day-nav">
       <div className="day-nav-row">
@@ -47,11 +49,17 @@ export function DayNav({ nav, onPrev, onNext, onPickDate, onToday }: DayNavProps
           <span aria-hidden="true"> ›</span>
         </button>
       </div>
-      {!nav.today && (
-        <button type="button" className="link-btn day-today" onClick={onToday} data-testid="day-today">
-          {copy.nav.backToToday}
+      <div className="day-nav-links">
+        <button type="button" className="link-btn day-week" onClick={onOpenWeek} aria-label={copy.week.openLabel} data-testid="open-week">
+          {copy.week.open}
+          <span aria-hidden="true">{copy.arrow}</span>
         </button>
-      )}
+        {!nav.today && (
+          <button type="button" className="link-btn day-today" onClick={onToday} data-testid="day-today">
+            {copy.nav.backToToday}
+          </button>
+        )}
+      </div>
     </nav>
   )
 }

@@ -180,6 +180,15 @@ export function circularMeanMinutes(minutes: number[]): number | null {
 }
 
 /**
+ * One sleep record as a night: its length (wake - sleepStart, rounded to the minute), or null
+ * ("not logged", never 0) when a time is missing. nightStats and the week view (week.ts) share it.
+ */
+export function nightOf(r: SleepRecord): Night {
+  const len = r.sleepStart !== null && r.wake !== null ? Math.round((ms(r.wake) - ms(r.sleepStart)) / 60_000) : null
+  return { id: r.id, sleepStart: r.sleepStart, wake: r.wake, minutes: len !== null && len > 0 ? len : null }
+}
+
+/**
  * The last `lastN` nights (spec.md > nightStats): each night's length (wake - sleepStart), or
  * null ("not logged") when its sleep start or wake is missing. A sleep still in progress (the
  * latest record, with no wake yet) is not a night yet and is left out. The average and the
@@ -190,11 +199,7 @@ export function nightStats(sleeps: SleepRecord[], lastN = 7): NightStats {
   const latest = sorted[sorted.length - 1]
   const done = latest && latest.wake === null ? sorted.slice(0, -1) : sorted
   const recent = done.slice(Math.max(0, done.length - lastN))
-  const nights: Night[] = recent.map((r) => {
-    const len =
-      r.sleepStart !== null && r.wake !== null ? Math.round((ms(r.wake) - ms(r.sleepStart)) / 60_000) : null
-    return { id: r.id, sleepStart: r.sleepStart, wake: r.wake, minutes: len !== null && len > 0 ? len : null }
-  })
+  const nights: Night[] = recent.map(nightOf)
   const complete = nights.filter((n) => n.minutes !== null)
   const lengths = complete.map((n) => n.minutes as number)
   const wakes = complete.map((n) => minutesOfDay(n.wake as string))

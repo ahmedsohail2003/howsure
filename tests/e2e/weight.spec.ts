@@ -111,8 +111,8 @@ for (const { id: look, name } of LOOKS) {
       await expectText(section.getByTestId('weight-day'), '78.4 kg')
       await expectText(section.getByTestId('weight-average'), '7-day average 78.4 kg average of 1 weigh-in')
       await expectText(section.getByTestId('weight-rate'), '5 more weigh-ins needed')
-      // "weigh‑ins" in the note has a no-break hyphen (U+2011), so it never splits at the hyphen.
-      await expectText(section.getByTestId('weight-trend'), 'Trend 5 more weigh-ins needed shown from 6 weigh\u2011ins in 21 days, over at least 4 days')
+      // "weigh-ins" in the note has a word joiner (U+2060) after its hyphen, so it never splits there.
+      await expectText(section.getByTestId('weight-trend'), 'Trend 5 more weigh-ins needed shown from 6 weigh-\u2060ins in 21 days, over at least 4 days')
       // The count needed is one short line: it never wraps to leave a word on its own.
       const rateLines = await section.getByTestId('weight-rate').evaluate((el) => el.getClientRects().length)
       expect(rateLines).toBe(1)
@@ -217,7 +217,7 @@ for (const { id: look, name } of LOOKS) {
       doc.weighIns = mornings.map((t, i) => ({ id: `d${i}`, at: `2026-10-${t}:00-04:00`, kg: 80.6 - i * 0.1, unit: 'kg' }))
       await seed(page, JSON.stringify(doc))
       const section = page.getByTestId('weight-section')
-      await expectText(section.getByTestId('weight-trend'), 'Trend 1 more weigh-in needed shown from 6 weigh\u2011ins in 21 days, over at least 4 days')
+      await expectText(section.getByTestId('weight-trend'), 'Trend 1 more weigh-in needed shown from 6 weigh-\u2060ins in 21 days, over at least 4 days')
       await logWeight(page, '80.0', { when: '2026-10-21T07:00' })
       await expectText(section.getByTestId('weight-trend'), /^Trend down 0\.\d kg a week from 6 weigh-ins in 21 days$/)
       await expect(section.getByTestId('weight-rate')).toHaveClass(/\bnum\b/)
@@ -283,7 +283,7 @@ for (const { id: look, name } of LOOKS) {
       const section = page.getByTestId('weight-section')
       await expect(section.getByTestId('weight-day')).toHaveText('No weigh-in today')
       const value = section.getByTestId('weight-average-value')
-      await expect(value).toHaveText('No weigh\u2011ins in the last 7 days')
+      await expect(value).toHaveText('No weigh-\u2060ins in the last 7 days')
       // A status sentence, not a number: normal weight, no tabular figures, and no "num" class.
       await expect(value).not.toHaveClass(/\bnum\b/)
       await expect(value).toHaveCSS('font-weight', '400')
@@ -294,7 +294,7 @@ for (const { id: look, name } of LOOKS) {
       // The details say the same, with "7-day average" on one line.
       await page.getByTestId('weight-open').click()
       const details = page.getByTestId('weight-details')
-      await expectText(details.getByTestId('weight-details-average'), '7-day average No weigh\u2011ins in the last 7 days')
+      await expectText(details.getByTestId('weight-details-average'), '7-day average No weigh-\u2060ins in the last 7 days')
       const label = details.getByTestId('weight-details-average').locator('.k')
       expect(await label.evaluate((el) => el.getClientRects().length)).toBe(1)
       await expect(details.getByTestId('weight-how')).toContainText('in the last 7 days.')
@@ -303,7 +303,7 @@ for (const { id: look, name } of LOOKS) {
       // between): no "last 7 days" there, and its real end is named rather than "the end of Wed".
       await page.getByTestId('day-prev').click()
       await expectText(section.getByTestId('weight-day'), '78.6 kg')
-      await expect(value).toHaveText('No weigh\u2011ins in the 7 days to Sat Oct 31, 7:00 AM, when that day ended')
+      await expect(value).toHaveText('No weigh-\u2060ins in the 7 days to Sat Oct 31, 7:00 AM, when that day ended')
       await expect(value).toHaveCSS('font-weight', '400')
       // On a 320 px phone the long sentence goes on its own line under "7-day average", left-aligned,
       // in at most 3 lines, rather than a thin right-aligned column.

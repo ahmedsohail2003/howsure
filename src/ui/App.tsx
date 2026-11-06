@@ -3,9 +3,10 @@
 // spec.md > Store: both logs are saved on the device under their own keys, every change
 // writes the whole document, and a reload reads them back, demo clock included.
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { nowIso, reanchorDemoClock, type LogKind } from '../clock'
 import { sleepStatus, wakingDayStart } from '../kernel/sleepday'
+import type { StatId } from '../kernel/statRegistry'
 import type { Meal, SleepRecord, WeighIn, WeightUnit, Workout } from '../kernel/types'
 import { demoChanges, isDemoEdited, pristineDemo, type DemoChanges } from '../store/demoReset'
 import { emptyLog, startDemo, type BodyDetails, type LogDoc } from '../store/log'
@@ -77,6 +78,9 @@ import { WeighInSheet } from './WeighInSheet'
 import { unitToRemember, withoutWeighIn, withWeighIn, withWeightUnit } from './weighInEdit'
 import { WeightDetails } from './WeightDetails'
 import { buildWeightView } from './weightView'
+import { buildWeekView } from './weekView'
+import { WeekBreakdownSheet, WeekSheet } from './WeekView'
+import { FOCUS_RETURN } from './Sheet'
 
 type SheetState =
   | ExplainMode
@@ -119,6 +123,10 @@ type SheetState =
   // Closing the sheet goes back to where it was opened from: the details or the dashboard.
   | { mode: 'weight'; focusId?: string | null }
   | { mode: 'weighIn'; id: string | null; from: 'dashboard' | 'weight'; startAt: string }
+  // Build-out item 2.7: the week view, and one stat's day-by-day breakdown. Closing the breakdown
+  // goes back to the week, with focus on that stat's row.
+  | { mode: 'week'; focusStat?: StatId }
+  | { mode: 'weekStat'; stat: StatId }
 
 /**
  * The one-line confirmation of the last action: under the header (Reset demo), or in the action
@@ -225,6 +233,21 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
   const view = useMemo(() => (doc && nav ? buildDayViewFor(doc, viewedStart) : null), [doc, nav !== null, viewedStart, tick])
   // The viewed day's weight (build-out item 2.4), worked out once for the dashboard and the details.
   const weight = useMemo(() => (doc && at && nav ? buildWeightView(doc, viewedStart, at) : null), [doc, nav !== null, viewedStart, tick])
+  // Build-out item 2.7: the week ending at the viewed day, worked out while the week or a breakdown
+  // is open. `tick` keeps it fresh as time passes, so the current day rolls it forward.
+  const weekOpen = sheet?.mode === 'week' || sheet?.mode === 'weekStat'
+  const week = useMemo(
+    () => (weekOpen && doc && at && nav ? buildWeekView(doc, nav, at, active === 'demo') : null),
+    [weekOpen, doc, nav?.index, nav?.days.length, viewedStart, tick],
+  )
+  // After a day is opened from a week breakdown, focus goes to the waking-day line at the top, so
+  // the day that opened is what comes into view (not the Week button at the bottom).
+  const focusDayLine = useRef(false)
+  useEffect(() => {
+    if (!focusDayLine.current) return
+    focusDayLine.current = false
+    document.querySelector<HTMLElement>(`[${FOCUS_RETURN}]`)?.focus()
+  })
   // The older copies the panel offers, counted when it opens and after Delete or Import change
   // your own log (not on every render: it scans the device's keys).
   const profileOpen = sheet?.mode === 'profile'
@@ -463,6 +486,9 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
       case 'weight':
         setSheet({ mode: 'weight' })
         return
+      case 'week':
+        setSheet({ mode: 'week' })
+        return
       case 'look':
         setSheet({ mode: 'look' })
         return
@@ -638,6 +664,8 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
   const editingWorkout =
     sheet?.mode === 'newWorkout' ? sheet.workout : sheet?.mode === 'editWorkout' ? findWorkout(sheet.workoutId) : undefined
   const weighIn = sheet?.mode === 'weighIn' ? sheet : null
+  const weekStat = sheet?.mode === 'weekStat' ? sheet.stat : null
+  const weekRow = weekStat && week ? (week.rows.find((r) => r.id === weekStat) ?? null) : null
   const editingWeighIn = weighIn?.id ? (doc.weighIns ?? []).find((w) => w.id === weighIn.id) : undefined
   return (
     <LookContext.Provider value={lookState}>
@@ -675,6 +703,7 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
           setStatusNote(null)
           setViewed(null)
         }}
+        onOpenWeek={() => setSheet({ mode: 'week' })}
         ownName={logs.mine.profile.name}
         onOpenProfile={() => setSheet({ mode: 'profile' })}
         targets={doc.profile.targets}
@@ -837,6 +866,29 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
           onSave={(w) => saveWeighIn(w, editingWeighIn ?? null, weighIn.from)}
           onDelete={(id) => deleteWeighIn(id, weighIn.from)}
           onClose={() => closeWeighIn(weighIn.from, weighIn.id)}
+        />
+      )}
+      {sheet?.mode === 'week' && week && (
+        <WeekSheet
+          week={week}
+          demo={demo}
+          onClose={() => setSheet(null)}
+          onOpenStat={(stat) => setSheet({ mode: 'weekStat', stat })}
+          focusStat={sheet.focusStat ?? null}
+        />
+      )}
+      {sheet?.mode === 'weekStat' && week && weekRow && (
+        <WeekBreakdownSheet
+          key={sheet.stat}
+          row={weekRow}
+          window={week.window}
+          demo={demo}
+          onClose={() => setSheet({ mode: 'week', focusStat: sheet.stat })}
+          onOpenDay={(dayStart) => {
+            setSheet(null)
+            showDay(dayStart)
+            focusDayLine.current = true
+          }}
         />
       )}
       {sheet?.mode === 'savedMeals' && (

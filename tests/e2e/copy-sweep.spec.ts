@@ -30,6 +30,9 @@
 // Build-out item 2.6: the gym log. Log a workout with Add gym sets, Log a gym session with its
 // messages, Copy last session and Undo after Remove exercise, the dashboard's gym summary, a workout's sets in its details,
 // the gym log empty, with a search and with no match, and Remove gym sets.
+//
+// Build-out item 2.7: the week view and every average's breakdown, in the demo (today and an
+// earlier day) and in your own log (every kind of entry, no weigh-in in the week, and empty).
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { expect, test, type Page } from '@playwright/test'
@@ -38,6 +41,7 @@ import { copy } from '../../src/ui/copy'
 import { wordRuleHits } from '../wordRules'
 import { LOOKS, startInLook } from './looks'
 import { E2E_KEYS } from './storage-keys'
+import { samWeek } from './weekLog'
 
 const V1_MINE = readFileSync(fileURLToPath(new URL('../../fixtures/saved/v1-mine.json', import.meta.url)), 'utf8')
 
@@ -786,6 +790,61 @@ for (const { id: look, name: lookName } of LOOKS) {
       await closeWithEsc(page, 'workout-sheet')
 
       sweep.check(14)
+    })
+
+    test('the week view and every breakdown (build-out item 2.7), in the demo and in your own log', async ({ page }) => {
+      test.setTimeout(180_000)
+      const sweep = new Sweep(page)
+
+      /** The week, then each average's day-by-day breakdown. */
+      async function sweepWeek(label: string) {
+        await page.getByTestId('open-week').click()
+        const week = await opened(page, 'week-view')
+        await sweep.take(`${label}: the week`)
+        const ids = await week.getByTestId('week-stat').evaluateAll((els) => els.map((e) => e.getAttribute('data-stat') as string))
+        for (const id of ids) {
+          await week.getByTestId(`week-row-${id}`).click()
+          await opened(page, 'week-breakdown')
+          await sweep.take(`${label}: the ${id} breakdown`)
+          await closeWithEsc(page, 'week-breakdown')
+        }
+        await closeWithEsc(page, 'week-view')
+        return ids.length
+      }
+
+      await page.clock.setFixedTime(DEMO_NOW)
+      await page.goto('/')
+      await page.getByRole('button', { name: 'Try the fictional demo' }).click()
+      await expect(page.getByTestId('dashboard')).toBeVisible()
+      const demoRows = await sweepWeek('demo')
+      // An earlier day: the week ends there, with no day still going.
+      await page.getByTestId('day-prev').click()
+      await page.getByTestId('open-week').click()
+      await opened(page, 'week-view')
+      await sweep.take('demo: the week to an earlier day')
+      await closeWithEsc(page, 'week-view')
+
+      // Your own log with every kind of entry: weight, body fat, gym sets and the deficit or surplus too.
+      await seedAndOpen(page, new Date('2026-10-21T20:00:00-04:00'), { [E2E_KEYS.mine]: JSON.stringify(samWeek()), [E2E_KEYS.active]: 'mine' })
+      const mineRows = await sweepWeek('own log')
+      // No weigh-in in these days, and an empty log: the rows say so in words.
+      await seedAndOpen(page, new Date('2026-10-21T20:00:00-04:00'), {
+        [E2E_KEYS.mine]: JSON.stringify({ ...samWeek(), weighIns: [{ id: 'old', at: '2026-10-01T07:10:00-04:00', kg: 72.5, unit: 'kg' }] }),
+        [E2E_KEYS.active]: 'mine',
+      })
+      await page.getByTestId('open-week').click()
+      await opened(page, 'week-view')
+      await sweep.take('own log: the week with no weigh-in in it')
+      await closeWithEsc(page, 'week-view')
+      await seedAndOpen(page, new Date('2026-10-21T20:00:00-04:00'), {
+        [E2E_KEYS.mine]: JSON.stringify({ version: 1, kind: 'mine', profile: { name: '', kind: 'guest' }, meals: [], sleeps: [], workouts: [], plates: [] }),
+        [E2E_KEYS.active]: 'mine',
+      })
+      await page.getByTestId('open-week').click()
+      await opened(page, 'week-view')
+      await sweep.take('an empty log: the week')
+      await closeWithEsc(page, 'week-view')
+      sweep.check(demoRows + mineRows + 5)
     })
 
     test('the saved-log notices: newer version and unreadable', async ({ page }) => {

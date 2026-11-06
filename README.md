@@ -53,6 +53,12 @@ Your daily calorie target is a target for eating, so it is always compared with 
 
 The dashboard's **Weight** shows the day's weigh-in (or "No weigh-in today"), the **7-day average** with how many weigh-ins it holds, and the **trend**: the slope of a straight line fitted by least squares through the last 21 days of weigh-ins, given per week. The trend shows once there are 6 weigh-ins in those 21 days, spread over at least 4 days first to last (so weighing in each morning shows it from the 6th morning); until then it says what it still needs. It describes past weigh-ins and is not a prediction. **Log weight** takes the weight in kg or lb (30 to 300 kg, the same range as Body details; a saved weight left as it is is never re-checked, so its note or time can always change), the date and time (now, unless you change it), and an optional body fat % and note. A weigh-in belongs to the waking day it was taken in, like a meal, so correcting a wake time can move it to another day; the sleep editor's move warning lists it before you save, with the meals and workouts. Weights are stored in kg (1 lb = 0.45359237 kg), each keeping the unit it was typed in, and shown in the unit you pick. Switching the unit while editing a weigh-in converts the saved weight in the box, so the stored weight stays the same; a number typed over it is read in the unit picked, and the hint under the unit says which. The estimated deficit or surplus uses the latest weigh-in up to the end of the day it counts, and its explanation names that weigh-in; the weight in Body details counts only when there is none. Tap the weight to see every weigh-in, a chart of the last 30 days (every point on it is also in the list), and how the numbers are worked out; tap a weigh-in to edit or delete it. Weigh-ins are part of your log, so Export and Import carry them. `python3 scripts/golden.py` works out golden values for the average, the trend and its span rule on its own (`fixtures/golden-weight.json`), and the unit tests check the app against them.
 
+### Week
+
+**Week**, under **Previous** and **Next** at the bottom of the dashboard (also under **More**), shows the 7 waking days ending at the day on screen, with the average of every stat HowSure has: calories eaten with its likely and very likely ranges, the Estimate score, protein, carbs and fat; net calories, burned in workouts and its Estimate score, workout time, sets per gym session and the estimated deficit or surplus, once there are workouts, gym sessions or body details; sleep length, when you went to sleep and when you woke; and weight (with the dashboard's trend) and body fat, once there are weigh-ins. Each average says how many days or nights it counts, such as "average of 5 complete days (1 incomplete left out)" or "6 of 7 nights". A day with an unknown value is left out of that average and counted, never treated as zero, and a day with nothing logged says **Not logged**. A week shorter than seven days says it runs from the start of the log, and a week with nothing logged shows one line instead of empty rows. Tap an average for its day-by-day breakdown: each day's value, and whether it was counted, left out (and why) or not logged; the calories breakdown also draws each day as a bar with its range. Tap a day to open it on the dashboard. The week moves with the day on screen and rolls forward when a new waking day starts; today counts with what is logged so far, and each count that includes it says so ("average of 4 complete days and today so far"). In the demo, Sam's week averages **1,582 kcal** over 4 complete days and Wednesday so far, with Friday (an unknown meal) left out and Saturday not logged.
+
+The calorie average groups every meal on the counted days by source, as a day does (`avg = X_total / N`, `sd_avg = sd_total / N`), so photo estimates don't "average out" across the week; golden G10 checks it. Clock times average as clock times, so 11:50 PM and 12:10 AM average to 12:00 AM. Every stat the app shows is listed once in `src/kernel/statRegistry.ts`, and a unit test fails when the saved log or a day's values hold something no stat reads; that file says how a new stat adds its week average.
+
 ## How the numbers work
 
 - **Typical error per source.** Each way of knowing a meal's calories has a typical error: weighed 8%, nutrition label 10%, published menu 21%, description 41%, photo estimate 46%.
@@ -63,7 +69,7 @@ The dashboard's **Weight** shows the day's weigh-in (or "No weigh-in today"), th
 - **Net calories.** Burned is worked out like a day of meals: same-source workouts add, different sources combine as the root of the sum of squares, with its own score and lognormal ranges. Net = eaten − burned, and its spread is `√(sd_eaten² + sd_burned²)`, because the two are estimated separately. Net's ranges are normal (net ± 1.2816 sd and ± 1.96 sd), so they can go below zero, and net has no estimate score: a percentage of a number near zero says nothing. A workout with unknown calories is listed under Missing information and left out, as an unknown meal is.
 - **Golden tests.** The maths rules above (typical errors, combining, the score and the ranges) are checked by golden values computed separately in Python (`scripts/golden.py`) and asserted in `src/kernel/__tests__/golden.test.ts`. The unknown-calories rule is checked in `src/kernel/__tests__/estimate.test.ts`.
 - **Estimated deficit or surplus.** Resting burn = 10 × kg + 6.25 × cm − 5 × age + s (s = +5 men, −161 women, −78 for prefer not to say with an extra spread of 166 / √12 kcal). Everyday burn = resting × activity factor × hours counted / 24. Balance = eaten − (everyday burn + logged workouts), with spread `√(sd_eaten² + sd_workouts² + sd_everyday²)` and normal ranges, like net. Below 0 is a deficit. Golden values E1 and E2 come from `scripts/golden.py` (`fixtures/golden-energy.json`) and are asserted in `src/kernel/__tests__/energy.test.ts`.
-- **Golden values for maths still to come.** `python3 scripts/golden.py` also works out the golden values for net calories (G6), weigh-minus-the-plate (G7), run pace and distance (G9) and the week average (G10) from the spec's formulas, and keeps them in `fixtures/golden.json`. `src/kernel/__tests__/golden-later.test.ts` checks the stored values against the spec. G6's kernel, `src/kernel/net.ts`, is built and asserted there; the others list their kernel's own test as pending until it lands.
+- **Golden values for maths still to come.** `python3 scripts/golden.py` also works out the golden values for net calories (G6), weigh-minus-the-plate (G7), run pace and distance (G9) and the week average (G10) from the spec's formulas, and keeps them in `fixtures/golden.json`. `src/kernel/__tests__/golden-later.test.ts` checks the stored values against the spec. G6's kernel, `src/kernel/net.ts`, and G10's, `src/kernel/week.ts`, are built and asserted there; the others list their kernel's own test as pending until it lands.
 
 ## Sources
 
@@ -96,7 +102,7 @@ In your own log, tap your name at the top (or "Your log") to open **Profile and 
 
 ### More: targets, look and full screen
 
-**More**, at the top of the dashboard, lists the app's other places: Profile and privacy (your own log), **Targets**, **Saved meals**, **Weight**, **Look** and **Show full screen**.
+**More**, at the top of the dashboard, lists the app's other places: Profile and privacy (your own log), **Targets**, **Saved meals**, **Week**, **Weight**, **Look** and **Show full screen**.
 
 - **Targets** holds your daily calories, protein, carbs and fat. A blank box means no target; 0 and negative numbers are refused. A target shows as a plain line beside the estimate score and under its macro. In the demo these are Sam's made-up targets, and a change stays in the demo.
 - **Look** chooses how the dashboard is drawn. Every look shows the same numbers, details and actions. **Journal**, the default, is light and warm: the two ranges sit on one labelled bar with every number also written as text, Log a meal and the sleep button stay pinned to the bottom on a phone, and a wide screen shows the day on the left and the meals and sleep on the right. The choice applies at once and is kept on this device, apart from both logs, so Export, Import and Delete leave it alone.
@@ -134,7 +140,6 @@ Logs are kept per browser origin, so a test run on http://127.0.0.1:5273 would s
 ## Roadmap
 
 These are designed in `devpost/prd.md` but not built for this submission:
-- the week view and averages;
 - gamer-tag guest names;
 - plates (weigh minus the plate);
 - barcode lookup;
@@ -145,7 +150,6 @@ These are designed in `devpost/prd.md` but not built for this submission:
 - groups and leaderboards;
 - a 3-day timeline;
 - room left as foods;
-- the week view's weight row (the weight log itself is built);
 - nutrients and the processed-food share;
 - meal photos;
 - night tags;

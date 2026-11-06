@@ -1,6 +1,7 @@
 // Golden cases G6 (net calories), G7 (plates), G9 (runs) and G10 (week summary). G6's kernel,
-// src/kernel/net.ts, came with slice 10 (build-out item 2.5a) and is asserted below; the others'
-// kernels are not built yet, so their values wait in fixtures/golden.json, written by
+// src/kernel/net.ts, came with slice 10 (build-out item 2.5a) and G10's, src/kernel/week.ts, with
+// slice 8 (build-out item 2.7); both are asserted below. The others' kernels are not built yet, so
+// their values wait in fixtures/golden.json, written by
 // `python3 scripts/golden.py --write` from spec.md > Maths Core (fictional inputs only).
 //
 // What runs now: the stored values are checked against the numbers spec.md prints (computed in
@@ -12,6 +13,8 @@ import { describe, expect, it } from 'vitest'
 import golden from '../../../fixtures/golden.json'
 import { combineDay } from '../estimate'
 import { combine, combineBurned } from '../net'
+import { daysIndependentE, summarise } from '../week'
+import { copy } from '../../ui/copy'
 import type { BurnSourceId, MealSourceId, Workout } from '../types'
 import { expectEPercent, expectRange, meal } from './helpers'
 
@@ -226,5 +229,42 @@ describe('G10: the week summary (spec.md > Maths Core: Week Summary)', () => {
     expect(x.days[2]).toEqual({ name: 'Wed', status: 'incomplete', knownTotal: 400 })
   })
 
-  it.todo('week.summarise() gives this average, spread and label — waits for src/kernel/week.ts (slice 8, build-out item 2.7)')
+  // Slice 8 (build-out item 2.7): src/kernel/week.ts, read against the same fixture.
+  describe('week.summarise() (src/kernel/week.ts)', () => {
+    const days = [
+      ...G10.input.days.map((d) => ({
+        meals: d.meals.map((m) => meal(m.source as MealSourceId, m.kcal)),
+        workouts: [] as Workout[],
+      })),
+      // The rest of the week, not logged.
+      ...Array.from({ length: G10.input.notLoggedDays }, () => ({ meals: [], workouts: [] as Workout[] })),
+    ]
+    const week = summarise(days)
+    const c = week.calories
+
+    it('each day: Mon and Tue logged, Wed incomplete (its known meals only, 400 kcal), the rest not logged', () => {
+      expect(week.statuses).toEqual(['logged', 'logged', 'incomplete', 'notLogged', 'notLogged', 'notLogged', 'notLogged'])
+      const wed = combineDay(days[2].meals)
+      expect(wed.knownTotal).toBe(x.days[2].knownTotal)
+    })
+
+    it('average 1550, sd 393.4, e 25.38%, score 75, likely 1160–2071, very likely 995–2415', () => {
+      expect(c.average).toBe(x.average)
+      expect(Math.abs((c.sd as number) - x.sd)).toBeLessThanOrEqual(0.05)
+      expectEPercent(c.e, x.ePercent)
+      expect(c.score).toBe(x.score)
+      expectEnds([Math.round(c.likely!.lo), Math.round(c.likely!.hi)], x.likely[0], x.likely[1])
+      expectEnds([Math.round(c.veryLikely!.lo), Math.round(c.veryLikely!.hi)], x.veryLikely[0], x.veryLikely[1])
+    })
+
+    it('is labelled "average of 2 complete days (1 incomplete left out)", with the 4 days not logged counted apart', () => {
+      expect(c).toMatchObject({ counted: x.completeDays, leftOut: x.incompleteLeftOut, notLogged: G10.input.notLoggedDays })
+      expect(copy.week.completeDays(c.counted, c.leftOut)).toBe(x.label)
+    })
+
+    it('groups by source across the week, not days-independent (19.49%), so the two methods differ', () => {
+      expectEPercent(daysIndependentE(days.map((d) => d.meals)), x.daysIndependentEPercent)
+      expect((c.e as number) * 100 - x.daysIndependentEPercent).toBeGreaterThan(5)
+    })
+  })
 })

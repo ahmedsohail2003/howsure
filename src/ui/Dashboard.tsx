@@ -105,6 +105,8 @@ interface DashboardProps {
   onNext: () => void
   onPickDate: (date: string) => void
   onToday: () => void
+  /** Opens the week view (build-out item 2.7), beside previous and next. */
+  onOpenWeek: () => void
   /** The guest name in your own log ('' until item 2.10 gives one). */
   ownName: string
   /** Opens Profile and privacy (build-out item 1.2). Your own log only. */
@@ -379,7 +381,14 @@ export function Dashboard(props: DashboardProps) {
 
           {!night && sleepSection}
 
-          <DayNav nav={nav} onPrev={props.onPrev} onNext={props.onNext} onPickDate={props.onPickDate} onToday={props.onToday} />
+          <DayNav
+            nav={nav}
+            onPrev={props.onPrev}
+            onNext={props.onNext}
+            onPickDate={props.onPickDate}
+            onToday={props.onToday}
+            onOpenWeek={props.onOpenWeek}
+          />
         </div>
       </div>
     </main>
