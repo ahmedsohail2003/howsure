@@ -18,7 +18,7 @@ import { checkDraft, draftFromMeal, fromLocalInput, previewEdit, type EditPrevie
 import { fmtInt, fmtPct, fmtRangeEnds, fmtTime, fmtWeekday } from './format'
 import { Sheet } from './Sheet'
 import { QuickLog } from './QuickLog'
-import { BasisTag } from './SourceBasis'
+import { MealBasisTag } from './SourceBasis'
 import type { MealValues } from './usualMeals'
 
 export type MealSheetMode = 'new' | 'edit' | 'improve'
@@ -126,7 +126,7 @@ export function LogMealSheet({ mode, meal, doc, at, viewDayStart, demo, onSave, 
           <h3 className="section-title">{copy.logMeal.improveTitle}</h3>
           <p className="num">
             {copy.logMeal.currentSource(original.label, originalPct)}{' '}
-            <BasisTag source={original} />
+            <MealBasisTag meal={meal} source={original} />
           </p>
           {suggestedTo && (
             <p className="num" data-testid="improve-suggestion">

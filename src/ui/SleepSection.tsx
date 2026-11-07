@@ -15,8 +15,8 @@
 // going on. Each night's Edit and Add a missed night stay here, one tap deep, as before.
 
 import { copy } from './copy'
-import { fmtWeekday, fmtWeekdayDate, fmtWeekdayTime } from './format'
-import { KeepTogether } from './KeepTogether'
+import { fmtCalendarDate, fmtDate, fmtWeekday, fmtWeekdayDate, fmtWeekdayTime } from './format'
+import { KeepTogether, TimesTogether } from './KeepTogether'
 import { useLook } from './lookContext'
 import { fmtClockMinutes, fmtDuration, headEdit, lastNightLabel, type SleepView } from './sleepView'
 
@@ -32,12 +32,27 @@ interface SleepSectionProps {
   onAddNight: () => void
   /** Opens the sleep details (build-out item 2.9). */
   onOpenSleep: () => void
+  /**
+   * The current day's wake when it is more than a day old (build-out item 2.1b), else null: now's
+   * status then says no sleep was logged since it, rather than "Awake", as the Night timeline does.
+   * On an earlier day it names that wake, so it never reads as the viewed day's own wake-up.
+   */
+  staleWake?: string | null
+}
+
+/**
+ * Now's status while awake: "Awake", or no sleep logged since a wake that is days old, named by
+ * its date as the header names it ("Sat 17 Oct") when an earlier day is on screen.
+ */
+function awakeStatus(today: boolean, staleWake: string | null, nowIso: string): string {
+  if (staleWake === null) return copy.sleep.awake
+  return today ? copy.sleep.noSleepSinceWake : copy.sleep.noSleepSinceWakeOn(fmtCalendarDate(fmtDate(staleWake), nowIso))
 }
 
 export function SleepSection(props: SleepSectionProps) {
   const { look } = useLook()
   if (look === 'night') return <NightSleep {...props} />
-  const { sleep, today, nowIso, onEditNight, onOpenSleep } = props
+  const { sleep, today, nowIso, onEditNight, onOpenSleep, staleWake } = props
   const { status, lastNight, stats, dayRecordId } = sleep
   const asleep = status.kind === 'asleep'
   const edit = headEdit(sleep, today, nowIso)
@@ -64,7 +79,7 @@ export function SleepSection(props: SleepSectionProps) {
             </p>
           ) : (
             <p className="sleep-status" data-testid="sleep-status">
-              {copy.sleep.awake}
+              <TimesTogether text={awakeStatus(today, staleWake ?? null, nowIso)} />
             </p>
           )}
           {edit && (

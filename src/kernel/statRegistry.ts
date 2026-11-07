@@ -70,7 +70,8 @@ const BURNED_DAY = ['status', 'knownTotal', 'workoutCount', 'unknownWorkoutIds',
 )
 
 export const STATS: { readonly [K in StatId]: StatEntry } = {
-  eaten: { group: 'food', covers: ['meals[]', 'meals[].kcal', 'DayView.meals', 'DayView.eatenSd', ...EATEN_DAY] },
+  // A meal's own typical error (an imported meal, build-out item 2.1b) feeds the same ranges.
+  eaten: { group: 'food', covers: ['meals[]', 'meals[].kcal', 'meals[].typicalError', 'DayView.meals', 'DayView.eatenSd', ...EATEN_DAY] },
   score: { group: 'food', covers: ['DayView.day.score'] },
   protein: { group: 'food', covers: ['meals[].protein', 'DayView.macros.protein'] },
   carbs: { group: 'food', covers: ['meals[].carbs', 'DayView.macros.carbs'] },

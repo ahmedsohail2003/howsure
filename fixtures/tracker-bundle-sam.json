@@ -1,0 +1,448 @@
+{
+ "format": "tracker-bundle",
+ "formatVersion": 1,
+ "exportedAt": "2026-10-17T21:00:00-04:00",
+ "meals": [
+  {
+   "id": "3000101",
+   "data": {
+    "id": "3000101",
+    "date": "2026-10-12",
+    "saved": "2026-10-17T20:55:00-04:00",
+    "type": "Breakfast",
+    "kcal": 260,
+    "protein": 18,
+    "carbs": 30,
+    "fat": 6.5,
+    "text": "Greek yogurt 200 g with honey (label) [wp1;src=LABEL;acc=91;na=80;sug=18;asug=9;fib=0;sat=3.1;ca=240;nv=1:70,4:30;ik=100]"
+   },
+   "updatedAt": "2026-10-17T21:00:00.1234Z",
+   "version": 1
+  },
+  {
+   "id": "3000102",
+   "data": {
+    "id": "3000102",
+    "date": "2026-10-12",
+    "saved": "2026-10-17T20:55:00-04:00",
+    "type": "Lunch",
+    "kcal": 520,
+    "protein": 24,
+    "carbs": 70,
+    "fat": 14.5,
+    "text": "Pumpkin barley stew ~380 g (photo of the cafe board) + oat bun x1 [wp1;src=PHOTO_CTX;acc=70;na=980;sug=8;asug=1;fib=15;sat=2.4;nv=1:85,3:15;ik=0]"
+   },
+   "updatedAt": "2026-10-17T21:00:00.1234Z",
+   "version": 1
+  },
+  {
+   "id": "3000103",
+   "data": {
+    "id": "3000103",
+    "date": "2026-10-12",
+    "saved": "2026-10-17T20:55:00-04:00",
+    "type": "Shake",
+    "kcal": 120,
+    "protein": 24,
+    "carbs": 3,
+    "fat": 1.5,
+    "text": "Protein shake, 1 scoop in water (weighed) [wp1;src=SCALE;acc=99;na=110;sug=1;asug=0;fib=0;sat=0.5;nv=4:100;pu=100;ik=100;fl=NSS;nss=suc12.5]"
+   },
+   "updatedAt": "2026-10-17T21:00:00.1234Z",
+   "version": 1
+  },
+  {
+   "id": "3000104",
+   "data": {
+    "id": "3000104",
+    "date": "2026-10-12",
+    "saved": "2026-10-17T20:55:00-04:00",
+    "type": "Dinner",
+    "kcal": 780,
+    "protein": 38,
+    "carbs": 92,
+    "fat": 26,
+    "text": "Burrito bowl from Calle Verde (published parts) [wp1;src=CHAIN_BYO;acc=83;na=1650;sug=6;asug=2;fib=14;sat=8.5;nv=1:70,3:20,4:10;ik=40;rm=60]"
+   },
+   "updatedAt": "2026-10-17T21:00:00.1234Z",
+   "version": 1
+  },
+  {
+   "id": "3000105",
+   "data": {
+    "id": "3000105",
+    "date": "2026-10-13",
+    "saved": "2026-10-17T20:55:00-04:00",
+    "type": "Breakfast",
+    "kcal": 410,
+    "protein": 14,
+    "carbs": 44,
+    "fat": 19,
+    "text": "Toast x2 with peanut butter and banana [wp1;src=TEXT;acc=62;na=420;sug=14;asug=4;fib=6;sat=3.5;nv=1:40,3:60;ik=0]"
+   },
+   "updatedAt": "2026-10-17T21:00:00.1234Z",
+   "version": 1
+  },
+  {
+   "id": "3000106",
+   "data": {
+    "id": "3000106",
+    "date": "2026-10-13",
+    "saved": "2026-10-17T20:55:00-04:00",
+    "type": "Lunch",
+    "kcal": 690,
+    "protein": 32,
+    "carbs": 88,
+    "fat": 21,
+    "text": "Noodle soup at Mama Lin's (database match) [wp1;src=NONCHAIN;acc=70;na=2100;sug=7;asug=3;fib=4;sat=5;oily=1;nv=1:50,3:30,4:20;ik=0]"
+   },
+   "updatedAt": "2026-10-17T21:00:00.1234Z",
+   "version": 1
+  },
+  {
+   "id": "3000107",
+   "data": {
+    "id": "3000107",
+    "date": "2026-10-13",
+    "saved": "2026-10-17T20:55:00-04:00",
+    "type": "Shake",
+    "kcal": 340,
+    "protein": 10,
+    "carbs": 58,
+    "fat": 8,
+    "text": "Chocolate shake, small, from Orbit Burger [wp1;src=CHAIN;acc=80;na=250;sug=52;asug=40;fib=1;sat=5;nv=4:100;ik=100;fl=CAR+EMU]"
+   },
+   "updatedAt": "2026-10-17T21:00:00.1234Z",
+   "version": 1
+  },
+  {
+   "id": "3000108",
+   "data": {
+    "id": "3000108",
+    "date": "2026-10-13",
+    "saved": "2026-10-17T20:55:00-04:00",
+    "type": "Snack",
+    "kcal": 200,
+    "protein": 2,
+    "carbs": 28,
+    "fat": 9,
+    "text": "Cookie from the break room [wp1;src=GUESS;acc=45;sug=16;asug=16;nv=4:100;ik=0]"
+   },
+   "updatedAt": "2026-10-17T21:00:00.1234Z",
+   "version": 1
+  },
+  {
+   "id": "3000109",
+   "data": {
+    "id": "3000109",
+    "date": "2026-10-13",
+    "saved": "2026-10-17T20:55:00-04:00",
+    "type": "Dinner",
+    "kcal": 640,
+    "protein": 22,
+    "carbs": 104,
+    "fat": 12,
+    "text": "Rice and beans with salsa"
+   },
+   "updatedAt": "2026-10-17T21:00:00.1234Z",
+   "version": 1
+  },
+  {
+   "id": "3000110",
+   "data": {
+    "id": "3000110",
+    "date": "2026-10-14",
+    "saved": "2026-10-17T20:55:00-04:00",
+    "type": "Lunch",
+    "kcal": 560,
+    "protein": 19,
+    "carbs": 66,
+    "fat": 24,
+    "text": "Falafel wrap (photo only) [wp1;src=PHOTO;acc=55;na=1100;sug=5;asug=1;fib=9;sat=3.8;nv=1:60,3:40;ik=0]"
+   },
+   "updatedAt": "2026-10-17T21:00:00.1234Z",
+   "version": 1
+  },
+  {
+   "id": "3000111",
+   "data": {
+    "id": "3000111",
+    "date": "2026-10-14",
+    "saved": "2026-10-17T20:55:00-04:00",
+    "type": "Snack",
+    "kcal": 95,
+    "protein": 0.5,
+    "carbs": 25,
+    "fat": 0.3,
+    "text": "Apple, medium [wp1;src=FRUITBOWL;acc=88;fib=4.4;zz=5;nv=1:100;ik=0]"
+   },
+   "updatedAt": "2026-10-17T21:00:00.1234Z",
+   "version": 1
+  },
+  {
+   "id": "3000112",
+   "data": {
+    "id": "3000112",
+    "date": "2026-10-14",
+    "saved": "2026-10-17T20:55:00-04:00",
+    "type": "Dinner",
+    "kcal": 690,
+    "protein": 20,
+    "carbs": 96,
+    "fat": 24,
+    "text": "Baked gnocchi with tomato and basil ~350 g (photo, dish on the menu) [wp1;src=PHOTO_CTX;acc=71;na=720;sug=9;fib=6.5;sat=4.2;nv=1:55,3:30,4:15;ik=0] then a side salad of cucumber, radish, shredded carrot and mint with a lemon and olive oil dressing, a spoon of toasted sunflower seeds, two crackers from the pantry tin, half a pear sliced thin, then a side salad of cucumber, radish, shredded carrot and mint with a lemon and olive oil dressing, a spoon of toasted sunflower seeds, two crackers from the pantry tin, half a pear sliced thin, then a side salad of cucumber, radish, shredded carrot and mint with a lemon and olive oil dressing, a spoon of toasted sunflower seeds, two crackers from the pantry tin, half a pear sliced thin, then a side salad of cucumber, radish, shredded carrot and mint with a lemon and olive oil dressing, a spoon of toasted sunflower seeds, two crackers from the pantry tin, half a pear sliced thin, then a side salad of cucumber, radish, shredded carrot and mint with a lemon…"
+   },
+   "updatedAt": "2026-10-17T21:00:00.1234Z",
+   "version": 1
+  },
+  {
+   "id": "3000113",
+   "data": {
+    "id": "3000113",
+    "date": "2026-10-15",
+    "saved": "2026-10-17T20:55:00-04:00",
+    "type": "Breakfast",
+    "kcal": 380,
+    "protein": 13,
+    "carbs": 62,
+    "fat": 8,
+    "text": "Oatmeal 80 g with milk and blueberries (label) [wp1;src=LABEL;acc=100;na=120;sug=16;asug=0;fib=8;sat=2.6;nv=1:100;ik=100]"
+   },
+   "updatedAt": "2026-10-17T21:00:00.1234Z",
+   "version": 1
+  },
+  {
+   "id": "3000114",
+   "data": {
+    "id": "3000114",
+    "date": "2026-10-15",
+    "saved": "2026-10-17T20:55:00-04:00",
+    "type": "Snack",
+    "kcal": 0,
+    "protein": 0,
+    "carbs": 0,
+    "fat": 0,
+    "text": "Black coffee [wp1;src=LABEL;acc=90;na=5;nv=1:100;ik=0;fl=UFC]"
+   },
+   "updatedAt": "2026-10-17T21:00:00.1234Z",
+   "version": 1
+  },
+  {
+   "id": "3000115",
+   "data": {
+    "id": "3000115",
+    "date": "2026-10-15",
+    "saved": "2026-10-17T20:55:00-04:00",
+    "type": "Lunch",
+    "kcal": 530,
+    "protein": 31,
+    "carbs": 48,
+    "text": "Chicken salad sandwich [wp1;src=TEXT;acc=60;na=980;sug=6;fib=4;nv=1:40,3:60;ik=0]"
+   },
+   "updatedAt": "2026-10-17T21:00:00.1234Z",
+   "version": 1
+  },
+  {
+   "id": "3000116",
+   "data": {
+    "id": "3000116",
+    "date": "2026-10-15",
+    "saved": "2026-10-17T20:55:00-04:00",
+    "type": "Post-Workout",
+    "kcal": 210,
+    "protein": 20,
+    "carbs": 22,
+    "fat": 7,
+    "text": "Recovery bar (label) [wp1;src=LABEL;acc=92;na=1,50;sug=12,5;asug=10;fib=?;sat=3;nv=4:100;pu=100;ik=100;fl=NSS+COL;nss=suc8,ack40]"
+   },
+   "updatedAt": "2026-10-17T21:00:00.1234Z",
+   "version": 1
+  },
+  {
+   "id": "3000117",
+   "data": {
+    "id": "3000117",
+    "date": "2026-10-15",
+    "saved": "2026-10-17T20:55:00-04:00",
+    "type": "Dinner",
+    "kcal": 820,
+    "protein": 30,
+    "carbs": 96,
+    "fat": 30,
+    "text": "Sam's dinner plate from the canteen: roast squash, chickpeas, brown rice, tahini drizzle, pickled onion, then a side salad of cucumber, radish, shredded carrot and mint with a lemon and olive oil dressing, a spoon of toasted sunflower seeds, two crackers from the pantry tin, half a pear sliced thin, then a side salad of cucumber, radish, shredded carrot and mint with a lemon and olive oil dressing, a spoon of toasted sunflower seeds, two crackers from the pantry tin, half a pear sliced thin, then a side salad of cucumber, radish, shredded carrot and mint with a lemon and olive oil dressing, a spoon of toasted sunflower seeds, two crackers from the pantry tin, half a pear sliced thin, then a side salad of cucumber, radish, shredded carrot and mint with a lemon and olive oil dressing, a spoon of toasted sunflower seeds, two crackers from the pantry tin, half a pear sliced thin, then a side salad of cucumber, radish, shredded carrot and mint with a lemon and olive oil dressing, a spoon of …"
+   },
+   "updatedAt": "2026-10-17T21:00:00.1234Z",
+   "version": 1
+  },
+  {
+   "id": "3000118",
+   "data": {
+    "id": "3000118",
+    "date": "2026-10-16",
+    "saved": "2026-10-17T20:55:00-04:00",
+    "type": "Lunch",
+    "kcal": 610,
+    "protein": 28,
+    "carbs": 72,
+    "fat": 20,
+    "text": "Veggie curry with rice (photo, dish on the menu) [wp1;src=PHOTO_CTX;acc=66;na=1300;sug=11;asug=3;fib=10;sat=9;nv=1:65,3:35;ik=0]"
+   },
+   "updatedAt": "2026-10-17T21:00:00.1234Z",
+   "version": 1
+  },
+  {
+   "id": "3000119",
+   "data": {
+    "id": "3000119",
+    "date": "2026-10-16",
+    "saved": "2026-10-16T16:20:00-04:00",
+    "type": "Snack",
+    "kcal": 150,
+    "protein": 6,
+    "carbs": 20,
+    "fat": 5,
+    "text": "Granola bar [wp1;src=LABEL;acc=93;na=95;sug=9;asug=8;fib=2;sat=1;nv=4:100;ik=100;fl=EMU]"
+   },
+   "updatedAt": "2026-10-17T21:00:00.1234Z",
+   "version": 2
+  }
+ ],
+ "sleep": [
+  {
+   "id": "2026-10-12",
+   "data": {
+    "date": "2026-10-12",
+    "bed": "2026-10-11T23:30:00-04:00",
+    "wake": "2026-10-12T07:00:00-04:00",
+    "hours": 7.1,
+    "saved": "2026-10-17T20:55:00-04:00"
+   },
+   "updatedAt": "2026-10-17T21:00:00.1234Z",
+   "version": 1
+  },
+  {
+   "id": "2026-10-13",
+   "data": {
+    "date": "2026-10-13",
+    "bed": "2026-10-12T23:45:00-04:00",
+    "wake": "2026-10-13T07:15:00-04:00",
+    "hours": 7.0,
+    "saved": "2026-10-17T20:55:00-04:00"
+   },
+   "updatedAt": "2026-10-17T21:00:00.1234Z",
+   "version": 1
+  },
+  {
+   "id": "2026-10-15",
+   "data": {
+    "date": "2026-10-15",
+    "bed": "2026-10-14T23:00:00-04:00",
+    "wake": "2026-10-15T06:45:00-04:00",
+    "hours": 7.4,
+    "saved": "2026-10-17T20:55:00-04:00"
+   },
+   "updatedAt": "2026-10-17T21:00:00.1234Z",
+   "version": 1
+  },
+  {
+   "id": "2026-10-16",
+   "data": {
+    "date": "2026-10-16",
+    "bed": "2026-10-14T23:00:00-04:00",
+    "wake": "2026-10-16T07:30:00-04:00",
+    "hours": 7.5,
+    "saved": "2026-10-17T20:55:00-04:00"
+   },
+   "updatedAt": "2026-10-17T21:00:00.1234Z",
+   "version": 2
+  },
+  {
+   "id": "2026-10-17",
+   "data": {
+    "date": "2026-10-17",
+    "bed": "2026-10-16T23:10:00-04:00",
+    "wake": "2026-10-17T08:00:00-04:00",
+    "hours": 8.2,
+    "saved": "2026-10-17T20:55:00-04:00"
+   },
+   "updatedAt": "2026-10-17T21:00:00.1234Z",
+   "version": 1
+  }
+ ],
+ "weighins": [
+  {
+   "id": "2026-10-12",
+   "data": {
+    "date": "2026-10-12",
+    "lb": 158.4,
+    "bf": 21.5,
+    "time": "7:20 AM",
+    "saved": "2026-10-17T20:55:00-04:00"
+   },
+   "updatedAt": "2026-10-17T21:00:00.1234Z",
+   "version": 1
+  },
+  {
+   "id": "2026-10-16",
+   "data": {
+    "date": "2026-10-16",
+    "lb": 157.9,
+    "saved": "2026-10-17T20:55:00-04:00"
+   },
+   "updatedAt": "2026-10-17T21:00:00.1234Z",
+   "version": 1
+  }
+ ],
+ "settings": [
+  {
+   "id": "sync",
+   "data": {
+    "sleepLastOk": "2026-10-17T09:00:00-04:00",
+    "sleepNote": "Invented note for Sam.",
+    "reads": [
+     {
+      "at": "2026-10-17T09:00:00-04:00",
+      "tool": "sleep-read",
+      "by": "scheduled",
+      "ok": true
+     }
+    ],
+    "saved": "2026-10-17T20:55:00-04:00"
+   },
+   "updatedAt": "2026-10-17T21:00:00.1234Z",
+   "version": 1
+  },
+  {
+   "id": "targets",
+   "data": {
+    "kcal": 2300,
+    "protein": 140,
+    "effective": "2026-10-01",
+    "lastCheckin": "2026-10-10",
+    "checkinNote": "Invented check-in note for Sam.",
+    "saved": "2026-10-17T20:55:00-04:00"
+   },
+   "updatedAt": "2026-10-17T21:00:00.1234Z",
+   "version": 1
+  }
+ ],
+ "pending": [
+  {
+   "id": "p-20261017-1230",
+   "data": {
+    "id": "p-20261017-1230",
+    "date": "2026-10-17",
+    "type": "Lunch",
+    "text": "Plate photo, not eaten yet",
+    "kcal": 540,
+    "protein": 30,
+    "carbs": 60,
+    "fat": 18,
+    "photoAt": "2026-10-17T12:30:00-04:00",
+    "saved": "2026-10-17T12:31:00-04:00"
+   },
+   "updatedAt": "2026-10-17T21:00:00.1234Z",
+   "version": 1
+  }
+ ]
+}

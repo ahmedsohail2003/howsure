@@ -41,6 +41,7 @@
 // one, and fails on any number without it.
 
 import { useEffect, useLayoutEffect, useRef } from 'react'
+import { flushSync } from 'react-dom'
 import type { LogKind } from '../clock'
 import type { MacroKey } from '../kernel/types'
 import type { Profile } from '../store/log'
@@ -48,8 +49,8 @@ import { copy } from './copy'
 import { DashboardHeader } from './DashboardHeader'
 import type { DayView } from './dayView'
 import { DayNav, type DayNavState } from './DayNav'
-import { fmtSharePct } from './format'
 import type { BalanceView } from './balanceView'
+import { fmtCalendarDate, fmtDate, fmtSharePct } from './format'
 import { HeadlineEstimate } from './HeadlineEstimate'
 import type { HeadlineOpen } from './headlineView'
 import { useLook } from './lookContext'
@@ -58,6 +59,8 @@ import { MealList } from './MealList'
 import { NightTimeline } from './NightTimeline'
 import { GymSummary } from './GymLog'
 import type { SummaryItem } from './gymView'
+import { TimesTogether } from './KeepTogether'
+import { FOCUS_RETURN } from './Sheet'
 import { SleepSection } from './SleepSection'
 import type { EditTarget } from './sleepEdit'
 import type { SleepAction, SleepView } from './sleepView'
@@ -71,6 +74,19 @@ interface DashboardProps {
   onSwitch: () => void
   /** Set wake time (build-out item 2.1), while the log has no wake time; see DashboardHeader. */
   onSetWake?: () => void
+  /** Days since the current day's wake when it is more than a day old (DashboardHeader), else null. */
+  staleDays?: number | null
+  /**
+   * The current day's wake when it is more than a day old, whichever day is on screen, else null:
+   * now's sleep status says no sleep was logged since it, naming it on an earlier day.
+   */
+  staleNowWake?: string | null
+  /** Records today's wake, offered beside a wake that is days old. */
+  onSetTodayWake?: () => void
+  /** On an empty day, the waking day holding the log's latest meal when it is more than a day before it (days.ts > latestMealElsewhere). */
+  latestMealDay?: { day: string | null; at: string }
+  /** Opens a waking day (the latest-meal line). */
+  onShowDay?: (dayStart: string | null) => void
   /** A one-line confirmation of the last action that changes nothing on screen by itself (Reset demo). */
   statusNote?: string | null
   /**
@@ -129,6 +145,8 @@ interface DashboardProps {
   onOpenTargets: () => void
   /** The estimated deficit or surplus under the headline, or what stands in for it (build-out item 2.5b). */
   balance?: BalanceView
+  /** An ended day that ran for more than 36 hours says so under the headline (balanceView.ts > longDayNote). */
+  longDay?: string | null
   /** Opens Body details, from the line under the headline that invites adding them. */
   onOpenBody?: () => void
   /** The open log's now, where the Night timeline's current day ends. */
@@ -163,6 +181,13 @@ export function Dashboard(props: DashboardProps) {
   const { look } = useLook()
   const panel = look === 'panel'
   const night = look === 'night'
+  // A current day whose wake is days old (build-out item 2.1b) isn't called "today" or "last
+  // night": the header says when that wake-up was.
+  const asToday = nav.today && props.staleDays == null
+  const latestLink =
+    props.latestMealDay && props.onShowDay ? (
+      <LatestMealLink latest={props.latestMealDay} onShowDay={props.onShowDay} nowIso={props.nowIso} />
+    ) : null
   const dayRecordId = sleep.dayRecordId
   const editDay = dayRecordId ? () => props.onEditNight({ kind: 'edit', recordId: dayRecordId }) : undefined
   const editRecord = (recordId: string) => props.onEditNight({ kind: 'edit', recordId })
@@ -174,10 +199,11 @@ export function Dashboard(props: DashboardProps) {
       onEditNight={editRecord}
       onAddNight={props.onAddNight}
       onOpenSleep={props.onOpenSleep}
+      staleWake={props.staleNowWake ?? null}
     />
   )
   const weightSection = (
-    <WeightSection weight={props.weight} today={nav.today} onOpen={props.onOpenWeight} onLog={props.onLogWeight} />
+    <WeightSection weight={props.weight} today={asToday} onOpen={props.onOpenWeight} onLog={props.onLogWeight} />
   )
   const gymSummary = <GymSummary items={props.gym} onOpenWorkout={props.onOpenWorkout} onOpenLog={props.onOpenGymLog} />
 
@@ -191,6 +217,9 @@ export function Dashboard(props: DashboardProps) {
         onSwitch={onSwitch}
         onSetWake={props.onSetWake}
         onEditWake={editDay}
+        staleDays={props.staleDays}
+        onSetTodayWake={props.onSetTodayWake}
+        nowIso={props.nowIso}
         onOpenMore={props.onOpenMore}
         moreOpen={props.moreOpen}
         fullScreenOn={props.fullScreenOn}
@@ -208,13 +237,14 @@ export function Dashboard(props: DashboardProps) {
           <HeadlineEstimate
             view={view}
             onOpen={onOpen}
-            today={nav.today}
+            today={asToday}
             targetKcal={targets?.kcal}
             onSetTarget={props.onOpenTargets}
             dayKey={dayStart ?? 'provisional'}
             macros={night ? view.macros : undefined}
             targets={targets}
             balance={props.balance}
+            longDay={props.longDay}
             onOpenBody={props.onOpenBody}
             onOpenMacro={props.onOpenMacro}
           />
@@ -361,8 +391,9 @@ export function Dashboard(props: DashboardProps) {
         </div>
 
         <div className="dash-col" data-testid="dash-col-list">
-          {/* One log button at a time ("Log your first meal" on an empty day) and the one sleep
-              button that fits now (I'm going to sleep, or I woke up). */}
+          {/* One log button at a time ("Log your first meal" on an empty day; "Log a meal" when the
+              latest-meal line shows, since earlier meals exist) and the one sleep button that fits
+              now (I'm going to sleep, or I woke up). */}
           <div className="action-bar" ref={actionBarRef} data-testid="action-bar">
             {/* Always in the page as a live region, so a screen reader reads "Logged" when it
                 appears; empty, it takes no room. */}
@@ -388,7 +419,7 @@ export function Dashboard(props: DashboardProps) {
             </div>
             <div className="action-row">
               <button type="button" className="btn btn-primary log-btn" ref={logBtnRef} onClick={onLogMeal} data-testid="log-meal">
-                {day.status === 'empty' ? copy.dashboard.logFirstMeal : copy.dashboard.logMeal}
+                {day.status === 'empty' && !props.latestMealDay ? copy.dashboard.logFirstMeal : copy.dashboard.logMeal}
               </button>
               <button
                 type="button"
@@ -401,6 +432,9 @@ export function Dashboard(props: DashboardProps) {
             </div>
           </div>
 
+          {/* The latest-meal line sits right under "No meals logged yet" in every look: inside the
+              empty-day tile in Journal and Panel (so Panel's wide grid keeps them together), and
+              on the timeline's empty point in Night. */}
           {night ? (
             <NightTimeline
               view={view}
@@ -412,10 +446,12 @@ export function Dashboard(props: DashboardProps) {
               onImprove={onImprove}
               onOpenWorkout={props.onOpenWorkout}
               onEditNight={editRecord}
+              emptyNote={latestLink}
             />
           ) : day.status === 'empty' ? (
             <section className="section empty-day" data-testid="empty-day">
               <p className="empty-title">{copy.emptyDay.noMeals}</p>
+              {latestLink}
             </section>
           ) : (
             <MealList
@@ -457,6 +493,36 @@ export function Dashboard(props: DashboardProps) {
         </div>
       </div>
     </main>
+  )
+}
+
+/** "Last meal logged: Tue 13 Oct ›", opening that waking day (build-out item 2.1b). */
+function LatestMealLink({
+  latest,
+  onShowDay,
+  nowIso,
+}: {
+  latest: { day: string | null; at: string }
+  onShowDay: (dayStart: string | null) => void
+  nowIso?: string
+}) {
+  // The link leaves the page once its day shows, so focus moves to the new day's waking-day line
+  // (the same return point Sheet.tsx uses); a screen reader then reads which day is open.
+  function open() {
+    flushSync(() => onShowDay(latest.day))
+    document.querySelector<HTMLElement>(`[${FOCUS_RETURN}]`)?.focus()
+  }
+  return (
+    <p className="latest-meal">
+      <button type="button" className="link-btn" onClick={open} data-testid="latest-meal">
+        {/* One span, so the button's flex layout keeps the spaces between the words. */}
+        <span>
+          <TimesTogether text={copy.emptyDay.lastMeal(fmtCalendarDate(fmtDate(latest.at), nowIso))} />
+          {/* A no-break space joins the chevron to the date, so it never sits alone on a line. */}
+          <span aria-hidden="true">{`\u00a0${copy.arrow.trim()}`}</span>
+        </span>
+      </button>
+    </p>
   )
 }
 

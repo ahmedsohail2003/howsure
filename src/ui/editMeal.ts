@@ -166,6 +166,11 @@ export function checkDraft(draft: MealDraft, original: Meal): DraftCheck {
   }
   if (note === '') delete meal.note
   else meal.note = note
+  // An imported meal's own typical error described its calories from its source (build-out item
+  // 2.1b): a new source or new calories is a new estimate, so the source's figure applies again.
+  if (meal.source !== original.source || meal.kcal !== original.kcal) delete meal.typicalError
+  // A time the person set is no longer one HowSure placed.
+  if (meal.eatenAt !== original.eatenAt) delete meal.timeApproximate
   return { meal, errors }
 }
 

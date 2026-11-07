@@ -335,6 +335,39 @@ button {
   margin-top: 0;
 }
 
+/* A wake more than a day old (build-out item 2.1b): when it was, a one-line hint, and Set today's
+   wake time. The hint takes the whole row so the button sits under it. */
+.waking-day-stale .waking-day {
+  color: var(--amber-ink);
+}
+
+/* Capped so a long line never widens the header's left column and pushes More and the log
+   switch onto two rows on a wide screen. */
+.waking-day-stale {
+  max-width: 60ch;
+}
+
+.stale-hint {
+  flex-basis: 100%;
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+
+/* "Set today's wake time" with a shorter label under 360 px, so it never wraps to two lines. */
+.label-narrow {
+  display: none;
+}
+
+@media (max-width: 359px) {
+  .label-wide {
+    display: none;
+  }
+
+  .label-narrow {
+    display: inline;
+  }
+}
+
 /* More, the log switch, and Exit full screen while that view is on (build-out item 1.3). */
 .header-actions {
   display: flex;
@@ -357,6 +390,7 @@ button {
   .header-actions {
     flex-direction: row;
     flex-wrap: wrap;
+    flex-shrink: 0;
     justify-content: flex-end;
   }
 }
@@ -982,6 +1016,21 @@ button {
 
 .empty-day .log-btn {
   margin-top: var(--s2);
+}
+
+/* "Last meal logged: …" on an empty day whose log's latest meal is days back (build-out item
+   2.1b). Inside the empty-day tile in Journal and Panel, centred under its line; a full-height
+   target. */
+.latest-meal {
+  margin-top: 4px;
+  text-align: center;
+}
+
+.latest-meal .link-btn {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-size: 14px;
 }
 
 /* ---------- action bar: Log a meal and the sleep button ---------- */
@@ -1697,6 +1746,19 @@ button {
   color: var(--teal-ink);
 }
 
+/* A typical error that is the imported tracker's own figure for the meal (build-out item 2.1b). */
+.basis-tag.tracker {
+  border-color: var(--ink-soft);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+/* An imported meal's "From your tracker" block in meal details (build-out item 2.1b). */
+.details-imported {
+  display: grid;
+  gap: var(--s1);
+}
+
 .contrib-list li {
   padding: 8px 0;
   border-bottom: 1px solid var(--line);
@@ -1871,6 +1933,15 @@ details.more > summary {
 
 .details-facts .k {
   white-space: nowrap;
+}
+
+/* The tracker's source is a long phrase: on a narrow screen it goes under its label, full width,
+   rather than squeezing into a narrow column beside it (build-out item 2.1b). */
+@media (max-width: 480px) {
+  .details-facts li.fact-stack {
+    flex-direction: column;
+    gap: 2px;
+  }
 }
 
 .sheet-actions.split {
@@ -2640,6 +2711,7 @@ details.more > summary {
 .sleep-status {
   color: var(--ink-soft);
   font-size: 14px;
+  text-align: right;
 }
 
 .sleep-facts li:last-child {
@@ -4657,6 +4729,13 @@ details.more > summary {
   color: var(--teal-ink);
   text-decoration: underline;
   text-underline-offset: 3px;
+}
+
+/* The latest-meal line sits on the timeline's empty point, under "No meals logged yet", in the
+   point's text column. */
+[data-look="night"] .latest-meal {
+  margin-top: 0;
+  text-align: left;
 }
 
 [data-look="night"] .tl .meal-open {

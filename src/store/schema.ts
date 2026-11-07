@@ -34,6 +34,13 @@ const isoWithOffset = z
 const amount = z.number().nonnegative()
 const amountOrUnknown = amount.nullable()
 
+/**
+ * What an import kept from the original record (build-out item 2.1b), under one key so nothing
+ * is lost: `from` names the format (e.g. 'tracker'); the rest is that format's own fields, kept
+ * as they were. Loose, so whatever it holds survives a load, a save, Export and Import.
+ */
+export const importedSchema = z.looseObject({ from: z.string().min(1) })
+
 export const mealFoodSchema = z.looseObject({
   name: z.string(),
   amount: z.number().nonnegative(),
@@ -64,6 +71,11 @@ export const mealSchema = z.looseObject({
   note: z.string().optional(),
   foods: z.array(mealFoodSchema).optional(),
   lookup: mealLookupSchema.optional(),
+  // Build-out item 2.1b: an imported meal's own typical error (0 < e < 1), its time placed by
+  // HowSure rather than recorded, and what the import kept from the original record.
+  typicalError: z.number().gt(0).lt(1).optional(),
+  timeApproximate: z.boolean().optional(),
+  imported: importedSchema.optional(),
 })
 
 /**
@@ -159,6 +171,7 @@ export const sleepSchema = z.looseObject({
   id: z.string().min(1),
   sleepStart: isoWithOffset.nullable(),
   wake: isoWithOffset.nullable(),
+  imported: importedSchema.optional(),
 })
 
 /**
@@ -230,6 +243,9 @@ export const logDocSchema = z.looseObject({
   // Build-out item 2.4: optional for the same reason.
   weighIns: z.array(weighInSchema).optional(),
   clock: clockSchema.optional(),
+  // Build-out item 2.1b: what an import kept that has no place in the log yet (a tracker's
+  // weigh-ins, for the weight log, and its targets document).
+  imported: importedSchema.optional(),
 })
 
 export type StoredLogDoc = z.infer<typeof logDocSchema>

@@ -171,6 +171,19 @@ export function fmtPastWhen(iso: string, nowIso: string, timeKnown = true): stri
   return timeKnown ? copy.dateAndTime(date, fmtTime(iso)) : date
 }
 
+/**
+ * A calendar date written YYYY-MM-DD as people read it: "Tue 13 Oct", with the year when it isn't
+ * the year of `nowIso` ("Tue 13 Oct 2025"), or always when no `nowIso` is given. The date is its
+ * own calendar day, whatever the device's time zone. Text that isn't such a date comes back as it is.
+ */
+export function fmtCalendarDate(date: string, nowIso?: string): string {
+  const [y, m, d] = date.split('-').map(Number)
+  const t = new Date(Date.UTC(y, m - 1, d))
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(t.getTime())) return date
+  const sameYear = nowIso !== undefined && new Date(nowIso).getFullYear() === y
+  return copy.dayDate(copy.weekdays[t.getUTCDay()], String(d), copy.months[m - 1], sameYear ? null : String(y))
+}
+
 /** "2026-10-21" in local time, for "re-checked" dates and the like. */
 export function fmtDate(iso: string): string {
   const d = new Date(iso)

@@ -91,23 +91,24 @@ export function readRaw(store: KeyValueStore | null, key: string): string | null
 }
 
 /**
- * Keep `raw` under the first free backup key for this upgrade. Returns false when it can't be
- * written (then nothing may be written over the original).
+ * Keep `raw` under the first free backup key for this upgrade, or find it already kept there.
+ * Returns the key it is under, or undefined when it can't be written (then nothing may be written
+ * over the original).
  */
-export function writeBackup(store: KeyValueStore, docKey: string, fromVersion: number, raw: string): boolean {
+export function writeBackup(store: KeyValueStore, docKey: string, fromVersion: number, raw: string): string | undefined {
   try {
     for (let n = 1; n < 1000; n++) {
       const key = backupKey(docKey, fromVersion, n)
       const existing = store.getItem(key)
-      if (existing === raw) return true
+      if (existing === raw) return key
       if (existing === null) {
         store.setItem(key, raw)
-        return store.getItem(key) === raw
+        return store.getItem(key) === raw ? key : undefined
       }
     }
-    return false
+    return undefined
   } catch {
-    return false
+    return undefined
   }
 }
 
@@ -129,7 +130,11 @@ export function parseLogText(raw: string, migrations: Migrations = MIGRATIONS): 
   } catch {
     return { status: 'unreadable', reason: 'not JSON' }
   }
+  return parseLogJson(json, migrations)
+}
 
+/** parseLogText's steps after JSON.parse, for a caller that has already parsed the text (Import). */
+export function parseLogJson(json: unknown, migrations: Migrations = MIGRATIONS): ParseResult {
   const up = upgradeDoc(json, SCHEMA_VERSION, migrations)
   if (up.status === 'newer') return { status: 'newer', version: up.version }
   if (up.status === 'noVersion') return { status: 'unreadable', reason: 'no format version' }

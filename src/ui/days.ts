@@ -59,3 +59,30 @@ export function dayForDate(doc: LogDoc, date: string, nowIso: string): string | 
   const start = wakingDayStart(doc.sleeps, end)
   return nav.days.includes(start) ? start : (nav.days[0] ?? null)
 }
+
+/**
+ * Build-out item 2.1b: the waking day that holds the log's latest meal, offered on an empty day
+ * when that day is more than one day back (an imported log whose latest nights hold no meals, or
+ * days with nothing logged), so the meals are one tap away. Undefined when the viewed day has
+ * meals, the log has none, or the latest meal's day is the viewed one, the day just before it (an
+ * ordinary morning shouldn't point at yesterday) or any later day (on an earlier day the link would
+ * name a meal logged after the day on screen). `at` names the day: its wake, or the meal's
+ * own time for the day before the first wake.
+ */
+export function latestMealElsewhere(
+  doc: LogDoc,
+  days: (string | null)[],
+  viewed: string | null,
+  viewedEmpty: boolean,
+): { day: string | null; at: string } | undefined {
+  if (!viewedEmpty || doc.meals.length === 0) return undefined
+  let latest = doc.meals[0]
+  for (const m of doc.meals) if (Date.parse(m.eatenAt) > Date.parse(latest.eatenAt)) latest = m
+  const day = wakingDayStart(doc.sleeps, latest.eatenAt)
+  const at = days.indexOf(day)
+  const here = days.indexOf(viewed)
+  // Only a day before the viewed one: on an earlier day, a later meal is not "the last meal logged"
+  // as of that day.
+  if (at === -1 || here === -1 || here - at <= 1) return undefined
+  return { day, at: day ?? latest.eatenAt }
+}

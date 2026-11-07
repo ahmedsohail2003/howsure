@@ -39,14 +39,22 @@ export function rangeFromE(x: number, e: number, z: number): Range {
   return { lo: x / f, hi: x * f }
 }
 
+/** True when a meal carries its own typical error (Meal.typicalError): a finite fraction, 0 < e < 1. */
+export function hasOwnError<T extends { typicalError?: number }>(meal: T): meal is T & { typicalError: number } {
+  const e = meal.typicalError
+  return typeof e === 'number' && Number.isFinite(e) && e > 0 && e < 1
+}
+
 /**
- * A meal's typical error as a fraction. A looked-up label with an estimated
- * portion combines the lookup's error with Description's in quadrature
- * (spec.md > Sources Table, looked-up amounts): sqrt(0.12^2 + 0.41^2) = 42.72%.
+ * A meal's typical error as a fraction. A meal that carries its own figure (an imported meal
+ * whose tracker worked one out for it, Meal.typicalError) uses it. Otherwise it is the source's.
+ * A looked-up label with an estimated portion combines the lookup's error with Description's in
+ * quadrature (spec.md > Sources Table, looked-up amounts): sqrt(0.12^2 + 0.41^2) = 42.72%.
  */
-export function mealError(meal: { source: MealSourceId | null; lookup?: MealLookup }): number {
+export function mealError(meal: { source: MealSourceId | null; lookup?: MealLookup; typicalError?: number }): number {
   // A meal with no source picked has no typical error; the day's maths only sees known meals.
   if (meal.source === null) throw new Error('mealError: the meal has no source picked')
+  if (hasOwnError(meal)) return meal.typicalError
   const base = SOURCES[meal.source].typicalError
   if (meal.source === 'label_lookup' && meal.lookup?.amount?.kind === 'portion') {
     const d = SOURCES.description.typicalError
@@ -184,19 +192,29 @@ export function combineDay(meals: Meal[]): DayEstimate {
 /**
  * The source improve() would suggest for a meal, or null when none is better. A meal with no
  * source picked has no typical error to beat, so nothing is suggested (its calories come first).
+ * The meal's own source is never suggested: a meal that carries its own typical error (an
+ * imported meal, build-out item 2.1b) can be less sure than its source's figure, but logging it
+ * again from the same source is no change at all.
  */
-export function suggestedSource(meal: Pick<Meal, 'source' | 'lookup'>): MealSourceId | null {
+export function suggestedSource(meal: Pick<Meal, 'source' | 'lookup' | 'typicalError'>): MealSourceId | null {
   if (meal.source === null) return null
   const current = mealError(meal)
-  if (SOURCES.label.typicalError < current) return 'label'
-  const best = bestMealSource()
-  if (SOURCES[best].typicalError < current) return best
+  for (const to of ['label', bestMealSource()] as const) {
+    if (to !== meal.source && SOURCES[to].typicalError < current) return to
+  }
   return null
 }
 
-/** The day's meals with one meal switched to another source (same calories). */
+/**
+ * The day's meals with one meal switched to another source (same calories). A meal's own typical
+ * error belonged to its old source, so it is dropped: the new source's figure applies.
+ */
 export function applySource(meals: Meal[], mealId: string, to: MealSourceId): Meal[] {
-  return meals.map((m) => (m.id === mealId ? { ...m, source: to } : m))
+  return meals.map((m) => {
+    if (m.id !== mealId) return m
+    const { typicalError: _own, ...rest } = m
+    return { ...rest, source: to }
+  })
 }
 
 /**

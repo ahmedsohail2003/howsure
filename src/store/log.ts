@@ -13,7 +13,7 @@ import {
 } from '../clock'
 import { SOURCES } from '../kernel/sources'
 import type { ActivityLevel, BodySex } from '../kernel/energy'
-import type { BurnSourceId, Meal, MealFood, MealLookup, MealSourceId, SleepRecord, WeighIn, Workout } from '../kernel/types'
+import type { BurnSourceId, ImportedFields, Meal, MealFood, MealLookup, MealSourceId, SleepRecord, WeighIn, Workout } from '../kernel/types'
 
 /**
  * Body details for the resting-burn estimate (build-out item 2.5b). Every key is optional: a
@@ -79,6 +79,11 @@ export interface LogDoc {
   weighIns?: WeighIn[]
   /** The demo clock's anchor (spec.md > Clock). Demo document only, so a reload continues the timeline. */
   clock?: DemoClockState
+  /**
+   * What an import kept that has no place in the log yet (build-out item 2.1b): for a tracker
+   * export, its format, when it was exported, and its targets document, unchanged.
+   */
+  imported?: ImportedFields
 }
 
 export function emptyLog(): LogDoc {

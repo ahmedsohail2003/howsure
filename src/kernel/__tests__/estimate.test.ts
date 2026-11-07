@@ -4,7 +4,9 @@ import { describe, expect, it } from 'vitest'
 import {
   Z80,
   Z95,
+  applySource,
   combineDay,
+  hasOwnError,
   estimateMeal,
   improve,
   macroTotals,
@@ -215,5 +217,48 @@ describe('macroTotals: blank is unknown, never 0', () => {
   it('an empty day is not allUnknown', () => {
     const t = macroTotals([])
     expect(t.protein).toEqual({ known: 0, missing: 0, allUnknown: false })
+  })
+})
+
+// Build-out item 2.1b: a meal can carry its own typical error (an imported tracker's figure).
+// Worked by hand: 500 kcal at e 0.32 gives sd 160 and score 68; with a 400 kcal label meal
+// (sd 40) the day is sqrt(160^2 + 40^2) = 164.92 over 900 kcal, e 0.18325, score 82.
+describe('a meal’s own typical error (Meal.typicalError)', () => {
+  it('replaces the source’s figure for that meal only', () => {
+    const own = meal('photo', 500, { typicalError: 0.32 })
+    expect(hasOwnError(own)).toBe(true)
+    expect(mealError(own)).toBe(0.32)
+    expect(estimateMeal(own)).toMatchObject({ e: 0.32, sd: 160, score: 68 })
+    const day = combineDay([own, meal('label', 400)])
+    expect(day.e).toBeCloseTo(Math.sqrt(160 ** 2 + 40 ** 2) / 900, 12)
+    expect(day.score).toBe(82)
+    // Same source, no own figure: the source's 46%.
+    expect(mealError(meal('photo', 500))).toBe(0.46)
+  })
+
+  it('ignores a figure outside 0 < e < 1', () => {
+    for (const e of [0, 1, -0.1, 1.5, Number.NaN]) expect(mealError(meal('photo', 500, { typicalError: e }))).toBe(0.46)
+  })
+
+  it('is dropped when Improve switches the meal to another source', () => {
+    const own = meal('description', 500, { typicalError: 0.3 })
+    const switched = applySource([own], own.id, 'label')[0]
+    expect(switched.typicalError).toBeUndefined()
+    expect(mealError(switched)).toBe(0.1)
+    expect(improve([own], own.id)).toMatchObject({ to: 'label', newMealE: 0.1, newDayScore: 90 })
+    // A meal already surer than a label has nothing better to suggest.
+    const sure = meal('label', 300, { typicalError: 0.05 })
+    expect(suggestedSource(sure)).toBeNull()
+    expect(improve([sure], sure.id)).toBeNull()
+  })
+
+  it('never suggests the source the meal already has, even when its own figure is less sure than that source’s', () => {
+    // A label meal whose tracker said 85 (e 0.15): "log it from a nutrition label" would change nothing.
+    const label = meal('label', 300, { typicalError: 0.15 })
+    expect(suggestedSource(label)).toBe('weighed')
+    expect(improve([label], label.id)).toMatchObject({ to: 'weighed', newMealE: 0.08 })
+    // Weighed with its own 0.12: nothing surer than weighing exists, and a label (0.10) is a change.
+    expect(suggestedSource(meal('weighed', 300, { typicalError: 0.12 }))).toBe('label')
+    expect(suggestedSource(meal('weighed', 300, { typicalError: 0.09 }))).toBeNull()
   })
 })

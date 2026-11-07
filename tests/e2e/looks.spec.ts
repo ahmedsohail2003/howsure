@@ -975,6 +975,28 @@ test.describe('the Night look in detail', () => {
     await expect((await opened(page, 'log-meal-sheet')).getByRole('heading', { name: 'Improve: Pasta bake (ready meal)' })).toBeVisible()
   })
 
+  test('the timeline widens its time and dot columns on a tablet or wider, and keeps its 15 px names', async ({ page }) => {
+    await openDemo(page)
+    const timeline = page.locator('.night-timeline')
+    const sizes = () =>
+      timeline.evaluate((el) => {
+        const cs = getComputedStyle(el)
+        const name = el.querySelector('.meal-name')
+        return {
+          time: cs.getPropertyValue('--tl-time').trim(),
+          dot: cs.getPropertyValue('--tl-dot').trim(),
+          font: cs.fontSize,
+          name: name ? getComputedStyle(name).fontSize : null,
+        }
+      })
+    await page.setViewportSize({ width: 390, height: 844 })
+    expect(await sizes()).toEqual({ time: '64px', dot: '22px', font: '15px', name: '15px' })
+    for (const width of [800, 1440]) {
+      await page.setViewportSize({ width, height: 900 })
+      expect(await sizes(), `width ${width}`).toEqual({ time: '76px', dot: '28px', font: '15px', name: '15px' })
+    }
+  })
+
   test('an earlier day ends with its sleep start, an incomplete day marks the biggest among the known meals, and an empty log says so', async ({
     page,
   }) => {

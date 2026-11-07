@@ -205,11 +205,16 @@ describe('logging a repeat', () => {
       ...OATS,
       note: 'Weighed dry',
       foods: [{ name: 'Oats', amount: 50, unit: 'g' as const }],
-      imported: { original: 'kept with that one entry' },
+      imported: { from: 'tracker', original: 'kept with that one entry' },
+      typicalError: 0.3,
+      timeApproximate: true,
     } as Meal
     const v = valuesOf(rich)
     expect(v).toEqual({ ...OATS, note: 'Weighed dry', foods: [{ name: 'Oats', amount: 50, unit: 'g' }], id: undefined, eatenAt: undefined })
     expect('imported' in v).toBe(false)
+    // An imported entry's own typical error and approximate time stay with it (build-out item 2.1b).
+    expect('typicalError' in v).toBe(false)
+    expect('timeApproximate' in v).toBe(false)
     expect(v.foods).not.toBe(rich.foods)
   })
 })

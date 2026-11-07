@@ -10,6 +10,10 @@
 //   whole year or more before it was typed).
 // - The hours counted run from the wake that started the day to the next wake, or to now on the
 //   current day ("so far"), and never past now. The provisional day has no wake to count from, so it says so.
+//   A current day whose wake is more than a day old while awake (wakeSet.ts > staleWakeDays, the
+//   header's rule) isn't counted up to now either: it says the next wake is needed. Any day, earlier
+//   or current, that runs for more than 36 hours (LONG_DAY_MS) isn't counted: a night is likely
+//   missing, and one day's meals against days of resting burn would read as a huge deficit.
 // - Eaten must have a known total. With none known the line is left out (kind 'hidden'): the
 //   headline already says it is not available. Burned is treated the same way: a day whose
 //   workouts all have unknown calories is left out too, never counted as 0 burned (net's headline
@@ -37,13 +41,18 @@ import {
   type BodySex,
   type RestingBurn,
 } from '../kernel/energy'
-import { nextWakeAfter } from '../kernel/sleepday'
+import { nextWakeAfter, sleepStatus } from '../kernel/sleepday'
 import type { Range } from '../kernel/types'
 import type { BodyDetails, LogDoc } from '../store/log'
 import { copy } from './copy'
 import type { DayView } from './dayView'
 import { AGE_MAX, AGE_MIN, HEIGHT_CM_MAX, HEIGHT_CM_MIN, KG_PER_LB, WEIGHT_KG_MAX, WEIGHT_KG_MIN, WEIGHT_LB_MIN } from './body'
 import { fmtInt, fmtPastWhen } from './format'
+import { fmtDuration } from './sleepView'
+import { staleWakeDays } from './wakeSet'
+
+/** A waking day longer than this isn't counted as one day (a night is likely missing). */
+export const LONG_DAY_MS = 36 * 60 * 60 * 1000
 
 export type BodyField = 'age' | 'sex' | 'height' | 'weight'
 export const BODY_FIELDS: readonly BodyField[] = ['age', 'sex', 'height', 'weight']
@@ -223,6 +232,19 @@ export function balanceView(doc: LogDoc, view: DayView, nowIso: string, demo = f
   if (day.status !== 'complete' && day.status !== 'partial') return { kind: 'hidden' }
   if (burned.workoutCount > 0 && burned.status !== 'complete' && burned.status !== 'partial') return { kind: 'hidden' }
   if (view.dayStart === null) return { kind: 'needsWake', text: copy.balance.needsWake }
+  // A current day whose wake is more than a day old while awake (an imported log, or nights not
+  // added yet, build-out item 2.1b): counting burn up to now would add days of resting burn
+  // against one day's meals, so nothing is estimated until the next wake is added. The header
+  // uses the same rule (staleWakeDays), so the two never disagree.
+  if (soFar && staleWakeDays(view.dayStart, nowIso, sleepStatus(doc.sleeps)) !== null) {
+    return { kind: 'needsWake', text: copy.balance.staleWake }
+  }
+  // Any day that runs for more than 36 hours (an earlier day whose next wake came days later, as
+  // after "Set today's wake time" on an old day, or the current day while asleep for long): a
+  // night is likely missing, so its span isn't counted as one day.
+  if (Date.parse(end) - Date.parse(view.dayStart) > LONG_DAY_MS) {
+    return { kind: 'needsWake', text: copy.balance.longDay }
+  }
 
   const b = body as Required<Pick<BodyDetails, 'age' | 'sex' | 'heightCm'>> & BodyDetails
   const activity = b.activity ?? DEFAULT_ACTIVITY
@@ -286,4 +308,20 @@ export function balanceView(doc: LogDoc, view: DayView, nowIso: string, demo = f
     knownOnly,
     label: copy.balance.open(text, knownOnly ? `${likelyText}${copy.sep}${copy.balance.knownOnly}` : likelyText),
   }
+}
+
+/**
+ * Build-out item 2.1b: the note for an ended waking day that ran for more than 36 hours (LONG_DAY_MS)
+ * to its next wake, a night likely missing (a date joined to the day before after an import, say):
+ * its meals, total and target share cover more than one day, so the dashboard says how long it ran.
+ * Null for a day of ordinary length, a day still going on (the header speaks for that), the
+ * provisional day, or a day with no meals.
+ */
+export function longDayNote(doc: LogDoc, view: DayView, nowIso: string): string | null {
+  if (view.dayStart === null || view.meals.length === 0) return null
+  const next = nextWakeAfter(doc.sleeps, view.dayStart)
+  if (next === null || Date.parse(next) > Date.parse(nowIso)) return null
+  const ms = Date.parse(next) - Date.parse(view.dayStart)
+  if (!(ms > LONG_DAY_MS)) return null
+  return copy.headline.longDay(fmtDuration(Math.round(ms / 60_000)))
 }

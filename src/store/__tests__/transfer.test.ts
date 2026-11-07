@@ -156,6 +156,15 @@ describe('older copies kept by format upgrades', () => {
     expect(listBackups(null, K.mine)).toEqual([])
   })
 
+  it('orders slots as numbers, oldest first, so a tenth backup comes after the second', () => {
+    const many: Record<string, string> = {}
+    for (let n = 1; n <= 11; n++) many[backupKey(K.mine, 1, n)] = `copy ${n}`
+    many[backupKey(K.mine, 0)] = 'older format'
+    const keys = backupKeys(storeWith(many), K.mine)
+    expect(keys).toEqual([backupKey(K.mine, 0), ...Array.from({ length: 11 }, (_, i) => backupKey(K.mine, 1, i + 1))])
+    expect(keys.at(-2)).toBe('howsure.mine.v1.backup-v1-10')
+  })
+
   it('lists their keys without reading them, and counts them for the panel', () => {
     expect(backupKeys(store(), K.mine)).toEqual(['howsure.mine.v1.backup-v0', 'howsure.mine.v1.backup-v0-2'])
     expect(backupKeys(null, K.mine)).toEqual([])
@@ -624,5 +633,114 @@ describe('weigh-ins (build-out item 2.4) travel with the log', () => {
       expect(readImport(JSON.stringify({ ...V1_MINE, weighIns: [w] }))).toMatchObject({ status: 'refused', problem: 'unreadable' })
     }
     expect(readImport(JSON.stringify({ ...V1_MINE, settings: { weightUnit: 'stone' } }))).toMatchObject({ status: 'refused' })
+  })
+})
+
+// Build-out item 2.1b: Import also takes an export of the owner's earlier tracker, told apart by
+// shape, and keeps a backup of the log it replaces. The bundle here is the fictional one for Sam.
+const TRACKER_TEXT = readFileSync(fileURLToPath(new URL('../../../fixtures/tracker-bundle-sam.json', import.meta.url)), 'utf8')
+
+describe('Import takes a tracker bundle (build-out item 2.1b)', () => {
+  it('converts it, with the report for the preview and a summary like any log', () => {
+    const read = readImport(TRACKER_TEXT)
+    if (read.status !== 'ok') throw new Error('refused')
+    expect(read.tracker).toMatchObject({ meals: 19, nights: 5, days: 5, untagged: 3, truncated: 2 })
+    expect(read.summary).toMatchObject({ name: '', meals: 19, nights: 5, workouts: 0, plates: 0 })
+    expect(read.doc.kind).toBe('mine')
+    // A HowSure export carries no tracker report.
+    const own = readImport(V1_MINE_TEXT)
+    expect(own.status === 'ok' && own.tracker).toBe(undefined)
+  })
+
+  it('refuses a bundle of another version, or the wrong shape, and says it is a tracker file', () => {
+    const json = JSON.parse(TRACKER_TEXT)
+    expect(readImport(JSON.stringify({ ...json, formatVersion: 3 }))).toMatchObject({ status: 'refused', problem: 'trackerVersion' })
+    expect(readImport(JSON.stringify({ ...json, sleep: {} }))).toMatchObject({ status: 'refused', problem: 'trackerUnreadable' })
+    // Neither a bundle nor a log: the plain "couldn't read this file as a log".
+    expect(readImport(JSON.stringify({ format: 'something-else', meals: [] }))).toMatchObject({ status: 'refused', problem: 'unreadable' })
+  })
+
+  it('refuses a bundle from which nothing survives, so importing it never just empties your log', () => {
+    const json = JSON.parse(TRACKER_TEXT)
+    const undated = json.meals.map((m: { data: object }) => ({ ...m, data: { ...m.data, date: 'someday' } }))
+    const empty = { ...json, meals: undated, sleep: [], weighins: [] }
+    expect(readImport(JSON.stringify(empty))).toEqual({ status: 'refused', problem: 'trackerEmpty' })
+    // One weigh-in is still something to keep for the weight log.
+    const read = readImport(JSON.stringify({ ...empty, weighins: json.weighins.slice(0, 1) }))
+    expect(read).toMatchObject({ status: 'ok', summary: { meals: 0, nights: 0 }, tracker: { weighins: 1 } })
+  })
+
+  it('round-trips through Save, Export and Import with everything the import kept', () => {
+    const read = readImport(TRACKER_TEXT)
+    if (read.status !== 'ok') throw new Error('refused')
+    const store = new MemoryStore()
+    expect(replaceOwnLog(read.doc, store)).toEqual({ ok: true })
+    const loaded = loadLog('mine', store)
+    if (loaded.status !== 'ok') throw new Error('not loaded')
+    expect(loaded.doc).toStrictEqual(read.doc)
+    const exported = exportOwnLog(loaded.doc, null, store)
+    const again = readImport(exported)
+    if (again.status !== 'ok') throw new Error('export not importable')
+    expect(again.tracker).toBeUndefined()
+    expect(again.doc).toStrictEqual(read.doc)
+    const meal = again.doc.meals.find((m) => m.id === 'tracker-3000112')
+    expect(meal).toMatchObject({ timeApproximate: true, imported: { from: 'tracker', truncated: true, code: 'PHOTO_CTX' } })
+    expect(meal?.typicalError).toBeCloseTo(0.29, 12)
+    // The weigh-ins are in the weight log, and come back field for field.
+    expect(again.doc.weighIns).toHaveLength(2)
+    expect(again.doc.weighIns).toStrictEqual(read.doc.weighIns)
+    expect(again.summary.weighIns).toBe(2)
+  })
+})
+
+describe('replaceOwnLog keeps a backup of the log it replaces (build-out item 2.1b)', () => {
+  it('keeps the saved text under a backup key first, listed with the older copies', () => {
+    const before = serializeLog(mineDoc())
+    const store = storeWith({ [K.mine]: before })
+    const res = replaceOwnLog(emptyLog(), store)
+    expect(res).toEqual({ ok: true, backupKey: backupKey(K.mine, SCHEMA_VERSION) })
+    expect(store.getItem(backupKey(K.mine, SCHEMA_VERSION))).toBe(before)
+    expect(store.writes.indexOf(backupKey(K.mine, SCHEMA_VERSION))).toBeLessThan(store.writes.lastIndexOf(K.mine))
+    expect(listBackups(store, K.mine)).toEqual([{ key: backupKey(K.mine, SCHEMA_VERSION), text: before }])
+    // Delete removes it with the log.
+    expect(deleteOwnLog(store).removed).toContain(backupKey(K.mine, SCHEMA_VERSION))
+  })
+
+  it('a second import keeps a second backup, never writing over the first', () => {
+    const first = serializeLog(mineDoc())
+    const store = storeWith({ [K.mine]: first })
+    const other = { ...mineDoc(), meals: [] }
+    expect(replaceOwnLog(other, store)).toMatchObject({ ok: true })
+    expect(replaceOwnLog(emptyLog(), store)).toEqual({ ok: true, backupKey: backupKey(K.mine, SCHEMA_VERSION, 2) })
+    expect(store.getItem(backupKey(K.mine, SCHEMA_VERSION))).toBe(first)
+    expect(store.getItem(backupKey(K.mine, SCHEMA_VERSION, 2))).toBe(serializeLog(other))
+  })
+
+  it('importing the same file again over itself adds no second backup', () => {
+    const read = readImport(TRACKER_TEXT)
+    if (read.status !== 'ok') throw new Error('refused')
+    const store = storeWith({ [K.mine]: serializeLog(mineDoc()) })
+    expect(replaceOwnLog(read.doc, store)).toEqual({ ok: true, backupKey: backupKey(K.mine, SCHEMA_VERSION) })
+    // The second import backs up the imported log; a third finds that same text already kept.
+    expect(replaceOwnLog(read.doc, store)).toEqual({ ok: true, backupKey: backupKey(K.mine, SCHEMA_VERSION, 2) })
+    expect(replaceOwnLog(read.doc, store)).toEqual({ ok: true, backupKey: backupKey(K.mine, SCHEMA_VERSION, 2) })
+    expect(backupKeys(store, K.mine)).toHaveLength(2)
+  })
+
+  it('keeps no backup of an empty log or of nothing saved', () => {
+    const store = storeWith({ [K.mine]: serializeLog(emptyLog()) })
+    expect(replaceOwnLog(mineDoc(), store)).toEqual({ ok: true })
+    expect(backupKeys(store, K.mine)).toEqual([])
+    const fresh = new MemoryStore()
+    expect(replaceOwnLog(mineDoc(), fresh)).toEqual({ ok: true })
+    expect(backupKeys(fresh, K.mine)).toEqual([])
+  })
+
+  it('replaces nothing when the backup cannot be written', () => {
+    const before = serializeLog(mineDoc())
+    const store = new FullStore()
+    store.data.set(K.mine, before)
+    expect(replaceOwnLog(emptyLog(), store)).toEqual({ ok: false, reason: 'notBackedUp' })
+    expect(store.getItem(K.mine)).toBe(before)
   })
 })

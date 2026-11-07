@@ -294,7 +294,9 @@ for (const { id: look, name: lookName } of LOOKS) {
       // Nights up to Wed 7:10 AM only, now Thu 10:00 AM: Wednesday's day runs on and holds Thursday's tea and yogurt.
       const log = logOf([N1, N2], MEALS)
       await openOwnLog(page, log)
-      await expect(page.getByTestId('waking-day')).toHaveText('Wed · awake since 7:10 AM')
+      // Wednesday's wake is more than a day old with no sleep since, so the header says when it was
+      // (build-out item 2.1b): the same wake, Wed 7:10 AM, and it still opens the editor.
+      await expect(page.getByTestId('waking-day')).toHaveText('Last wake\u2011up Wed 4 Nov, 7:10 AM · 1 day ago')
       // Today is Thursday, so the night that started this day is named by its day, not "last night".
       if (look !== 'night') {
         await expect(page.getByTestId('sleep-section').getByTestId('sleep-edit')).toHaveText('Edit the night before Wed')
@@ -601,7 +603,8 @@ for (const { id: look, name: lookName } of LOOKS) {
       await (await opened(page, 'delete-night-sheet')).getByTestId('delete-night-confirm').click()
       await expect(page.getByTestId('delete-night-sheet')).toHaveCount(0)
 
-      await expect(page.getByTestId('waking-day')).toHaveText('Wed · awake since 7:10 AM')
+      // Back to Wednesday's wake, now more than a day old with no sleep since (build-out item 2.1b).
+      await expect(page.getByTestId('waking-day')).toHaveText('Last wake\u2011up Wed 4 Nov, 7:10 AM · 1 day ago')
       expect(await dayMealNames(page)).toEqual(['Rye toast', 'Lentil salad', 'Tea with milk', 'Yogurt'])
       const saved = await stored(page)
       expect(saved.sleeps).toEqual([N1, N2])

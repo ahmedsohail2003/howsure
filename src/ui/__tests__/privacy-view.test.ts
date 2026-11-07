@@ -48,18 +48,26 @@ describe('privacy panel words', () => {
   })
 
   it('gives the span in local dates (Toronto: 23:30 UTC on Nov 3 is 18:30 on Nov 3)', () => {
-    expect(spanText(SAM)).toBe('From 2026-10-28 to 2026-11-03')
-    expect(spanText({ ...SAM, last: SAM.first })).toBe('On 2026-10-28')
+    expect(spanText(SAM, '2026-11-05T09:00:00-05:00')).toBe('From Wed 28 Oct to Tue 3 Nov')
+    expect(spanText({ ...SAM, last: SAM.first }, '2026-11-05T09:00:00-05:00')).toBe('On Wed 28 Oct')
+    // In another year, or with no now to compare with, the year is shown.
+    expect(spanText(SAM, '2027-01-02T09:00:00-05:00')).toBe('From Wed 28 Oct 2026 to Tue 3 Nov 2026')
+    expect(spanText(SAM)).toBe('From Wed 28 Oct 2026 to Tue 3 Nov 2026')
     expect(spanText(EMPTY)).toBe('No meals or sleep logged yet.')
   })
 
   it('says what an Import replaces, naming the guest name, targets and settings as Delete does', () => {
     expect(replacesText(SAM)).toBe(
-      'Importing replaces your log on this device, which holds 6 meals, 3 nights of sleep, 1 workout and 1 saved plate, and your guest name, targets, body details and settings. Export it first if you want to keep it.',
+      'Importing replaces your log on this device, which holds 6 meals, 3 nights of sleep, 1 workout and 1 saved plate, and your guest name, targets, body details and settings. HowSure keeps a copy of it, which you can export from this panel.',
     )
     expect(replacesText(EMPTY)).toBe(
       'Importing replaces your guest name, targets, body details and settings on this device. Your log has no meals or sleep yet.',
     )
+    // After a failed save, the kept copy may lack what is on screen: export first.
+    expect(replacesText(SAM, false)).toBe(
+      "Importing replaces your log on this device, which holds 6 meals, 3 nights of sleep, 1 workout and 1 saved plate, and your guest name, targets, body details and settings. Some changes couldn’t be saved, so the copy HowSure keeps may not have them. Export your log first if you want to keep it.",
+    )
+    expect(replacesText(EMPTY, false)).toBe(replacesText(EMPTY))
     expect(hasContent(EMPTY)).toBe(false)
     expect(hasContent({ ...EMPTY, plates: 1 })).toBe(true)
   })
@@ -76,7 +84,7 @@ describe('privacy panel words', () => {
       '0 meals',
       '0 nights of sleep',
       'your guest name, targets, body details and settings',
-      '1 older copy kept when the saved format was updated',
+      '1 older copy, kept when the saved format was updated or an import replaced your log',
     ])
   })
 
@@ -84,7 +92,7 @@ describe('privacy panel words', () => {
     for (const problem of ['unreadable', 'newer'] as const) {
       expect(deleteItems(EMPTY, problem, { backups: 2, original: false })).toEqual([
         "your saved log, which this version of HowSure can't read",
-        '2 older copies kept when the saved format was updated',
+        '2 older copies, kept when the saved format was updated or an import replaced your log',
       ])
       expect(deleteItems({ ...EMPTY, meals: 2 }, problem, NONE)).toEqual([
         "your saved log, which this version of HowSure can't read",
@@ -101,7 +109,7 @@ describe('privacy panel words', () => {
       '1 saved plate',
       'your guest name, targets, body details and settings',
       'the older-format copy of your saved log, which was never backed up',
-      '1 older copy kept when the saved format was updated',
+      '1 older copy, kept when the saved format was updated or an import replaced your log',
     ])
   })
 })

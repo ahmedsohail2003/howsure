@@ -151,3 +151,6 @@ export function joinKinds(kinds: string[]): string {
   if (kinds.length <= 1) return kinds[0] ?? ''
   return `${kinds.slice(0, -1).join(', ')} and ${kinds[kinds.length - 1]}`
 }
+
+// Build-out item 2.1b: the stale-wake rule lives with the sleep view (the sleep details use it too).
+export { STALE_WAKE_MS, staleWakeDays } from './sleepView'

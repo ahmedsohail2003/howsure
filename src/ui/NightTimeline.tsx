@@ -28,6 +28,7 @@ import type { DayView } from './dayView'
 import { fmtInt, fmtTime, fmtWeekday, fmtWeekdayFull, fmtWeekdayTime } from './format'
 import { mealSourceLabel, mealTimeLabel } from './MealList'
 import { timelinePoints, type TimelinePoint } from './nightTimeline'
+import { TimesTogether } from './KeepTogether'
 import { fmtDuration, type SleepView } from './sleepView'
 import { workoutDuration, workoutKcal, workoutSourceLabel, workoutTimeLabel } from './WorkoutList'
 
@@ -46,9 +47,14 @@ interface NightTimelineProps {
   onOpenWorkout: (workoutId: string) => void
   /** Opens the sleep and wake editor on one night (build-out item 2.2). */
   onEditNight: (recordId: string) => void
+  /**
+   * Shown under "No meals logged yet" on an empty day: the latest-meal line (build-out item
+   * 2.1b), so it sits with the words it is about, as it does in the other looks' empty-day tile.
+   */
+  emptyNote?: ReactNode
 }
 
-export function NightTimeline({ view, sleep, nowIso, onOpenMeal, onOpenScore, onOpenSleep, onImprove, onOpenWorkout, onEditNight }: NightTimelineProps) {
+export function NightTimeline({ view, sleep, nowIso, onOpenMeal, onOpenScore, onOpenSleep, onImprove, onOpenWorkout, onEditNight, emptyNote }: NightTimelineProps) {
   const points = timelinePoints(view, sleep, nowIso)
   const average = sleep.stats.avgMinutes !== null ? copy.night.average(fmtDuration(sleep.stats.avgMinutes)) : copy.night.averageNotAvailable
   return (
@@ -69,6 +75,7 @@ export function NightTimeline({ view, sleep, nowIso, onOpenMeal, onOpenScore, on
             onImprove={onImprove}
             onOpenWorkout={onOpenWorkout}
             onEditNight={onEditNight}
+            emptyNote={emptyNote}
           />
         ))}
       </ol>
@@ -87,6 +94,7 @@ interface PointProps {
   onImprove: (mealId: string) => void
   onOpenWorkout: (workoutId: string) => void
   onEditNight: (recordId: string) => void
+  emptyNote?: ReactNode
 }
 
 /**
@@ -161,24 +169,26 @@ function EditCue({ recordId }: { recordId: string | null }) {
 }
 
 /**
- * A time in the left column; after midnight its weekday sits above it ("Thu" over "12:40 AM").
+ * A time in the left column; after midnight its weekday sits above it ("Thu" over "12:40 AM"), and
+ * a time HowSure placed rather than recorded (an imported meal, build-out item 2.1b) says "about".
  * `opens` names what a tap on it opens (the row's tap layer), for the tap-through test.
  */
-function Time({ iso, laterDate, opens }: { iso: string; laterDate: boolean; opens?: string }) {
-  if (!laterDate)
+function Time({ iso, laterDate, approx = false, opens }: { iso: string; laterDate: boolean; approx?: boolean; opens?: string }) {
+  if (!laterDate && !approx)
     return (
       <span className="tl-time num" data-opens={opens}>
         {fmtTime(iso)}
       </span>
     )
+  const above = [approx ? copy.night.about : null, laterDate ? fmtWeekday(iso) : null].filter(Boolean).join(' ')
   return (
     <span className="tl-time num" data-opens={opens}>
-      <span className="tl-weekday">{fmtWeekday(iso)}</span> <span>{fmtTime(iso)}</span>
+      <span className="tl-weekday">{above}</span> <span>{fmtTime(iso)}</span>
     </span>
   )
 }
 
-function Point({ point, view, average, onOpenMeal, onOpenScore, onOpenSleep, onImprove, onOpenWorkout, onEditNight }: PointProps) {
+function Point({ point, view, average, onOpenMeal, onOpenScore, onOpenSleep, onImprove, onOpenWorkout, onEditNight, emptyNote }: PointProps) {
   switch (point.kind) {
     case 'wake': {
       const slept = point.sleptMinutes !== null ? copy.night.slept(fmtDuration(point.sleptMinutes)) : copy.night.sleepNotLogged
@@ -220,9 +230,11 @@ function Point({ point, view, average, onOpenMeal, onOpenScore, onOpenSleep, onI
         <li className="tl-point tl-row tl-empty" data-testid="empty-day">
           <span className="tl-time" />
           <span className="tl-dot faint" aria-hidden="true" />
-          <span className="tl-body">
+          {/* A div, so the latest-meal line (a paragraph) can sit under the words. */}
+          <div className="tl-body">
             <span className="tl-main">{copy.emptyDay.noMeals}</span>
-          </span>
+            {emptyNote}
+          </div>
         </li>
       )
     case 'workout':
@@ -239,15 +251,17 @@ function Point({ point, view, average, onOpenMeal, onOpenScore, onOpenSleep, onI
           onImprove={onImprove}
         />
       )
-    case 'now':
-      // Now's status and the 7-night average: one button that opens the sleep details.
+    case 'now': {
+      // Now's status and the 7-night average: one button that opens the sleep details. A wake more
+      // than a day old (build-out item 2.1b) says no sleep was logged since, with now's weekday.
+      const nowText = point.laterDate ? copy.night.nowNoSleep(fmtWeekdayTime(point.at)) : copy.night.nowAwake(fmtTime(point.at))
       return (
         <li className="tl-point tl-end" data-testid="tl-end">
           <button
             type="button"
             className="tl-row tl-open"
             onClick={onOpenSleep}
-            aria-label={copy.sleepDetail.openLabel(`${copy.night.now} ${copy.night.nowAwake(fmtTime(point.at))}${copy.sep}${average}`)}
+            aria-label={copy.sleepDetail.openLabel(`${copy.night.now} ${nowText}${copy.sep}${average}`)}
             data-testid="tl-now"
             data-opens="sleep-details"
           >
@@ -256,7 +270,7 @@ function Point({ point, view, average, onOpenMeal, onOpenScore, onOpenSleep, onI
             <span className="tl-body">
               <span className="tl-line">
                 <span className="tl-main num" data-testid="sleep-status">
-                  {copy.night.nowAwake(fmtTime(point.at))}
+                  {point.laterDate ? <TimesTogether text={nowText} /> : nowText}
                 </span>
                 <span className="tl-side" data-testid="sleep-average">
                   {average}
@@ -266,6 +280,7 @@ function Point({ point, view, average, onOpenMeal, onOpenScore, onOpenSleep, onI
           </button>
         </li>
       )
+    }
     case 'asleep':
     case 'sleep': {
       const startAt = point.kind === 'asleep' ? point.since : point.at
@@ -350,7 +365,7 @@ function MealPoint({ meal, laterDate, biggest, view, onOpenMeal, onOpenScore, on
           whole point with its tap layer (theme.css), so a tap anywhere opens the details; the
           score is its own button above that layer, one tap from its explanation. */}
       <div className="meal-open meal-line tl-row">
-        <Time iso={meal.eatenAt} laterDate={laterDate} opens="meal-details" />
+        <Time iso={meal.eatenAt} laterDate={laterDate} approx={meal.timeApproximate === true} opens="meal-details" />
         <span
           className={meal.kcal === null ? 'tl-dot unknown' : biggest ? 'tl-dot amber' : est ? 'tl-dot' : 'tl-dot hollow'}
           aria-hidden="true"

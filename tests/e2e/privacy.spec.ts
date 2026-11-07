@@ -116,7 +116,7 @@ test.describe('item 1.2: export, import and delete your own log', () => {
     await expect(preview.getByTestId('import-preview-holds').getByRole('listitem')).toHaveText([
       'Guest name: Sam',
       HOLDS,
-      'From 2026-10-28 to 2026-11-03',
+      'From Wed 28 Oct to Tue 3 Nov',
     ])
     await expect(preview.getByTestId('import-preview-replaces')).toHaveText(
       'Importing replaces your guest name, targets, body details and settings on this device. Your log has no meals or sleep yet.',
@@ -171,7 +171,7 @@ test.describe('item 1.2: export, import and delete your own log', () => {
     await chooseFile(page, jsonFile('other.json', JSON.stringify(other)))
     const preview = panel.getByTestId('import-preview')
     await expect(preview.getByTestId('import-preview-replaces')).toHaveText(
-      `Importing replaces your log on this device, which holds ${HOLDS}, and your guest name, targets, body details and settings. Export it first if you want to keep it.`,
+      `Importing replaces your log on this device, which holds ${HOLDS}, and your guest name, targets, body details and settings. HowSure keeps a copy of it, which you can export from this panel.`,
     )
     await preview.getByTestId('import-cancel').click()
     await expect(panel.getByTestId('import-data')).toBeFocused()
@@ -210,7 +210,7 @@ test.describe('item 1.2: export, import and delete your own log', () => {
     await panel.getByTestId('delete-data').click()
     await expect(panel.getByTestId('delete-data-items').getByRole('listitem')).toHaveText([
       "your saved log, which this version of HowSure can't read",
-      '1 older copy kept when the saved format was updated',
+      '1 older copy, kept when the saved format was updated or an import replaced your log',
     ])
     await panel.getByTestId('delete-data-confirm-btn').click()
     await expect(panel.getByTestId('privacy-status')).toHaveText('Deleted. Your log on this device is now empty.')

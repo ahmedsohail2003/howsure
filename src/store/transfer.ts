@@ -6,7 +6,12 @@
 //   stored text is exported exactly as it is, so a person can always get their data out.
 // - Import reads a file through the same pipeline as a stored log (storage.ts > parseLogText:
 //   JSON, the upgrade steps, then the zod check), shows what it holds, and replaces your own log
-//   only after an explicit confirmation. A file it can't read changes nothing.
+//   only after an explicit confirmation. A file it can't read changes nothing. Build-out item
+//   2.1b: a file shaped like an export of the owner's earlier tracker (a tracker bundle, told
+//   apart by its `format`) is converted by src/import/trackerBundle.ts instead, and its preview
+//   says everything the conversion did. Before an import replaces a log that holds anything, the
+//   stored text is kept as a backup (keys.ts > backupKey), as a format upgrade keeps one, so an
+//   import never silently wipes a log; the backup is exported and deleted with the others.
 // - Delete removes your own log and every backup kept for it by a format upgrade (keys.ts >
 //   backupKey). The demo and the "which log was open" key are left alone.
 // - When an upgraded log's original couldn't be backed up (problem 'notBackedUp'), the text under
@@ -23,17 +28,21 @@
 // /proposals, /research, or settings.pendingBridgeClear when the bridge is down). The seams are
 // marked "Bridge seam" below; nothing here pretends to do that part.
 
+import { convertTrackerBundle, looksLikeTrackerBundle, type TrackerOptions, type TrackerReport } from '../import/trackerBundle'
 import type { LogDoc } from './log'
+import { emptyLog } from './log'
 import type { LogProblem } from './session'
 import type { StorageKeys } from './keys'
 import { MIGRATIONS, type Migrations } from './migrations'
-import { SCHEMA_VERSION } from './schema'
+import { logDocSchema, SCHEMA_VERSION } from './schema'
 import {
   KEYS,
+  parseLogJson,
   parseLogText,
   readRaw,
   saveLog,
   serializeLog,
+  writeBackup,
   type KeyValueStore,
   type ListableStore,
 } from './storage'
@@ -99,7 +108,10 @@ export interface StoredCopy {
   text: string
 }
 
-/** The keys of the backups kept for a log by format upgrades (keys.ts > backupKey), sorted. Reads no values. */
+/**
+ * The keys of the backups kept for a log (keys.ts > backupKey), oldest first: by format version,
+ * then by slot number as a number, so ".backup-v1-10" comes after ".backup-v1-2". Reads no values.
+ */
 export function backupKeys(store: ListableStore | null, docKey: string): string[] {
   if (!store) return []
   const prefix = `${docKey}.backup-v`
@@ -112,10 +124,18 @@ export function backupKeys(store: ListableStore | null, docKey: string): string[
   } catch {
     // Blocked part-way: what was found so far.
   }
-  return out.sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
+  const order = (key: string): [number, number] => {
+    const [v, n] = key.slice(prefix.length).split('-')
+    return [Number(v), n === undefined ? 1 : Number(n)]
+  }
+  return out.sort((a, b) => {
+    const [va, na] = order(a)
+    const [vb, nb] = order(b)
+    return va - vb || na - nb
+  })
 }
 
-/** The backups kept for a log by format upgrades (keys.ts > backupKey), sorted by key. */
+/** The backups kept for a log (keys.ts > backupKey), oldest first (backupKeys). */
 export function listBackups(store: ListableStore | null, docKey: string): StoredCopy[] {
   const out: StoredCopy[] = []
   for (const key of backupKeys(store, docKey)) {
@@ -221,19 +241,51 @@ export function summarize(doc: LogDoc): LogSummary {
  * - 'tooLarge': over IMPORT_MAX_BYTES;
  * - 'unreadable': not JSON, no usable version, a failed upgrade, or the zod check failed;
  * - 'newer': saved by a newer version of HowSure;
- * - 'demo': the fictional demo, not an own log.
+ * - 'demo': the fictional demo, not an own log;
+ * - 'trackerVersion': a tracker bundle in a format version this build doesn't know;
+ * - 'trackerUnreadable': a tracker bundle whose shape isn't the one it should be;
+ * - 'trackerEmpty': a tracker bundle from which no meal, night or weigh-in survives, so importing
+ *   it would only empty your log.
  */
-export type ImportProblem = 'tooLarge' | 'unreadable' | 'newer' | 'demo'
+export type ImportProblem = 'tooLarge' | 'unreadable' | 'newer' | 'demo' | 'trackerVersion' | 'trackerUnreadable' | 'trackerEmpty'
 
 export type ImportRead =
-  | { status: 'ok'; doc: LogDoc; summary: LogSummary; upgradedFrom?: number }
+  /** `tracker`: the file was a tracker bundle, and this is what its conversion did. */
+  | { status: 'ok'; doc: LogDoc; summary: LogSummary; upgradedFrom?: number; tracker?: TrackerReport }
   | { status: 'refused'; problem: ImportProblem; detail?: string }
 
-/** Read an Import file. Pure: nothing is written until replaceOwnLog. */
-export function readImport(text: string, migrations: Migrations = MIGRATIONS): ImportRead {
+/** A tracker bundle, converted, then put through the same check as every stored log. */
+function readTrackerImport(json: unknown, tracker: TrackerOptions): ImportRead {
+  const res = convertTrackerBundle(json, tracker)
+  if (!res.ok) return { status: 'refused', problem: res.problem, detail: res.detail }
+  if (res.doc.meals.length === 0 && res.doc.sleeps.length === 0 && res.report.weighins === 0) {
+    return { status: 'refused', problem: 'trackerEmpty' }
+  }
+  const checked = logDocSchema.safeParse({ version: SCHEMA_VERSION, ...res.doc })
+  if (!checked.success) {
+    const first = checked.error.issues[0]
+    return { status: 'refused', problem: 'trackerUnreadable', detail: first ? `${first.path.join('.')}: ${first.message}` : 'invalid' }
+  }
+  return { status: 'ok', doc: res.doc, summary: summarize(res.doc), tracker: res.report }
+}
+
+/**
+ * Read an Import file: a HowSure export, or a tracker bundle (told apart by shape). Pure: nothing
+ * is written until replaceOwnLog. `tracker` is passed to the tracker conversion (the UI gives the
+ * device's now and the fallback meal name from copy.ts).
+ */
+export function readImport(text: string, migrations: Migrations = MIGRATIONS, tracker: TrackerOptions = {}): ImportRead {
   if (overImportLimit(text)) return { status: 'refused', problem: 'tooLarge' }
   // A UTF-8 byte order mark, as some editors save one, is not part of the JSON.
-  const res = parseLogText(text.replace(/^\uFEFF/, ''), migrations)
+  let json: unknown
+  try {
+    json = JSON.parse(text.replace(/^\uFEFF/, ''))
+  } catch {
+    return { status: 'refused', problem: 'unreadable', detail: 'not JSON' }
+  }
+  if (looksLikeTrackerBundle(json)) return readTrackerImport(json, tracker)
+  // Parsed once: the rest of the stored-log pipeline (storage.ts > parseLogText) from here.
+  const res = parseLogJson(json, migrations)
   if (res.status === 'newer') return { status: 'refused', problem: 'newer', detail: `version ${res.version}` }
   if (res.status === 'unreadable') return { status: 'refused', problem: 'unreadable', detail: res.reason }
   if (res.doc.kind !== 'mine') return { status: 'refused', problem: 'demo' }
@@ -243,14 +295,34 @@ export function readImport(text: string, migrations: Migrations = MIGRATIONS): I
 }
 
 export type ReplaceResult =
-  | { ok: true }
+  /** `backupKey`: where the replaced log's text was kept, when it held anything. */
+  | { ok: true; backupKey?: string }
   /**
    * 'storedUnreadable': the saved copy can't be read by this version, so it is not replaced
-   * (Export it, then Delete it, first). 'notSaved': the device wouldn't save.
+   * (Export it, then Delete it, first). 'notBackedUp': the saved log holds something and its
+   * backup couldn't be written, so it is not replaced. 'notSaved': the device wouldn't save.
    */
-  | { ok: false; reason: 'storedUnreadable' | 'notSaved' }
+  | { ok: false; reason: 'storedUnreadable' | 'notBackedUp' | 'notSaved' }
 
-/** Replace your own log with an imported one, after the person confirmed it. */
+/** JSON with object keys sorted, so two documents with the same content compare equal. */
+function canonical(v: unknown): string {
+  return JSON.stringify(v, (_k, val: unknown) =>
+    val && typeof val === 'object' && !Array.isArray(val)
+      ? Object.fromEntries(Object.entries(val as Record<string, unknown>).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)))
+      : val,
+  )
+}
+
+/** True when a log holds nothing a person put there: the same as a fresh empty log. */
+export function isEmptyOwnLog(doc: LogDoc): boolean {
+  return canonical(doc) === canonical(emptyLog())
+}
+
+/**
+ * Replace your own log with an imported one, after the person confirmed it. A saved log that
+ * holds anything is kept first under a backup key (keys.ts > backupKey, as a format upgrade
+ * keeps one); when that can't be written, nothing is replaced.
+ */
 export function replaceOwnLog(
   doc: LogDoc,
   store: KeyValueStore | null,
@@ -259,8 +331,17 @@ export function replaceOwnLog(
 ): ReplaceResult {
   if (doc.kind !== 'mine') throw new Error('HowSure: only your own log can be replaced by an import')
   const raw = readRaw(store, keys.mine)
-  if (raw !== null && parseLogText(raw, migrations).status !== 'ok') return { ok: false, reason: 'storedUnreadable' }
-  return saveLog(doc, store, keys) ? { ok: true } : { ok: false, reason: 'notSaved' }
+  let backup: string | undefined
+  if (raw !== null) {
+    const stored = parseLogText(raw, migrations)
+    if (stored.status !== 'ok') return { ok: false, reason: 'storedUnreadable' }
+    if (!isEmptyOwnLog(stored.doc)) {
+      backup = store ? writeBackup(store, keys.mine, SCHEMA_VERSION, raw) : undefined
+      if (backup === undefined) return { ok: false, reason: 'notBackedUp' }
+    }
+  }
+  if (!saveLog(doc, store, keys)) return { ok: false, reason: 'notSaved' }
+  return backup === undefined ? { ok: true } : { ok: true, backupKey: backup }
 }
 
 export interface DeleteResult {

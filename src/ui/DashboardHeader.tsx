@@ -4,13 +4,21 @@
 // item 2.1: your own log is the main path, so the switch reads "Open my log" in the demo and
 // offers the demo as a side door ("See the demo") in your own log; a log with no wake time offers
 // Set wake time beside "Wake time not set". Build-out item 2.2: the wake time is a button that
-// opens the sleep and wake editor on the night that started the day ("I woke at 8"). While
+// opens the sleep and wake editor on the night that started the day ("I woke at 8"). Build-out
+// item 2.1b: when the current day's wake is more than a day old (an imported log, or nights not
+// added yet), the line says when the last wake-up was and how long ago, and offers to set today's
+// wake time. While
 // the full-screen view is on, its way back sits here too, so it is one tap away.
 
 import type { LogKind } from '../clock'
 import { copy } from './copy'
-import { fmtTime, fmtWeekday } from './format'
-import { KeepTogether } from './KeepTogether'
+import { fmtCalendarDate, fmtDate, fmtTime, fmtWeekday } from './format'
+import { KeepTogether, TimesTogether } from './KeepTogether'
+
+/** "Last wake‑up Sat 17 Oct, 7:15 AM · 3 days ago". */
+function staleLine(dayStart: string, days: number, nowIso: string | undefined): string {
+  return copy.header.lastWake(fmtCalendarDate(fmtDate(dayStart), nowIso), fmtTime(dayStart), copy.header.daysAgo(days))
+}
 
 interface DashboardHeaderProps {
   kind: LogKind
@@ -23,6 +31,12 @@ interface DashboardHeaderProps {
   onSetWake?: () => void
   /** Build-out item 2.2: the wake time opens the sleep and wake editor on the night that started the day. */
   onEditWake?: () => void
+  /** Whole days since the current day's wake when it is more than a day old (wakeSet.ts staleWakeDays), else null. */
+  staleDays?: number | null
+  /** Records today's wake (I woke up), offered beside a wake that is days old. */
+  onSetTodayWake?: () => void
+  /** The open log's now: the last wake-up's date leaves the year out when it is this year's. */
+  nowIso?: string
   onOpenMore: () => void
   moreOpen: boolean
   fullScreenOn: boolean
@@ -44,7 +58,44 @@ export function DashboardHeader(props: DashboardHeaderProps) {
             <span className="profile-link">{copy.header.profileAndPrivacy}</span>
           </button>
         )}
-        {dayStart && props.onEditWake ? (
+        {dayStart && props.staleDays != null ? (
+          // A wake more than a day old (build-out item 2.1b): when it was and how long ago, in the
+          // header's warning ink. It still opens the editor on that night, like the plain line.
+          <div className="waking-day-unset waking-day-stale" data-testid="stale-wake">
+            {props.onEditWake ? (
+              <p className="waking-day-line">
+                <button
+                  type="button"
+                  className="waking-day waking-day-btn"
+                  onClick={props.onEditWake}
+                  aria-label={copy.sleepEditor.editWake(staleLine(dayStart, props.staleDays, props.nowIso))}
+                  data-testid="waking-day"
+                  data-focus-return=""
+                  data-opens="sleep-editor"
+                >
+                  <TimesTogether text={staleLine(dayStart, props.staleDays, props.nowIso)} />
+                </button>
+              </p>
+            ) : (
+              <p className="waking-day" data-testid="waking-day" tabIndex={-1} data-focus-return="">
+                <TimesTogether text={staleLine(dayStart, props.staleDays, props.nowIso)} />
+              </p>
+            )}
+            <p className="stale-hint">{copy.header.staleHint(copy.sleep.goingToSleep)}</p>
+            {props.onSetTodayWake && (
+              <button
+                type="button"
+                className="btn btn-quiet set-wake-btn"
+                onClick={props.onSetTodayWake}
+                data-testid="set-today-wake"
+              >
+                {/* A shorter label on the narrowest screens, so the button stays on one line. */}
+                <span className="label-wide">{copy.header.setTodayWake}</span>
+                <span className="label-narrow">{copy.header.setTodayWakeShort}</span>
+              </button>
+            )}
+          </div>
+        ) : dayStart && props.onEditWake ? (
           // data-focus-return (Sheet.tsx FOCUS_RETURN): where focus lands when a sheet closes and its
           // opener has gone, as Set wake time's button does once the wake time is saved.
           <p className="waking-day-line">

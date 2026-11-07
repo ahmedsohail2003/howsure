@@ -4,7 +4,7 @@
 import type { LogProblem } from '../store/session'
 import type { LogSummary, OlderCopiesCount } from '../store/transfer'
 import { copy } from './copy'
-import { fmtDate } from './format'
+import { fmtCalendarDate, fmtDate } from './format'
 
 /** "a", "a and b", "a, b and c". */
 export function joinList(items: readonly string[]): string {
@@ -27,10 +27,10 @@ export function holdsText(s: LogSummary): string {
   return joinList(contentItems(s))
 }
 
-/** "From 2026-10-28 to 2026-11-03" in local dates, or the no-times line. */
-export function spanText(s: LogSummary): string {
+/** "From Mon 19 Oct to Wed 21 Oct": the dates a log's meals and sleep span, the year shown when it isn't `nowIso`'s. */
+export function spanText(s: LogSummary, nowIso?: string): string {
   if (s.first === null || s.last === null) return copy.privacy.noTimes
-  return copy.privacy.span(fmtDate(s.first), fmtDate(s.last))
+  return copy.privacy.span(fmtCalendarDate(fmtDate(s.first), nowIso), fmtCalendarDate(fmtDate(s.last), nowIso))
 }
 
 /** True when the log holds any meals, sleep, workouts, plates, saved meals or weigh-ins. */
@@ -40,10 +40,13 @@ export function hasContent(s: LogSummary): boolean {
 
 /**
  * What an Import replaces, for its preview. It names the guest name, targets and settings too,
- * as the Delete confirmation does, because an import replaces the whole log.
+ * as the Delete confirmation does, because an import replaces the whole log. `saved` is false
+ * when a recent save failed: the copy HowSure keeps is the saved text, which may then lack what
+ * is on screen, so the preview says to export first.
  */
-export function replacesText(current: LogSummary): string {
-  return hasContent(current) ? copy.privacy.previewReplaces(holdsText(current)) : copy.privacy.previewReplacesEmpty
+export function replacesText(current: LogSummary, saved = true): string {
+  if (!hasContent(current)) return copy.privacy.previewReplacesEmpty
+  return saved ? copy.privacy.previewReplaces(holdsText(current)) : copy.privacy.previewReplacesUnsaved(holdsText(current))
 }
 
 /**

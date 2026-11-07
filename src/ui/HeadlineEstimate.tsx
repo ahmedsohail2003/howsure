@@ -63,6 +63,7 @@ import type { BalanceView } from './balanceView'
 import { copy } from './copy'
 import type { DayView } from './dayView'
 import { fmtAmount, fmtInt } from './format'
+import { TimesTogether } from './KeepTogether'
 import { headlineView, type HeadlineOpen, type HeadlineView } from './headlineView'
 import { useLook } from './lookContext'
 import { NightMacros } from './MacroRow'
@@ -86,6 +87,12 @@ interface HeadlineEstimateProps {
   targets?: Profile['targets']
   /** The estimated deficit or surplus, or what stands in for it (build-out item 2.5b). */
   balance?: BalanceView
+  /**
+   * Build-out item 2.1b: on an ended day that ran for more than 36 hours to its next wake (a night
+   * likely missing, as for a date joined to the day before after an import), says so, so its total
+   * and target share are read as covering more than one day. Null otherwise.
+   */
+  longDay?: string | null
   /** Opens Body details, from the line that invites adding them. */
   onOpenBody?: () => void
   /** Opens one macro's detail, from the macros under Night's chip (build-out item 2.9). */
@@ -314,6 +321,16 @@ function BalanceLine({
   )
 }
 
+/** A plain note (not a number): the day runs for more than 36 hours, so its total covers more than one day. */
+function LongDayNote({ text }: { text?: string | null }) {
+  if (!text) return null
+  return (
+    <p className="balance-na long-day" data-testid="long-day">
+      <TimesTogether text={text} />
+    </p>
+  )
+}
+
 /** The net note on burned: once the estimate (which adds resting burn) shows, it says so. */
 function restingNote(balance: BalanceView | undefined): string {
   return balance?.kind === 'shown' ? copy.net.restingWithBalance : copy.net.restingShort
@@ -335,7 +352,7 @@ function RangesNotAvailable() {
   )
 }
 
-function JournalHeadline({ hv, onOpen, targetKcal, onSetTarget, balance, onOpenBody }: LookProps) {
+function JournalHeadline({ hv, onOpen, targetKcal, onSetTarget, balance, onOpenBody, longDay }: LookProps) {
   const bar =
     hv.bar && hv.value !== null
       ? rangeBarGeometry(hv.value, hv.likely, hv.veryLikely, hv.barTarget ? targetKcal : undefined, { signed: hv.net })
@@ -348,6 +365,7 @@ function JournalHeadline({ hv, onOpen, targetKcal, onSetTarget, balance, onOpenB
       <HeadlineNumber hv={hv} onOpen={onOpen} />
       {hv.net && <NetParts hv={hv} onOpen={onOpen} />}
       <BalanceLine balance={balance} onOpen={onOpen} onOpenBody={onOpenBody} />
+      <LongDayNote text={longDay} />
       <DayStatus hv={hv} onOpen={onOpen} />
 
       <div className="headline-meta">
@@ -438,7 +456,7 @@ function JournalHeadline({ hv, onOpen, targetKcal, onSetTarget, balance, onOpenB
   )
 }
 
-function PanelHeadline({ hv, onOpen, targetKcal, onSetTarget, dayKey, balance, onOpenBody }: LookProps) {
+function PanelHeadline({ hv, onOpen, targetKcal, onSetTarget, dayKey, balance, onOpenBody, longDay }: LookProps) {
   // Only a complete day fills the ring: on an incomplete day the known meals are part of it only.
   // The ring always compares calories eaten with the target, which is a target for eating.
   const share = ringFill(hv.ringValue, targetKcal)
@@ -524,6 +542,7 @@ function PanelHeadline({ hv, onOpen, targetKcal, onSetTarget, dayKey, balance, o
         </>
       )}
       <BalanceLine balance={balance} onOpen={onOpen} onOpenBody={onOpenBody} />
+      <LongDayNote text={longDay} />
       <DayStatus hv={hv} onOpen={onOpen} />
 
       {share && !hv.net && (
@@ -603,7 +622,7 @@ function RingWords({ share, targetKcal, net }: { share: { pct: number } | null; 
   )
 }
 
-function NightHeadline({ hv, onOpen, targetKcal, onSetTarget, macros, targets, view, balance, onOpenBody, onOpenMacro }: LookProps) {
+function NightHeadline({ hv, onOpen, targetKcal, onSetTarget, macros, targets, view, balance, onOpenBody, onOpenMacro, longDay }: LookProps) {
   return (
     <section className="headline night-hero" aria-label={hv.label} data-mode={hv.net ? 'net' : 'eaten'} data-testid="headline">
       <p className="headline-label">{hv.label}</p>
@@ -686,6 +705,7 @@ function NightHeadline({ hv, onOpen, targetKcal, onSetTarget, macros, targets, v
 
       {/* Under the chips, so eaten and burned stay right under the net number. */}
       <BalanceLine balance={balance} onOpen={onOpen} onOpenBody={onOpenBody} short />
+      <LongDayNote text={longDay} />
 
       {hv.net && (
         <p className="net-resting small" data-testid="net-resting">

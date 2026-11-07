@@ -25,11 +25,11 @@ import {
 } from '../store/transfer'
 import { copy } from './copy'
 import { Dashboard } from './Dashboard'
-import { balanceView, latestWeighIn } from './balanceView'
+import { balanceView, latestWeighIn, longDayNote } from './balanceView'
 import { withBody } from './body'
 import { BodySheet } from './BodySheet'
 import { buildDayViewFor } from './dayView'
-import { anchorFor, dateOfDay, dayForDate, dayNav } from './days'
+import { anchorFor, dateOfDay, dayForDate, dayNav, latestMealElsewhere } from './days'
 import type { DayNavState } from './DayNav'
 import { blankMeal, defaultMealTime, newMealId, toLocalInput, withMeal, withoutMeal } from './editMeal'
 import { blankWorkout, newWorkoutId, withoutWorkout, withWorkout } from './editWorkout'
@@ -72,7 +72,7 @@ import {
   withoutSavedMeal,
   type MealValues,
 } from './usualMeals'
-import { canSetWake } from './wakeSet'
+import { canSetWake, staleWakeDays } from './wakeSet'
 import { WorkoutDetails } from './WorkoutDetails'
 import { WorkoutListSheet } from './WorkoutList'
 import { WorkoutSheet } from './WorkoutSheet'
@@ -441,7 +441,7 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
     setLogs((l) => ({ ...l, mine: next }))
     setStorageOk(true)
     if (active === 'mine') setViewed(null)
-    return 'ok'
+    return res.backupKey === undefined ? 'ok' : 'kept'
   }
 
   /**
@@ -658,6 +658,13 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
         : undefined
   const details = sheet?.mode === 'details' ? findMeal(sheet.mealId) : undefined
   const today = viewedStart === nav.current
+  // The current day's wake, when it is more than a day old (build-out item 2.1b): the dashboard
+  // then says when it was rather than calling the day "today".
+  // Now's sleep status is the same on every day viewed: while the current day's wake is days old,
+  // the sleep section says no sleep was logged since it, and names that wake on an earlier day.
+  const staleNow = staleWakeDays(nav.current, at, sleepStatus(doc.sleeps))
+  const staleDays = today ? staleNow : null
+  const latestMeal = latestMealElsewhere(doc, nav.days, viewedStart, view.day.status === 'empty')
   const navState: DayNavState = {
     canPrev: nav.index > 0,
     canNext: nav.index < nav.days.length - 1,
@@ -674,6 +681,7 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
       : null
   // Build-out item 2.5b: the estimated deficit or surplus for the viewed day, worked out once.
   const balance = balanceView(doc, view, at, demo)
+  const longDay = longDayNote(doc, view, at)
   const findWorkout = (id: string) => doc.workouts.find((w) => w.id === id)
   const workoutDetails = sheet?.mode === 'workout' ? findWorkout(sheet.workoutId) : undefined
   // Build-out item 2.6: gym weights show in the unit of the latest gym session (gymView.ts gymUnitOf);
@@ -700,6 +708,11 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
         view={view}
         onSwitch={demo ? openMine : openDemo}
         onSetWake={canSetWake(doc.sleeps, sleepStatus(doc.sleeps)) ? () => setSheet({ mode: 'setWake' }) : undefined}
+        staleDays={staleDays}
+        staleNowWake={staleNow !== null ? nav.current : null}
+        latestMealDay={latestMeal}
+        onShowDay={showDay}
+        onSetTodayWake={() => setSheet({ mode: 'sleepTime', action: 'wake' })}
         statusNote={statusNote && !statusNote.bar ? statusNote.text : null}
         barNote={statusNote?.bar ? statusNote.text : null}
         onUndo={statusNote?.undo && statusNote.undo.kind === active ? undoQuickLog : undefined}
@@ -736,6 +749,7 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
         targets={doc.profile.targets}
         onOpenTargets={() => setSheet({ mode: 'targets' })}
         balance={balance}
+        longDay={longDay}
         onOpenBody={() => setSheet({ mode: 'body', from: 'dashboard' })}
         nowIso={at}
         onOpenMore={() => setSheet({ mode: 'more' })}
@@ -786,7 +800,16 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
           }
         />
       )}
-      {explain && <ExplainSheet mode={explain} view={view} balance={balance} demo={demo} onClose={() => setSheet(explain.back ?? null)} />}
+      {explain && (
+        <ExplainSheet
+          mode={explain}
+          view={view}
+          balance={balance}
+          today={today && staleDays === null}
+          demo={demo}
+          onClose={() => setSheet(explain.back ?? null)}
+        />
+      )}
       {sheet?.mode === 'body' && (
         <BodySheet
           body={doc.profile.body}
@@ -879,6 +902,8 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
           saved={doc.savedMeals ?? []}
           onSaveUsual={(name, updateId) => saveUsual(details, name, updateId)}
           onManageSaved={() => setSheet({ mode: 'savedMeals', from: 'details', mealId: details.id })}
+          nowIso={at}
+          sleeps={doc.sleeps}
         />
       )}
       {editing && sheet && (sheet.mode === 'new' || sheet.mode === 'edit' || sheet.mode === 'improve') && (
@@ -965,6 +990,7 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
         <ProfilePrivacy
           doc={logs.mine}
           problem={problems.mine}
+          saved={storageOk}
           olderCopies={olderCount}
           onExport={exportMine}
           onExportOlderCopies={exportOlderCopies}

@@ -251,8 +251,11 @@ export interface SleepDetailView {
 export function sleepDetailView(sleep: SleepView, today: boolean, nowIso: string): SleepDetailView {
   const label = lastNightLabel(sleep, today, nowIso)
   const n = sleep.lastNight
+  // A wake more than a day old (build-out item 2.1b): nothing says the person was awake all that
+  // time, only that no sleep was logged since, as the section and the Night timeline say.
+  const awake = staleWakeDays(sleep.dayStart, nowIso, sleep.status) !== null ? copy.sleep.noSleepSinceWake : copy.sleep.awake
   return {
-    now: today ? (sleep.status.kind === 'asleep' ? copy.sleep.asleepSince(fmtWeekdayTime(sleep.status.since)) : copy.sleep.awake) : null,
+    now: today ? (sleep.status.kind === 'asleep' ? copy.sleep.asleepSince(fmtWeekdayTime(sleep.status.since)) : awake) : null,
     lastNightLabel: label,
     lastNight:
       n && n.wake !== null
@@ -266,4 +269,20 @@ export function sleepDetailView(sleep: SleepView, today: boolean, nowIso: string
     average: sleep.stats.avgMinutes !== null ? fmtDuration(sleep.stats.avgMinutes) : null,
     count: sleep.stats.total > 0 ? copy.sleep.nightCount(String(sleep.stats.complete), String(sleep.stats.total)) : null,
   }
+}
+
+/** How old a wake must be before the header says when it was (build-out item 2.1b): one day. */
+export const STALE_WAKE_MS = 24 * 60 * 60 * 1000
+
+/**
+ * Whole days since the current day's wake when it is more than a day old and nobody is asleep
+ * (an imported log whose last night is days back, or nights not added yet), else null. The header
+ * then says when the last wake-up was and offers to set today's wake time, so an old day doesn't
+ * read as today.
+ */
+export function staleWakeDays(dayStart: string | null, nowIso: string, status: SleepStatus): number | null {
+  if (dayStart === null || status.kind !== 'awake') return null
+  const age = Date.parse(nowIso) - Date.parse(dayStart)
+  if (!Number.isFinite(age) || age <= STALE_WAKE_MS) return null
+  return Math.floor(age / STALE_WAKE_MS)
 }

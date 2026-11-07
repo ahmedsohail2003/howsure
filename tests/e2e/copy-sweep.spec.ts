@@ -7,8 +7,8 @@
 // Notices covered: a log from a newer version, an unreadable log (both with "export still
 // works"), and "Can't save" when storage refuses writes, in the demo and in your own log.
 //
-// The people here are the fictional Sam: the demo week (fixtures/demo-week.json) and the frozen
-// own log fixtures/saved/v1-mine.json.
+// The people here are the fictional Sam: the demo week (fixtures/demo-week.json), the frozen
+// own log fixtures/saved/v1-mine.json and the tracker export fixtures/tracker-bundle-sam.json.
 //
 // Build-out item 1.5.2: the whole sweep runs once in each look this build offers (looks.ts), as
 // each look may draw different words around the same numbers.
@@ -49,6 +49,8 @@ import { samWednesday } from './tapLog'
 import { samWeek } from './weekLog'
 
 const V1_MINE = readFileSync(fileURLToPath(new URL('../../fixtures/saved/v1-mine.json', import.meta.url)), 'utf8')
+// Build-out item 2.1b: the fictional tracker export for Sam (invented foods, times and numbers).
+const TRACKER = readFileSync(fileURLToPath(new URL('../../fixtures/tracker-bundle-sam.json', import.meta.url)), 'utf8')
 
 // The demo clock starts at Thu 2026-10-22 01:30 local (spec.md > Clock).
 const DEMO_NOW = new Date('2026-10-22T01:30:00-04:00')
@@ -581,6 +583,67 @@ for (const { id: look, name: lookName } of LOOKS) {
       await sweep.take('move warning with a weigh-in')
 
       sweep.check(20)
+    })
+
+    // Build-out item 2.1b: a tracker export (the fictional bundle for Sam), its preview, the
+    // imported log with its wake days old, a joined day, an imported meal and its explanation.
+    test('a tracker export: Import preview, the imported log and an imported meal', async ({ page }) => {
+      test.setTimeout(90_000)
+      const sweep = new Sweep(page)
+      await page.clock.setFixedTime(new Date('2026-10-20T12:00:00-04:00'))
+      await page.goto('/')
+      await page.getByRole('button', { name: 'Start my log' }).click()
+      await page.getByTestId('open-profile').click()
+      const panel = await opened(page, 'profile-privacy')
+      await chooseFile(page, 'tracker-v2.json', JSON.stringify({ ...JSON.parse(TRACKER), formatVersion: 2 }))
+      await expect(panel.getByTestId('privacy-error')).toBeVisible()
+      await sweep.take('tracker export refused')
+      await chooseFile(page, 'tracker-bundle-sam.json', TRACKER)
+      await expect(panel.getByTestId('import-preview-notes')).toBeVisible()
+      await sweep.take('tracker Import preview')
+      await panel.getByTestId('import-confirm').click()
+      await expect(panel.getByTestId('privacy-status')).toBeVisible()
+      await sweep.take('tracker imported')
+      await closeWithEsc(page, 'profile-privacy')
+
+      await expect(page.getByTestId('stale-wake')).toBeVisible()
+      await sweep.take('imported log, last wake-up days old')
+      await page.getByTestId('set-today-wake').click()
+      await opened(page, 'sleep-sheet')
+      await sweep.take('set today’s wake time')
+      await closeWithEsc(page, 'sleep-sheet')
+
+      for (let i = 0; i < 3; i += 1) await page.getByTestId('day-prev').click()
+      await sweep.take('imported day with a date joined to it')
+      await page.getByTestId('meal-row').filter({ hasText: 'Baked gnocchi' }).getByTestId('meal-open').click()
+      const details = await opened(page, 'meal-details')
+      await expect(details.getByTestId('details-imported')).toBeVisible()
+      await sweep.take('imported meal details')
+      await details.getByTestId('details-score').click()
+      await opened(page, 'explain-meal')
+      await sweep.take('imported meal score explanation')
+      await closeWithEsc(page, 'explain-meal')
+      await page.getByTestId('meal-row').filter({ hasText: 'Rice and beans' }).getByTestId('meal-open').click()
+      await opened(page, 'meal-details')
+      await sweep.take('imported meal with no source recorded')
+      await closeWithEsc(page, 'meal-details')
+      await page.getByTestId('day-score').click()
+      await opened(page, 'explain-day')
+      await sweep.take('imported day score explanation')
+      await closeWithEsc(page, 'explain-day')
+
+      // An empty current day whose latest meals are days back points at them.
+      await page.getByTestId('open-profile').click()
+      await opened(page, 'profile-privacy')
+      const json = JSON.parse(TRACKER)
+      json.meals = json.meals.filter((m: { data: { date: string } }) => m.data.date !== '2026-10-16')
+      await chooseFile(page, 'tracker-bundle-sam.json', JSON.stringify(json))
+      await page.getByTestId('import-confirm').click()
+      await closeWithEsc(page, 'profile-privacy')
+      await expect(page.getByTestId('latest-meal')).toBeVisible()
+      await sweep.take('imported log, latest meals days back')
+
+      sweep.check(11)
     })
 
     test('an empty own log, Set wake time and the regroup preview', async ({ page }) => {

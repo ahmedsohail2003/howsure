@@ -6,7 +6,7 @@
 // deficit or surplus: the equation, its inputs, the activity factor, the hours counted, how the
 // spreads combine, what is not counted, and where each number comes from.
 
-import { estimateMeal, improve, isKnownMeal } from '../kernel/estimate'
+import { estimateMeal, hasOwnError, improve, isKnownMeal } from '../kernel/estimate'
 import { RESTING_BASIS, RESTING_TYPICAL_ERROR } from '../kernel/energy'
 import { isKnownWorkout } from '../kernel/net'
 import { getSource } from '../kernel/sources'
@@ -19,20 +19,25 @@ import { fmtInt, fmtPct, fmtRange, fmtSharePct, fmtSigned, fmtSignedPlus, fmtSig
 import { KeepTogether, TimesTogether } from './KeepTogether'
 import { mealSourceLabel, mealTimeLabel } from './MealList'
 import { Sheet } from './Sheet'
-import { BasisTag, SourceBasisItem, SourceBasisList, sourcesUsed } from './SourceBasis'
+import { MealBasisTag, SourceBasisItem, SourceBasisList, sourcesUsed } from './SourceBasis'
 
 export type ExplainMode = { mode: 'meal'; mealId: string } | { mode: 'day' } | { mode: 'ranges' } | { mode: 'net' } | { mode: 'balance' }
 
 interface ExplainSheetProps {
   mode: ExplainMode
   view: DayView
+  /**
+   * The viewed day is today: the current day, with a wake less than a day old. Otherwise the day
+   * score's title says "this day" (build-out item 2.1b). Defaults to true.
+   */
+  today?: boolean
   demo: boolean
   onClose: () => void
   /** The estimated deficit or surplus (balance mode). */
   balance?: BalanceView
 }
 
-export function ExplainSheet({ mode, view, demo, onClose, balance }: ExplainSheetProps) {
+export function ExplainSheet({ mode, view, today = true, demo, onClose, balance }: ExplainSheetProps) {
   if (mode.mode === 'balance') {
     if (!balance || balance.kind !== 'shown') return null
     return (
@@ -59,7 +64,7 @@ export function ExplainSheet({ mode, view, demo, onClose, balance }: ExplainShee
   if (mode.mode === 'day') {
     return (
       <Sheet
-        title={copy.explainDay.title}
+        title={today ? copy.explainDay.title : copy.explainDay.titleOtherDay}
         sub={view.day.knownTotal > 0 ? copy.explainDay.sub(fmtInt(view.day.knownTotal)) : undefined}
         demo={demo}
         onClose={onClose}
@@ -381,9 +386,11 @@ function MealExplanation({ meal, view }: { meal: Meal; view: DayView }) {
         {copy.headline.estimateScore(score)}
       </p>
       <p className="num">
-        {copy.basis.sourceLine(source.label, errPct)} <BasisTag source={source} />
+        {copy.basis.sourceLine(source.label, errPct)} <MealBasisTag meal={meal} source={source} />
       </p>
-      <p data-testid="meal-score-sentence">{copy.explainMeal.sentence(score, errPct)}</p>
+      <p data-testid="meal-score-sentence">
+        {hasOwnError(meal) ? copy.explainMeal.sentenceOwn(score, errPct) : copy.explainMeal.sentence(score, errPct)}
+      </p>
 
       <ul className="fact-list num">
         <li>
@@ -435,6 +442,11 @@ function MealExplanation({ meal, view }: { meal: Meal; view: DayView }) {
             </li>
           </ul>
           <h3>{copy.explainMeal.basisLabel}</h3>
+          {hasOwnError(meal) && (
+            <p className="small num" data-testid="explain-own-error">
+              {copy.trackerImport.ownErrorLine(source.label, fmtPct(source.typicalError))}
+            </p>
+          )}
           <ul className="source-basis">
             <SourceBasisItem source={source} />
           </ul>
@@ -527,7 +539,7 @@ function DayExplanation({ view }: { view: DayView }) {
                   <td>{m.name}</td>
                   <td className="r">{fmtInt(m.kcal)}</td>
                   <td>
-                    {getSource(m.source).label} <BasisTag source={getSource(m.source)} />
+                    {getSource(m.source).label} <MealBasisTag meal={m} source={getSource(m.source)} />
                   </td>
                   <td className="r">{copy.units.percent(fmtPct(estimateMeal(m)?.e ?? getSource(m.source).typicalError))}</td>
                 </tr>

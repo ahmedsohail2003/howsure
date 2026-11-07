@@ -15,6 +15,7 @@
 import type { Meal, Workout } from '../kernel/types'
 import type { DayView } from './dayView'
 import { onLaterDate } from './format'
+import { staleWakeDays } from './wakeSet'
 import type { SleepView } from './sleepView'
 
 // Build-out item 2.2: the wake, asleep and sleep points carry the record they show (`recordId`),
@@ -29,7 +30,11 @@ export type TimelinePoint =
   | { kind: 'workout'; workout: Workout; laterDate: boolean }
   /** No meals logged yet on this day. */
   | { kind: 'empty' }
-  | { kind: 'now'; at: string }
+  /**
+   * `laterDate`: the wake is more than a day before now (an imported log, or nights not added yet;
+   * build-out item 2.1b), so now's time carries its weekday.
+   */
+  | { kind: 'now'; at: string; laterDate: boolean }
   | { kind: 'asleep'; since: string; laterDate: boolean; recordId: string }
   /** `at` null: the sleep start of the night that closed the day was not logged. */
   | { kind: 'sleep'; at: string | null; laterDate: boolean; recordId: string }
@@ -56,7 +61,8 @@ export function timelinePoints(view: DayView, sleep: SleepView, nowIso: string):
   items.sort((a, b) => at(a) - at(b) || (a.kind === b.kind ? 0 : a.kind === 'meal' ? -1 : 1))
   points.push(...items)
   const end = sleep.dayEnd
-  if (end.kind === 'awake') points.push({ kind: 'now', at: nowIso })
+  // Stale or not is decided once, by the rule the header uses (wakeSet.ts > staleWakeDays).
+  if (end.kind === 'awake') points.push({ kind: 'now', at: nowIso, laterDate: staleWakeDays(dayStart, nowIso, sleep.status) !== null })
   else if (end.kind === 'asleep') {
     points.push({ kind: 'asleep', since: end.since, laterDate: onLaterDate(end.since, dayStart), recordId: end.recordId })
   } else {

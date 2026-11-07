@@ -18,14 +18,39 @@ export function KeepTogether({ text, part }: { text: string; part: string }) {
 }
 
 const WD = `(?:${copy.weekdays.join('|')})`
-const MON = `(?:${copy.monthsShort.join('|')})`
+const MON = `(?:${[...new Set([...copy.monthsShort, ...copy.months])].join('|')})`
 const TIME = `\\d{1,2}:\\d{2} (?:${copy.am}|${copy.pm})`
+
+/** A counted phrase from copy ("3 days ago", "2 weigh-ins") as a pattern: its number becomes \\d+. */
+function counted(phrase: (n: number) => string): string {
+  // The plural first, so "2 weigh-ins" is taken whole rather than as "2 weigh-in".
+  return [...new Set([phrase(2), phrase(1)])]
+    .map((p) => p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\d+/, '\\d+'))
+    .join('|')
+}
+
 /**
  * The pieces of a sentence that must not break inside, in the order they are tried at each place:
- * a weekday with its time ("Thu 7:20 AM"), a weekday with its date ("Wed Nov 4"; a line may break
- * after the comma that follows it), a time ("11:10 PM") and a length ("7 h 50 min", "40 min").
+ * a weekday with its time ("Thu 7:20 AM"), a date with its weekday and year if any ("Sat 17 Oct",
+ * "Sat 17 Oct 2025", "Wed Nov 4"; a line may break after the comma that follows it), a date
+ * written YYYY-MM-DD (whose hyphens a browser may break at), a time ("11:10 PM"), a length
+ * ("7 h 50 min", "40 min"), and a count with its noun where it wraps badly ("3 days ago",
+ * "2 weigh-ins", build-out item 2.1b).
  */
-const PIECES = new RegExp(`${WD} ${TIME}|${WD} ${MON} \\d{1,2}|${TIME}|\\d+ h \\d+ min|\\d+ min`, 'g')
+const PIECES = new RegExp(
+  [
+    `${WD} ${TIME}`,
+    `(?:${WD} )?\\d{1,2} ${MON}(?: \\d{4})?`,
+    `${WD} ${MON} \\d{1,2}`,
+    `\\d{4}-\\d{2}-\\d{2}`,
+    TIME,
+    `\\d+ h \\d+ min`,
+    `\\d+ min`,
+    counted(copy.header.daysAgo),
+    counted(copy.privacy.weighIns),
+  ].join('|'),
+  'g',
+)
 
 /** The parts of `text` to keep on one line, in order, for tests. */
 export function togetherPieces(text: string): string[] {

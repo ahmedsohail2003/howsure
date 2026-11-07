@@ -67,6 +67,57 @@ describe('balanceView: never guesses an input', () => {
     })
   })
 
+  it('does not count a current day whose wake is more than a day old up to now (build-out item 2.1b)', () => {
+    const doc = withBody(SAM)
+    // Wednesday's wake was 1:20 PM; at 1:20 PM Thursday it is exactly a day old and still counted.
+    expect(shown(doc, WED, '2026-10-22T13:20:00-04:00').inputs.hours).toBe(24)
+    // A minute later, and days later, the line says the next wake is needed instead of adding days of burn.
+    for (const now of ['2026-10-22T13:21:00-04:00', '2026-10-25T09:00:00-04:00']) {
+      expect(balanceView(doc, buildDayViewFor(doc, WED), now)).toEqual({
+        kind: 'needsWake',
+        text: 'Estimated deficit or surplus: not counted, as you woke up more than a day ago.',
+      })
+    }
+    // An earlier day with its next wake is counted as before, whenever it is viewed.
+    expect(shown(doc, MON, '2026-10-25T09:00:00-04:00').inputs.soFar).toBe(false)
+  })
+
+  it('does not count an earlier day that runs for more than 36 hours, as after setting today’s wake time days later', () => {
+    // Wednesday woke 1:20 PM; the next wake is set on Sunday at 7:10 AM ("Set today’s wake time"),
+    // so Wednesday now runs 89 h 50 min to its next wake. One day's meals against nearly four days
+    // of resting burn would read as a huge deficit, so it is not counted.
+    const sunday = { id: 'sleep-sun', sleepStart: null, wake: '2026-10-25T07:10:00-04:00' }
+    const base = withBody(SAM)
+    const doc = { ...base, sleeps: [...base.sleeps, sunday] }
+    const now = '2026-10-25T07:15:00-04:00'
+    expect(balanceView(doc, buildDayViewFor(doc, WED), now)).toEqual({
+      kind: 'needsWake',
+      text: 'Estimated deficit or surplus: not counted, as this day runs for more than 36 hours. A night may be missing.',
+    })
+    // A day of 36 hours exactly is still counted, as an earlier day of normal length is.
+    const at36 = { ...sunday, wake: '2026-10-23T01:20:00-04:00' }
+    const doc36 = { ...base, sleeps: [...base.sleeps, at36] }
+    expect(shown(doc36, WED, now).inputs.hours).toBe(36)
+    const at36plus = { ...sunday, wake: '2026-10-23T01:21:00-04:00' }
+    const doc36plus = { ...base, sleeps: [...base.sleeps, at36plus] }
+    expect(balanceView(doc36plus, buildDayViewFor(doc36plus, WED), now).kind).toBe('needsWake')
+    expect(shown(doc, MON, now).inputs.soFar).toBe(false)
+  })
+
+  it('uses the header’s staleness rule: while asleep the current day is counted so far, up to 36 hours', () => {
+    const base = withBody(SAM)
+    // Wednesday woke 1:20 PM and went to sleep at 11 PM; at 1:30 PM Thursday it is still asleep.
+    const asleep = { id: 'sleep-thu', sleepStart: '2026-10-21T23:00:00-04:00', wake: null }
+    const doc = { ...base, sleeps: [...base.sleeps, asleep] }
+    const b = shown(doc, WED, '2026-10-22T13:30:00-04:00')
+    expect(b.inputs.soFar).toBe(true)
+    // Asleep for days: more than 36 hours since the wake, so not counted.
+    expect(balanceView(doc, buildDayViewFor(doc, WED), '2026-10-23T02:00:00-04:00')).toMatchObject({
+      kind: 'needsWake',
+      text: 'Estimated deficit or surplus: not counted, as this day runs for more than 36 hours. A night may be missing.',
+    })
+  })
+
   it('adds nothing on a day with no known calories eaten (never counted as 0 eaten): the headline already says so', () => {
     const doc = withBody(SAM, { meals: [] })
     expect(balanceView(doc, buildDayViewFor(doc, WED), demoStartIso)).toEqual({ kind: 'hidden' })

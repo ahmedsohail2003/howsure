@@ -37,6 +37,14 @@ export const copy = {
     switchToMine: 'Open my log',
     switchToDemo: 'See the demo',
     setWake: 'Set wake time',
+    // Build-out item 2.1b: the current day's wake is more than a day old (an imported log, or a
+    // night not added yet). The line says when it was; the button records today's wake.
+    lastWake: (date: string, time: string, ago: string) => `Last wake\u2011up ${date}, ${time} · ${ago}`,
+    daysAgo: (n: number) => (n === 1 ? '1 day ago' : `${n} days ago`),
+    staleHint: (control: string) => `To add last night, use “${control}” and set when you went to bed.`,
+    setTodayWake: 'Set today’s wake time',
+    // The same button on a screen under 360 px wide, where the long label wraps.
+    setTodayWakeShort: 'Set wake time',
     yourLog: 'Your log',
     // spec.md > Screens > Dashboard: the guest name opens Profile and privacy.
     profileAndPrivacy: 'Profile and privacy',
@@ -131,6 +139,9 @@ export const copy = {
   },
 
   headline: {
+    // Build-out item 2.1b: an ended day that ran for more than 36 hours to its next wake.
+    longDay: (length: string) =>
+      `This day ran for ${length} to its next wake-up, so a night may be missing. Its meals and total cover all of that time, more than one day.`,
     label: 'Calories today',
     labelEarlierDay: 'Calories that day',
     labelKnownOnly: 'Calories, known meals only',
@@ -219,6 +230,10 @@ export const copy = {
     invite: (fields: string) => `Add your ${fields} in Profile to see an estimated deficit or surplus.`,
     inviteDemo: (fields: string) => `Add Sam’s ${fields} to see an estimated deficit or surplus.`,
     needsWake: 'Estimated deficit or surplus: needs a wake time to count the day from.',
+    // Build-out item 2.1b: the current day's wake is more than a day old.
+    staleWake: 'Estimated deficit or surplus: not counted, as you woke up more than a day ago.',
+    // A day that runs for more than 36 hours from its wake-up: a night is likely missing.
+    longDay: 'Estimated deficit or surplus: not counted, as this day runs for more than 36 hours. A night may be missing.',
   },
 
   // The estimated deficit or surplus explained (build-out item 2.5b).
@@ -342,6 +357,9 @@ export const copy = {
 
   emptyDay: {
     noMeals: 'No meals logged yet',
+    // Build-out item 2.1b: an empty day with the log's latest meal more than a day back (an
+    // imported log, say). Opens the waking day that holds that meal.
+    lastMeal: (day: string) => `Last meal logged: ${day}`,
   },
 
   // Build-out item 2.5a (slice 10; prd.md > Workouts and Net Calories): log, list, edit and delete
@@ -645,6 +663,13 @@ export const copy = {
   sleep: {
     title: 'Sleep',
     awake: 'Awake',
+    // The current day's wake is more than a day old (build-out item 2.1b): nothing says the person
+    // was awake all that time, only that no sleep was logged. The Night timeline says the same.
+    // A non-breaking hyphen keeps "wake-up" whole when the line wraps on a narrow screen.
+    noSleepSinceWake: 'No sleep logged since this wake\u2011up',
+    // The same on an earlier day: it names the current day's wake, so it never reads as the wake of
+    // the day on screen.
+    noSleepSinceWakeOn: (date: string) => `Now: no sleep logged since the wake\u2011up on ${date}`,
     asleepSince: (when: string) => `Asleep since ${when}`,
     goingToSleep: 'I’m going to sleep',
     wokeUp: 'I woke up',
@@ -824,14 +849,14 @@ export const copy = {
       "Your saved log can't be read by this version of HowSure, so the file holds the saved text as it is, unchanged.",
     exportReady: (file: string) => `Export ready: ${file}`,
     olderCopiesHint:
-      'HowSure kept older copies of your log when it updated the saved format. They are deleted with your data.',
+      'HowSure keeps older copies of your log when it updates the saved format and before an import replaces your log. They are deleted with your data.',
     olderCopiesOriginalHint:
       "Your saved log is still in its older format, because HowSure couldn't back it up when it updated it. This file holds that copy, unchanged. It is deleted with your data.",
     olderCopiesButton: (n: number) => (n === 1 ? 'Export 1 older copy' : `Export ${n} older copies`),
 
     importTitle: 'Import a log',
     importHint:
-      'Replaces your log on this device with one from a HowSure export file. You see what the file holds before anything changes.',
+      'Replaces your log on this device with one from a HowSure export file, or from an export of your earlier tracker. You see what the file holds before anything changes.',
     importButton: 'Choose a file to import',
     importBlockedUnreadable:
       "Your saved log can't be read by this version of HowSure, so importing would replace it. Export it first to keep a copy, then delete it, then import.",
@@ -843,12 +868,20 @@ export const copy = {
     previewName: (name: string) => `Guest name: ${name}`,
     previewUpgraded: (v: string) => `Saved in format version ${v}. It is updated to this version as it is imported.`,
     previewReplaces: (what: string) =>
-      `Importing replaces your log on this device, which holds ${what}, and your guest name, targets, body details and settings. Export it first if you want to keep it.`,
+      `Importing replaces your log on this device, which holds ${what}, and your guest name, targets, body details and settings. HowSure keeps a copy of it, which you can export from this panel.`,
+    // When the log on screen holds changes that couldn't be saved, the kept copy is the saved one,
+    // so it may not have them.
+    previewReplacesUnsaved: (what: string) =>
+      `Importing replaces your log on this device, which holds ${what}, and your guest name, targets, body details and settings. Some changes couldn’t be saved, so the copy HowSure keeps may not have them. Export your log first if you want to keep it.`,
     previewReplacesEmpty:
       'Importing replaces your guest name, targets, body details and settings on this device. Your log has no meals or sleep yet.',
     importConfirm: 'Replace my log',
+    importConfirmEmpty: 'Import',
     importCancel: 'Cancel',
     imported: (what: string) => `Imported. Your log now holds ${what}.`,
+    // The log it replaced held something, so it was kept as an older copy (store/transfer.ts > replaceOwnLog).
+    importedKept: (what: string) =>
+      `Imported. Your log now holds ${what}. The log it replaced is kept as an older copy, which you can export from this panel.`,
     importErrors: {
       notRead: "The file couldn't be opened. Nothing was changed. Try choosing it again.",
       tooLarge:
@@ -859,6 +892,14 @@ export const copy = {
         "This file was saved by a newer version of HowSure, so this version can't read it. Nothing was changed. Open it in the newer version, or update HowSure and try again.",
       demo: "This file holds the fictional demo, not your own log, so it wasn't imported. Nothing was changed. Choose an export of your own log.",
       notSaved: "Couldn't save the imported log on this device right now. Nothing was changed. Free some space in this browser, then try again.",
+      notBackedUp:
+        "Couldn't keep a copy of your current log on this device, so it wasn't replaced. Nothing was changed. Free some space in this browser, or export your log and delete it, then try again.",
+      trackerVersion:
+        "This tracker export is in a format version HowSure doesn't know, so it wasn't imported. Nothing was changed. Try updating HowSure, then import it again.",
+      trackerUnreadable:
+        "HowSure couldn't read this tracker export. Nothing was changed. Choose the file your tracker exported, or export it again.",
+      trackerEmpty:
+        "This tracker export has no meals, sleep or weigh-ins HowSure can use, so it wasn't imported. Nothing was changed. Choose another export from your tracker.",
     },
 
     deleteTitle: 'Delete my data',
@@ -871,7 +912,9 @@ export const copy = {
     confirmUnsaved: (what: string) => `${what} on screen, which were never saved`,
     confirmOriginal: 'the older-format copy of your saved log, which was never backed up',
     confirmOlderCopies: (n: number) =>
-      n === 1 ? '1 older copy kept when the saved format was updated' : `${n} older copies kept when the saved format was updated`,
+      n === 1
+        ? '1 older copy, kept when the saved format was updated or an import replaced your log'
+        : `${n} older copies, kept when the saved format was updated or an import replaced your log`,
     confirmKeeps: 'The fictional demo is not affected. This can’t be undone, so export first if you want a copy.',
     confirmButton: 'Delete my log',
     keep: 'Keep my log',
@@ -879,6 +922,123 @@ export const copy = {
     deletedNoStorage:
       "Cleared. Your log on screen is now empty. This browser isn't letting HowSure use its storage right now, so there was no saved copy it could reach.",
     deleteFailed: "Couldn't delete everything on this device right now. Try again. The fictional demo is not affected.",
+  },
+
+  // Build-out item 2.1b: an export of your earlier tracker (a tracker bundle), imported into your
+  // own log. The preview says everything the import did before anything is replaced; meal details
+  // say which figures came from the tracker. HowSure's own source labels come from sources.ts.
+  trackerImport: {
+    /** An imported meal whose description and type are both empty. */
+    mealFallbackName: 'Meal',
+    previewKind: 'An export from your earlier tracker. HowSure turns it into your log.',
+    previewBecomes: 'It becomes',
+    mealsOnDays: (meals: number, days: number) =>
+      `${meals === 1 ? '1 meal' : `${meals} meals`} on ${days === 1 ? '1 day' : `${days} days`}`,
+    targets: (parts: string) => `Targets: ${parts}`,
+    targetKcal: (kcal: string) => `${kcal} kcal`,
+    targetProtein: (grams: string) => `at least ${grams} g protein`,
+    noTargets: 'No targets in the file',
+    notesTitle: 'Worth knowing',
+    approximate: (n: number) =>
+      `${n === 1 ? 'The meal’s time is' : `All ${n} meals’ times are`} approximate. Your tracker kept the day, not the time eaten, so HowSure placed each meal in its waking day by its type.`,
+    ownErrors: (n: number, total: number) =>
+      n === 0
+        ? total === 1
+          ? 'The meal uses HowSure’s figure for its source, not your tracker’s figure for how sure it is.'
+          : `All ${total} meals use HowSure’s figure for their source, not your tracker’s figure for how sure they are.`
+        : n === total
+          ? total === 1
+            ? 'The meal keeps your tracker’s figure for how sure it is.'
+            : `All ${total} meals keep your tracker’s figure for how sure they are.`
+          : `${n} of ${total} meals keep your tracker’s figure for how sure they are. The others use HowSure’s figure for their source.`,
+    untagged: (n: number) =>
+      n === 1
+        ? '1 meal has no source recorded. HowSure counts it as Description.'
+        : `${n} meals have no source recorded. HowSure counts them as Description.`,
+    truncated: (n: number) =>
+      n === 1
+        ? '1 description was cut short in your tracker. It is kept as it is.'
+        : `${n} descriptions were cut short in your tracker. They are kept as they are.`,
+    joinedTitle: 'Dates joined to the day before',
+    joinedHint: 'No sleep is recorded for these dates, so each one shows on the waking day before it until that night is added.',
+    joinedLine: (date: string, to: string) => `${date} joins ${to}`,
+    joinedNone: (date: string) => `${date} comes before your first recorded wake-up`,
+    // More than one date before the first wake: they share one provisional waking day.
+    beforeFirstWake: (n: number) =>
+      `${n} dates come before your first recorded wake-up, so they show together as one day, with one total, until the nights between them are added.`,
+    bedDerived: (dates: string) =>
+      `The bed time on ${dates} didn’t fall between the wake-up before it and its own wake-up, so it was worked out from the wake time and hours asleep in the same record.`,
+    bedSkipped: (dates: string) =>
+      `The bed time on ${dates} didn’t fall between the wake-up before it and its own wake-up, and couldn’t be worked out, so it is not logged.`,
+    lateWake: (dates: string) =>
+      `The wake-up on ${dates} came in the evening, so some of that date’s meals show times after midnight. They stay on that date’s waking day.`,
+    skippedMeals: (n: number) =>
+      n === 1 ? '1 meal has no usable date, so it is left out.' : `${n} meals have no usable date, so they are left out.`,
+    unreadableMeals: (n: number) =>
+      n === 1
+        ? '1 meal has a type, description or amount HowSure couldn’t read, so it is left out.'
+        : `${n} meals have a type, description or amount HowSure couldn’t read, so they are left out.`,
+    skippedNights: (n: number) =>
+      n === 1
+        ? '1 night has no wake time with its time zone, so it is left out.'
+        : `${n} nights have no wake time with its time zone, so they are left out.`,
+    repeatedWakes: (n: number) =>
+      n === 1
+        ? '1 night repeats the wake time of another night, so it is left out.'
+        : `${n} nights repeat the wake time of another night, so they are left out.`,
+    repeatedDates: (n: number) =>
+      n === 1
+        ? '1 night has the same date as another night, so the one saved earlier is left out.'
+        : `${n} nights have the same date as another night, so the ones saved earlier are left out.`,
+    // Meal dates later than when the file was exported (or than the device's now): kept on their
+    // own dates, never moved to an earlier day.
+    afterExport: (dates: string) =>
+      `Meals dated ${dates} are later than when the file was exported. They are kept on their own date.`,
+    // Weigh-ins go into the weight log; the tracker records a weigh-in's time only sometimes.
+    weighinsApproximate: (n: number, total: number) =>
+      `${n === total ? (total === 1 ? 'The weigh-in has' : `All ${total} weigh-ins have`) : `${n} of ${total} weigh-ins ${n === 1 ? 'has' : 'have'}`} no recorded time, so ${n === 1 ? 'it is' : 'each is'} placed on ${n === 1 ? 'its' : 'its own'} date, just after that date’s wake-up (at noon with no wake-up that date), and marked approximate.`,
+    weighinsSkipped: (n: number) =>
+      n === 1 ? '1 weigh-in has no usable date or weight, so it is left out.' : `${n} weigh-ins have no usable date or weight, so they are left out.`,
+    pending: (n: number) =>
+      n === 1 ? '1 plate waiting to be logged' : `${n} plates waiting to be logged`,
+    syncNotes: 'your tracker’s sync notes',
+    notImported: (what: string) => `Not imported: ${what}.`,
+
+    // Meal details for an imported meal.
+    detailsTitle: 'From your tracker',
+    timeAbout: (time: string) => `about ${time}`,
+    timeApproximate: 'Time approximate: your tracker kept the day, not the time eaten.',
+    trackerSource: 'Your tracker’s source',
+    // In HowSure's words: what each of the tracker's source codes says the figure was based on.
+    codes: {
+      SCALE: 'Portion weighed',
+      LABEL: 'Read off the package',
+      CHAIN: 'Chain restaurant item, using the chain’s own nutrition figures',
+      CHAIN_BYO: 'Chain order assembled from the chain’s listed components',
+      NONCHAIN: 'Local restaurant meal, looked up in a food database',
+      PHOTO_CTX: 'Estimated from a photo, with the restaurant or dish identified',
+      PHOTO: 'Estimated from a photo alone',
+      TEXT: 'Estimated from a written description',
+      GUESS: 'Rough guess, without knowing what the food was',
+      UNTAGGED: 'No source recorded',
+    },
+    unlistedCode: (code: string) => `“${code}”, a code HowSure doesn’t know, so no source recorded`,
+    mealType: 'Meal type',
+    fromTracker: 'from your tracker',
+    ownErrorLine: (label: string, pct: string) =>
+      `This meal’s typical error is your tracker’s figure for it. HowSure’s figure for ${label} is ${pct}%.`,
+    sourceErrorLine: 'Your tracker had no usable figure for this meal, so HowSure’s figure for its source applies.',
+    // The meal's calories or source changed after the import, so the tracker's figure no longer fits it.
+    changedErrorLine: (pct: string) =>
+      `Its calories or source changed since the import, so HowSure’s figure for its source applies. Your tracker’s figure for it was ${pct}%.`,
+    truncatedNote: 'Description cut short in your tracker.',
+    joinedNote: (date: string, day: string) =>
+      `Filed under ${date} in your tracker, which has no sleep recorded for that date. It shows on ${day}’s waking day until that night is added.`,
+    joinedNoneNote: (date: string) =>
+      `Filed under ${date} in your tracker, before your first recorded wake-up.`,
+    // A joined meal that no longer shows on the day it was joined to (moved by an edit, or a wake
+    // added on its date): only where the tracker filed it is still true.
+    filedNote: (date: string) => `Filed under ${date} in your tracker.`,
   },
 
   // Build-out item 1.3: the dashboard's More menu (spec.md > Screens: Tier 3 screens are reached
@@ -1002,7 +1162,11 @@ export const copy = {
     // A meal after midnight still belongs to the waking day it was eaten in.
     stillDay: (weekday: string) => `still ${weekday}’s day`,
     now: 'now',
+    // Above a time HowSure placed rather than recorded (an imported meal, build-out item 2.1b).
+    about: 'about',
     nowAwake: (time: string) => `${time}, awake`,
+    // Build-out item 2.1b: now is more than a day after the wake that starts the day.
+    nowNoSleep: (time: string) => `${time} · no sleep logged since this wake\u2011up`,
     wentToSleep: 'Went to sleep',
     sleepStartNotLogged: 'Went to sleep: time not logged',
     asleepNow: 'asleep now',
@@ -1390,6 +1554,10 @@ export const copy = {
     // prd.md > Estimate Score and Explanations, word for word, with the meal's own numbers.
     sentence: (score: string, errorPct: string) =>
       `A ${score}% estimate score means this source is assigned a typical error of about ${errorPct}%. It does not mean there is a ${score}% chance this meal is correct. The actual error could be larger.`,
+    // Build-out item 2.1b: the same sentence for a meal that carries its own typical error (an
+    // imported meal with your tracker's figure for it), which is the meal's figure, not the source's.
+    sentenceOwn: (score: string, errorPct: string) =>
+      `A ${score}% estimate score means this meal is assigned a typical error of about ${errorPct}%, your tracker’s figure for it. It does not mean there is a ${score}% chance this meal is correct. The actual error could be larger.`,
     basisLabel: 'Where the typical error comes from',
     improveTitle: 'What would improve it',
     improveLine: (to: string, fromPct: string, toPct: string) =>
@@ -1405,6 +1573,8 @@ export const copy = {
 
   explainDay: {
     title: "How sure is today's total?",
+    // Build-out item 2.1b: a past day, or a current day whose wake is days old, isn't "today".
+    titleOtherDay: "How sure is this day's total?",
     sub: (total: string) => `${total} kcal from the known meals`,
     // prd.md > Estimate Score and Explanations, word for word.
     sentence:

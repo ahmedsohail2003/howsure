@@ -71,6 +71,23 @@ export interface Meal {
   note?: string
   foods?: MealFood[] // added: spec.md > Demo Fixture "Foods listed"
   lookup?: MealLookup // added: spec.md > Data Model (Tier 2)
+  // Added in build-out item 2.1b (an imported tracker log). A typical error worked out for this
+  // one meal by the tool that estimated it, as a fraction (0 < e < 1). When present it replaces
+  // the source's figure for this meal only; changing the meal's source or calories drops it.
+  typicalError?: number
+  // The meal's time was placed by HowSure, not recorded (an imported log that kept only the day).
+  timeApproximate?: boolean
+  imported?: ImportedFields
+}
+
+/**
+ * What an import kept from the original record (build-out item 2.1b), under one key so nothing is
+ * lost: `from` names the format ('tracker'), the rest is that format's own fields. The maths never
+ * reads it.
+ */
+export interface ImportedFields {
+  from: string
+  [key: string]: unknown
 }
 
 /** Build-out item 2.4: the unit a weight was typed in, and the display preference (settings.weightUnit). */
@@ -101,6 +118,7 @@ export interface SleepRecord {
   id: string
   sleepStart: string | null // ISO; null = not logged
   wake: string | null // ISO; null = still asleep
+  imported?: ImportedFields // build-out item 2.1b
 }
 
 export interface Range {

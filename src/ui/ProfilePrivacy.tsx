@@ -8,21 +8,30 @@
 //
 // Build-out item 2.5b: Body details (age, sex, height, weight, everyday activity) for the
 // estimated deficit or surplus: a one-line summary here and a button that opens their sheet.
+// Build-out item 2.1b: Import also takes an export of the owner's earlier tracker (a tracker
+// bundle, told apart by its shape). Its preview says what the file becomes and everything the
+// conversion did (approximate times, sources not recorded, texts cut short, dates joined to the
+// day before, bed times that overlapped, what is kept for later and what is not imported), and
+// that the log it replaces is kept as an older copy. The same preview draws in every look.
 //
 // Not here yet: the guest name with Reroll and Rename (item 2.10), plates (3.4), the
-// sent-off-device count (with lookups, 3.5), the Claude connector switch (3.3) and Reset demo (2.1).
+// sent-off-device count (with lookups, 3.5) and the Claude connector switch (3.3).
 
 import { useEffect, useRef, useState, type ChangeEvent } from 'react'
+import { nowIso } from '../clock'
 import type { LogDoc } from '../store/log'
 import type { LogProblem } from '../store/session'
 import { IMPORT_MAX_BYTES, readImport, summarize, type ImportRead, type OlderCopiesCount } from '../store/transfer'
 import { bodySummary } from './body'
 import { copy } from './copy'
-import { deleteItems, holdsText, replacesText, spanText } from './privacyView'
+import { deleteItems, hasContent, holdsText, replacesText, spanText } from './privacyView'
+import { TimesTogether } from './KeepTogether'
 import { Sheet } from './Sheet'
+import { trackerPreview } from './trackerPreview'
 
 /** How a confirmed Import went. 'stored…': the saved copy is left alone (see LogProblem). */
-export type ImportOutcome = 'ok' | 'notSaved' | 'storedUnreadable' | 'storedNotBackedUp'
+/** 'kept': imported, and the log it replaced was kept as an older copy. */
+export type ImportOutcome = 'ok' | 'kept' | 'notSaved' | 'notBackedUp' | 'storedUnreadable' | 'storedNotBackedUp'
 
 /** How Delete went: 'noStorage' when the browser won't let HowSure reach its storage at all. */
 export type DeleteOutcome = 'ok' | 'failed' | 'noStorage'
@@ -32,6 +41,8 @@ interface ProfilePrivacyProps {
   doc: LogDoc
   /** Why its saved copy is left as it is, if it is (store/session.ts). */
   problem: LogProblem | null
+  /** False when a recent save failed, so the saved copy may lack what is on screen. */
+  saved: boolean
   /** Older copies of your log on the device (store/transfer.ts > countOlderCopies). */
   olderCopies: OlderCopiesCount
   /** Download your log; returns the file name. */
@@ -83,8 +94,15 @@ export function ProfilePrivacy(props: ProfilePrivacyProps) {
       stepHeadingRef.current?.focus()
       return
     }
-    if (message) messageRef.current?.focus()
-    else if (returnTo.current === 'import') importBtnRef.current?.focus()
+    if (message) {
+      // The message is the sheet's first line: scroll the sheet to its top so the message shows
+      // in full under the sticky header (focus alone could leave it under the header when the
+      // page above it grew, as a second import's "Export 1 older copy" row does).
+      const el = messageRef.current
+      el?.focus({ preventScroll: true })
+      const sheet = el?.closest<HTMLElement>('.sheet')
+      if (sheet) sheet.scrollTop = 0
+    } else if (returnTo.current === 'import') importBtnRef.current?.focus()
     else if (returnTo.current === 'delete') deleteBtnRef.current?.focus()
     returnTo.current = null
   }, [step, message])
@@ -119,7 +137,8 @@ export function ProfilePrivacy(props: ProfilePrivacyProps) {
     } catch {
       return refuse(copy.privacy.importErrors.notRead)
     }
-    const read = readImport(text)
+    // The tracker conversion places no meal after now, and names a meal with no words by copy.ts.
+    const read = readImport(text, undefined, { nowIso: nowIso('mine'), mealFallbackName: copy.trackerImport.mealFallbackName })
     if (read.status === 'refused') return refuse(copy.privacy.importErrors[read.problem])
     setStep({ kind: 'preview', file: file.name, read })
   }
@@ -128,17 +147,20 @@ export function ProfilePrivacy(props: ProfilePrivacyProps) {
     const outcome = props.onImport(next)
     returnTo.current = 'import'
     setStep({ kind: 'main' })
-    if (outcome === 'ok') {
-      setMessage({ tone: 'status', text: copy.privacy.imported(holdsText(summarize(next))), testId: 'privacy-status' })
+    if (outcome === 'ok' || outcome === 'kept') {
+      const holds = holdsText(summarize(next))
+      setMessage({ tone: 'status', text: outcome === 'kept' ? copy.privacy.importedKept(holds) : copy.privacy.imported(holds), testId: 'privacy-status' })
     } else {
       setMessage({
         tone: 'error',
         text:
           outcome === 'notSaved'
             ? copy.privacy.importErrors.notSaved
-            : outcome === 'storedNotBackedUp'
-              ? copy.privacy.importBlockedNotBackedUp
-              : copy.privacy.importBlockedUnreadable,
+            : outcome === 'notBackedUp'
+              ? copy.privacy.importErrors.notBackedUp
+              : outcome === 'storedNotBackedUp'
+                ? copy.privacy.importBlockedNotBackedUp
+                : copy.privacy.importBlockedUnreadable,
         testId: 'privacy-error',
       })
     }
@@ -167,29 +189,78 @@ export function ProfilePrivacy(props: ProfilePrivacyProps) {
 
   let body
   if (step.kind === 'preview') {
-    const { summary, upgradedFrom, doc: next } = step.read
+    const { summary, upgradedFrom, doc: next, tracker } = step.read
+    const fromTracker = tracker ? trackerPreview(tracker, props.nowIso) : null
     body = (
       <section className="privacy-step" aria-labelledby="import-preview-title" data-testid="import-preview">
         <h3 className="privacy-step-title" id="import-preview-title" ref={stepHeadingRef} tabIndex={-1}>
           {copy.privacy.previewTitle}
         </h3>
         <p className="privacy-hint">{copy.privacy.previewFile(step.file)}</p>
-        <p className="privacy-subtitle">{copy.privacy.previewHolds}</p>
-        <ul className="privacy-list" data-testid="import-preview-holds">
-          {summary.name && <li>{copy.privacy.previewName(summary.name)}</li>}
-          <li>{holdsText(summary)}</li>
-          <li>{spanText(summary)}</li>
-        </ul>
+        {fromTracker ? (
+          <>
+            <p className="privacy-hint" data-testid="import-preview-kind">
+              {copy.trackerImport.previewKind}
+            </p>
+            <p className="privacy-subtitle">{copy.trackerImport.previewBecomes}</p>
+            <ul className="privacy-list" data-testid="import-preview-holds">
+              {fromTracker.becomes.map((line) => (
+                <li key={line}>
+                  <TimesTogether text={line} />
+                </li>
+              ))}
+            </ul>
+            <p className="privacy-subtitle">{copy.trackerImport.notesTitle}</p>
+            <ul className="privacy-list" data-testid="import-preview-notes">
+              {fromTracker.notes.map((line) => (
+                <li key={line}>
+                  <TimesTogether text={line} />
+                </li>
+              ))}
+            </ul>
+            {fromTracker.joined.length > 0 && (
+              <>
+                <p className="privacy-subtitle">{copy.trackerImport.joinedTitle}</p>
+                <p className="privacy-hint">{copy.trackerImport.joinedHint}</p>
+                <ul className="privacy-list" data-testid="import-preview-joined">
+                  {fromTracker.joined.map((line) => (
+                    <li key={line}>
+                      <TimesTogether text={line} />
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </>
+        ) : (
+          <>
+            <p className="privacy-subtitle">{copy.privacy.previewHolds}</p>
+            <ul className="privacy-list" data-testid="import-preview-holds">
+              {summary.name && <li>{copy.privacy.previewName(summary.name)}</li>}
+              <li>{holdsText(summary)}</li>
+              <li>
+                <TimesTogether text={spanText(summary, props.nowIso)} />
+              </li>
+            </ul>
+          </>
+        )}
         {upgradedFrom !== undefined && <p className="privacy-hint">{copy.privacy.previewUpgraded(String(upgradedFrom))}</p>}
         <p className="callout amber" data-testid="import-preview-replaces">
-          {replacesText(onScreen)}
+          {replacesText(onScreen, props.saved)}
         </p>
         <div className="sheet-actions">
           <button type="button" className="btn btn-plain" onClick={() => cancel('import')} data-testid="import-cancel">
             {copy.privacy.importCancel}
           </button>
-          <button type="button" className="btn btn-primary" onClick={() => confirmImport(next)} data-testid="import-confirm">
-            {copy.privacy.importConfirm}
+          {/* Replacing a log that holds anything uses the destructive style, as Delete my data does
+              (a copy is kept, but the log on screen goes); importing into an empty log is plain. */}
+          <button
+            type="button"
+            className={hasContent(onScreen) ? 'btn btn-ink' : 'btn btn-primary'}
+            onClick={() => confirmImport(next)}
+            data-testid="import-confirm"
+          >
+            {hasContent(onScreen) ? copy.privacy.importConfirm : copy.privacy.importConfirmEmpty}
           </button>
         </div>
       </section>

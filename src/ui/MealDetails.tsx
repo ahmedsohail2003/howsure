@@ -7,11 +7,16 @@
 // Build-out item 2.9: the foods stored on the meal (meals.foods) and its lookup (meals.lookup),
 // saved before but shown nowhere, are listed under "Foods in this meal" with their amounts, and
 // with where the meal's values come from: the meal's own source (mealFoods.ts).
+// Build-out item 2.1b: a meal imported from the owner's earlier tracker says what came from it:
+// "time approximate" (the tracker kept the day, not the time), the tracker's source in its own
+// terms, its meal type, whether the typical error is the tracker's figure (with HowSure's beside
+// it), a description cut short, and a date joined to the day before.
 
 import { useId, useLayoutEffect, useRef, useState } from 'react'
 import { estimateMeal, improve } from '../kernel/estimate'
 import { getSource } from '../kernel/sources'
-import type { Meal } from '../kernel/types'
+import { trackerMealInfo } from '../import/trackerBundle'
+import type { Meal, SleepRecord } from '../kernel/types'
 import type { SavedMeal } from '../store/log'
 import { copy } from './copy'
 import type { DayView } from './dayView'
@@ -19,7 +24,8 @@ import { fmtInt, fmtPct, fmtRange } from './format'
 import { foodRows, lookupView } from './mealFoods'
 import { mealSourceLabel, mealTimeLabel } from './mealLabels'
 import { Sheet } from './Sheet'
-import { BasisTag } from './SourceBasis'
+import { MealBasisTag } from './SourceBasis'
+import { trackerErrorLine, trackerJoinedLine, trackerSourceText } from './trackerPreview'
 import { checkSavedName, nameKey, savedEarlier, savedMatch } from './usualMeals'
 
 interface MealDetailsProps {
@@ -40,6 +46,10 @@ interface MealDetailsProps {
   onSaveUsual: (name: string, updateId?: string) => void
   /** Opens the Saved meals sheet. */
   onManageSaved: () => void
+  /** The open log's now, so a date in this year leaves the year out (an imported meal's joined date). */
+  nowIso?: string
+  /** The open log's nights, to tell whether a joined meal still shows on the day it was joined to. */
+  sleeps?: SleepRecord[]
 }
 
 function amount(v: number | null): string {
@@ -56,6 +66,8 @@ export function MealDetails(props: MealDetailsProps) {
   const source = meal.source === null ? null : getSource(meal.source)
   // Worked out on the meal's own day, the same way the explanation sheet does it.
   const imp = est ? improve(view.meals.some((m) => m.id === meal.id) ? view.meals : [meal], meal.id) : null
+  const tracker = trackerMealInfo(meal)
+  const joinedLine = tracker ? trackerJoinedLine(meal, tracker, props.sleeps ?? [], props.nowIso) : null
 
   const footer = confirming ? (
     <div className="delete-confirm" data-testid="delete-confirm">
@@ -130,7 +142,8 @@ export function MealDetails(props: MealDetailsProps) {
           <span className="k">{copy.details.source}</span>
           {source ? (
             <span className="details-source">
-              {copy.basis.sourceLine(source.label, fmtPct(est?.e ?? source.typicalError))} <BasisTag source={source} />
+              {copy.basis.sourceLine(source.label, fmtPct(est?.e ?? source.typicalError))}{' '}
+              <MealBasisTag meal={meal} source={source} />
             </span>
           ) : (
             <span className="unknown">{copy.details.sourceNotPicked}</span>
@@ -139,6 +152,49 @@ export function MealDetails(props: MealDetailsProps) {
       </ul>
 
       <MealFoods meal={meal} />
+      {tracker ? (
+        <div className="details-imported" data-testid="details-imported">
+          <h3 className="section-title">{copy.trackerImport.detailsTitle}</h3>
+          <ul className="fact-list details-facts">
+            {meal.timeApproximate && (
+              <li data-testid="details-time-approx">
+                <span>{copy.trackerImport.timeApproximate}</span>
+              </li>
+            )}
+            <li className="fact-stack" data-testid="details-tracker-source">
+              <span className="k">{copy.trackerImport.trackerSource}</span>
+              <span className={tracker.code === 'UNTAGGED' ? 'unknown' : undefined}>{trackerSourceText(tracker)}</span>
+            </li>
+            {tracker.type && (
+              <li data-testid="details-tracker-type">
+                <span className="k">{copy.trackerImport.mealType}</span>
+                <span>{tracker.type}</span>
+              </li>
+            )}
+          </ul>
+          {source && (
+            <p className="small" data-testid="details-tracker-error">
+              {trackerErrorLine(meal, tracker, source)}
+            </p>
+          )}
+          {tracker.truncated && (
+            <p className="small" data-testid="details-truncated">
+              {copy.trackerImport.truncatedNote}
+            </p>
+          )}
+          {joinedLine !== null && (
+            <p className="small" data-testid="details-joined">
+              {joinedLine}
+            </p>
+          )}
+        </div>
+      ) : (
+        meal.timeApproximate && (
+          <p className="small" data-testid="details-time-approx">
+            {copy.trackerImport.timeApproximate}
+          </p>
+        )
+      )}
 
       <div>
         <h3 className="section-title">{copy.details.noteTitle}</h3>

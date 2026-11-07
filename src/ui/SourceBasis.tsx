@@ -2,8 +2,10 @@
 // finding, re-check date) or the word "assumption" with its nearest study as context.
 // Study wording comes from src/kernel/sources.ts; HowSure's own words from copy.ts.
 
-import type { Source, SourceId } from '../kernel/types'
+import { hasOwnError } from '../kernel/estimate'
+import type { Meal, Source, SourceId } from '../kernel/types'
 import { getSource, SOURCES } from '../kernel/sources'
+import { trackerMealInfo } from '../import/trackerBundle'
 import { copy } from './copy'
 import { fmtPct } from './format'
 
@@ -14,6 +16,21 @@ export function BasisTag({ source }: { source: Source }) {
       {study ? copy.basis.study : copy.basis.assumption}
     </span>
   )
+}
+
+/**
+ * The basis of one meal's typical error: "from your tracker" when an imported meal carries the
+ * tracker's own figure for it (build-out item 2.1b), else its source's basis.
+ */
+export function MealBasisTag({ meal, source }: { meal: Pick<Meal, 'typicalError' | 'imported'>; source: Source }) {
+  if (hasOwnError(meal) && trackerMealInfo(meal)) {
+    return (
+      <span className="basis-tag tracker" data-testid="basis-tag">
+        {copy.trackerImport.fromTracker}
+      </span>
+    )
+  }
+  return <BasisTag source={source} />
 }
 
 export function SourceBasisItem({ source }: { source: Source }) {
