@@ -14,16 +14,23 @@
 // day before, bed times that overlapped, what is kept for later and what is not imported), and
 // that the log it replaces is kept as an older copy. The same preview draws in every look.
 //
-// Not here yet: the guest name with Reroll and Rename (item 2.10), plates (3.4), the
-// sent-off-device count (with lookups, 3.5) and the Claude connector switch (3.3).
+// Build-out item 2.10: the guest name comes first, with "Reroll" and "Rename"
+// (GuestNameSection.tsx). An imported file with no guest name keeps yours, or gets a new
+// generated one when you have none, and its preview says which (so does one whose name can't be
+// used, as only a hand-edited file can hold), leaving the name out of what the import replaces.
+//
+// Not here yet: plates (3.4), the sent-off-device count (with lookups, 3.5) and the Claude
+// connector switch (3.3).
 
 import { useEffect, useRef, useState, type ChangeEvent } from 'react'
 import { nowIso } from '../clock'
 import type { LogDoc } from '../store/log'
 import type { LogProblem } from '../store/session'
 import { IMPORT_MAX_BYTES, readImport, summarize, type ImportRead, type OlderCopiesCount } from '../store/transfer'
+import { NAME_MAX, newGamerTag } from '../kernel/gamertag'
 import { bodySummary } from './body'
 import { copy } from './copy'
+import { GuestNameSection, type NameSaved } from './GuestNameSection'
 import { deleteItems, hasContent, holdsText, replacesText, spanText } from './privacyView'
 import { TimesTogether } from './KeepTogether'
 import { Sheet } from './Sheet'
@@ -43,6 +50,8 @@ interface ProfilePrivacyProps {
   problem: LogProblem | null
   /** False when a recent save failed, so the saved copy may lack what is on screen. */
   saved: boolean
+  /** Build-out item 2.10: whether the guest name on screen is saved on the device (GuestNameSection). */
+  nameSaved: NameSaved
   /** Older copies of your log on the device (store/transfer.ts > countOlderCopies). */
   olderCopies: OlderCopiesCount
   /** Download your log; returns the file name. */
@@ -55,6 +64,8 @@ interface ProfilePrivacyProps {
   onDelete: () => DeleteOutcome
   /** Opens Body details (build-out item 2.5b); closing them comes back here. */
   onEditBody: () => void
+  /** Build-out item 2.10: save a new guest name (Reroll, Undo or Rename). */
+  onSetName: (name: string) => void
   /** Your log's now: the age shown moves on with it. */
   nowIso: string
   onClose: () => void
@@ -138,7 +149,13 @@ export function ProfilePrivacy(props: ProfilePrivacyProps) {
       return refuse(copy.privacy.importErrors.notRead)
     }
     // The tracker conversion places no meal after now, and names a meal with no words by copy.ts.
-    const read = readImport(text, undefined, { nowIso: nowIso('mine'), mealFallbackName: copy.trackerImport.mealFallbackName })
+    // A file with no guest name keeps yours, or gets a new generated one when you have none (item 2.10).
+    const read = readImport(
+      text,
+      undefined,
+      { nowIso: nowIso('mine'), mealFallbackName: copy.trackerImport.mealFallbackName },
+      { fallbackName: doc.profile.name || newGamerTag() },
+    )
     if (read.status === 'refused') return refuse(copy.privacy.importErrors[read.problem])
     setStep({ kind: 'preview', file: file.name, read })
   }
@@ -189,8 +206,27 @@ export function ProfilePrivacy(props: ProfilePrivacyProps) {
 
   let body
   if (step.kind === 'preview') {
-    const { summary, upgradedFrom, doc: next, tracker } = step.read
+    const { summary, upgradedFrom, doc: next, tracker, nameGiven } = step.read
     const fromTracker = tracker ? trackerPreview(tracker, props.nowIso) : null
+    // The name the imported log will have (item 2.10). The file's own is one of the things it
+    // holds, listed with them. Otherwise (nameGiven) the file holds none HowSure can use, so a line
+    // under the list says the log keeps yours, or gets a new one when you have none.
+    const fileName = !nameGiven && summary.name ? copy.privacy.previewName(summary.name) : null
+    const keepsYours = doc.profile.name !== ''
+    const afterName = !nameGiven
+      ? null
+      : nameGiven === 'none'
+        ? keepsYours
+          ? copy.privacy.previewNameKept(summary.name)
+          : copy.privacy.previewNameNew(summary.name)
+        : keepsYours
+          ? copy.privacy.previewNameRefusedKept(summary.name, NAME_MAX)
+          : copy.privacy.previewNameRefusedNew(summary.name, NAME_MAX)
+    const afterNameLine = afterName && (
+      <p className="privacy-hint" data-testid="import-preview-name">
+        {afterName}
+      </p>
+    )
     body = (
       <section className="privacy-step" aria-labelledby="import-preview-title" data-testid="import-preview">
         <h3 className="privacy-step-title" id="import-preview-title" ref={stepHeadingRef} tabIndex={-1}>
@@ -210,6 +246,7 @@ export function ProfilePrivacy(props: ProfilePrivacyProps) {
                 </li>
               ))}
             </ul>
+            {afterNameLine}
             <p className="privacy-subtitle">{copy.trackerImport.notesTitle}</p>
             <ul className="privacy-list" data-testid="import-preview-notes">
               {fromTracker.notes.map((line) => (
@@ -236,17 +273,18 @@ export function ProfilePrivacy(props: ProfilePrivacyProps) {
           <>
             <p className="privacy-subtitle">{copy.privacy.previewHolds}</p>
             <ul className="privacy-list" data-testid="import-preview-holds">
-              {summary.name && <li>{copy.privacy.previewName(summary.name)}</li>}
+              {fileName && <li data-testid="import-preview-name">{fileName}</li>}
               <li>{holdsText(summary)}</li>
               <li>
                 <TimesTogether text={spanText(summary, props.nowIso)} />
               </li>
             </ul>
+            {afterNameLine}
           </>
         )}
         {upgradedFrom !== undefined && <p className="privacy-hint">{copy.privacy.previewUpgraded(String(upgradedFrom))}</p>}
         <p className="callout amber" data-testid="import-preview-replaces">
-          {replacesText(onScreen, props.saved)}
+          {replacesText(onScreen, props.saved, !nameGiven && summary.name !== doc.profile.name)}
         </p>
         <div className="sheet-actions">
           <button type="button" className="btn btn-plain" onClick={() => cancel('import')} data-testid="import-cancel">
@@ -291,11 +329,22 @@ export function ProfilePrivacy(props: ProfilePrivacyProps) {
   } else {
     body = (
       <>
+        <GuestNameSection
+          name={doc.profile.name}
+          saved={props.nameSaved}
+          onSetName={(name) => {
+            setMessage(null)
+            props.onSetName(name)
+          }}
+        />
+
         <section className="privacy-section" aria-labelledby="privacy-saved-title">
           <h3 className="privacy-section-title" id="privacy-saved-title" data-testid="privacy-saved-here">
             {copy.privacy.savedHere}
           </h3>
-          <p className="privacy-hint">{copy.privacy.savedHereDetail}</p>
+          <p className="privacy-hint" data-testid="privacy-saved-detail">
+            {props.nameSaved === 'notYet' ? copy.privacy.savedHereDetailNotYet : copy.privacy.savedHereDetail}
+          </p>
         </section>
 
         <section className="privacy-section" aria-labelledby="privacy-body-title" data-testid="privacy-body">

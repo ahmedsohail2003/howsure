@@ -23,8 +23,11 @@ function staleLine(dayStart: string, days: number, nowIso: string | undefined): 
 interface DashboardHeaderProps {
   kind: LogKind
   dayStart: string | null
-  /** The guest name in your own log ('' until item 2.10 gives one). */
-  ownName: string
+  /**
+   * The open log's guest name (build-out item 2.10): your own log's, which opens Profile and
+   * privacy ('' for a log saved before it had one), or the demo's fixed name, shown as text.
+   */
+  name: string
   onOpenProfile: () => void
   onSwitch: () => void
   /** Set wake time (build-out item 2.1): given only while the log has no wake time and nobody is asleep. */
@@ -49,14 +52,29 @@ export function DashboardHeader(props: DashboardHeaderProps) {
     <header className="app-header">
       <div>
         <h1 className="wordmark">{copy.appName}</h1>
-        {kind === 'mine' && (
-          <button type="button" className="profile-btn" onClick={props.onOpenProfile} data-testid="open-profile">
+        {kind === 'mine' ? (
+          <button
+            type="button"
+            className="profile-btn"
+            onClick={props.onOpenProfile}
+            aria-label={copy.header.profileButtonLabel(props.name || copy.header.yourLog)}
+            data-testid="open-profile"
+            data-opens="profile-privacy"
+          >
             {/* A name, marked so the tap-through test reads its digits as part of a name (item 2.9). */}
-            <span className="profile-name" data-name="">
-              {props.ownName || copy.header.yourLog}
+            <span className="profile-name" data-name="" data-testid="header-name">
+              {props.name || copy.header.yourLog}
             </span>
             <span className="profile-link">{copy.header.profileAndPrivacy}</span>
           </button>
+        ) : (
+          // The demo keeps Sam's name (item 2.10). Rename and Reroll are for your own log only.
+          <p className="profile-static" data-testid="demo-name">
+            <span className="profile-name" data-name="" data-testid="header-name">
+              {props.name}
+            </span>
+            <span className="profile-note">{copy.header.demoNameNote}</span>
+          </p>
         )}
         {dayStart && props.staleDays != null ? (
           // A wake more than a day old (build-out item 2.1b): when it was and how long ago, in the

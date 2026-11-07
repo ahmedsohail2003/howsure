@@ -40,6 +40,20 @@ async function firstOpen(page: Page) {
   await expect(page.getByTestId('first-open')).toBeVisible()
 }
 
+/**
+ * Your own log as Start my log saves it (build-out item 2.10): nothing in it but a generated guest
+ * name such as "BraveKefir#4821". Returns the saved text.
+ */
+async function savedFreshLog(page: Page): Promise<string> {
+  const text = await read(page, E2E_KEYS.mine)
+  expect(text).not.toBeNull()
+  const saved = JSON.parse(text as string)
+  expect(Object.keys(saved).sort()).toEqual(['kind', 'meals', 'plates', 'profile', 'sleeps', 'version', 'workouts'])
+  expect(saved).toMatchObject({ kind: 'mine', meals: [], sleeps: [], workouts: [], plates: [] })
+  expect(saved.profile).toEqual({ name: expect.stringMatching(/^[A-Z][a-z]+[A-Z][a-z]+#\d{4}$/), kind: 'guest' })
+  return text as string
+}
+
 function mealAt(id: string, name: string, eatenAt: string, kcal: number): Meal {
   return { id, name, eatenAt, source: 'label', kcal, protein: null, carbs: null, fat: null }
 }
@@ -118,8 +132,9 @@ for (const { id: look, name: lookName } of LOOKS) {
       await expect(page.getByTestId('headline-kcal')).toHaveText('Not available yet')
       await expect(page.getByTestId('empty-day')).toHaveText('No meals logged yet')
       await expect(page.getByTestId('log-switch')).toHaveText('See the demo')
-      // Nothing is written to your own log until you change it: no invented meals or wake time.
-      expect(await read(page, E2E_KEYS.mine)).toBeNull()
+      // Nothing is invented: no meals or wake time. Build-out item 2.10: the new log is saved with
+      // its generated guest name only, so the name survives a reload.
+      expect(await savedFreshLog(page)).not.toBeNull()
       expect(await read(page, E2E_KEYS.active)).toBe('mine')
     })
 
@@ -281,6 +296,8 @@ for (const { id: look, name: lookName } of LOOKS) {
     test('Set wake time with no meals saves at once and starts the day', async ({ page }) => {
       await firstOpen(page)
       await page.getByTestId('start-mine').click()
+      // The new log as Start my log saved it: empty, with its generated name (item 2.10).
+      const fresh = await savedFreshLog(page)
       await page.getByTestId('set-wake').click()
       const sheet = await opened(page, 'set-wake-sheet')
       // Today once 7:00 AM has passed, at 7:00 AM; yesterday is the other choice.
@@ -305,7 +322,7 @@ for (const { id: look, name: lookName } of LOOKS) {
       await expect(sheet.getByTestId('set-wake-effect')).toHaveCount(0)
       // Kept as typed, shown back with AM (build-out item 2.2).
       await expect(sheet.getByTestId('set-wake-time')).toHaveValue('10:30 AM')
-      expect(await read(page, E2E_KEYS.mine)).toBeNull()
+      expect(await read(page, E2E_KEYS.mine)).toBe(fresh)
 
       // Yesterday at 11:15 PM: no meals, so no preview; Enter in the time field saves straight away.
       await sheet.getByTestId('set-wake-yesterday').check()

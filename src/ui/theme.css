@@ -410,9 +410,26 @@ button {
   cursor: pointer;
 }
 
-.profile-btn .profile-name {
+.profile-btn .profile-name,
+.profile-static .profile-name {
   font-size: 14px;
   font-weight: 600;
+  /* A long imported or typed name wraps instead of pushing the header sideways. */
+  overflow-wrap: anywhere;
+}
+
+/* Build-out item 2.10: the demo keeps Sam's name, shown as text with a note (Rename is for your own log). */
+.profile-static {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--s1);
+  margin-top: 2px;
+}
+
+.profile-static .profile-note {
+  color: var(--ink-soft);
+  font-size: 14px;
 }
 
 .profile-btn .profile-link {
@@ -2107,6 +2124,36 @@ details.more > summary {
 }
 
 /* ---------- profile and privacy ---------- */
+
+/* Build-out item 2.10: the guest name, the largest line of its section, with Reroll and
+   Rename side by side (stacked when the screen is too narrow for both). */
+.guest-name {
+  font-size: 20px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.guest-name.guest-name-none {
+  color: var(--ink-soft);
+  font-size: 16px;
+  font-weight: 400;
+}
+
+.guest-name-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s1);
+}
+
+/* The status line and Undo come into view (and take focus) clear of the sheet's sticky header. */
+.guest-name-status,
+.guest-name-section :is(button, input) {
+  scroll-margin: calc(var(--sheet-head-h, 150px) + 12px) 0 12px;
+}
+
+.guest-name-status {
+  overflow-wrap: anywhere;
+}
 
 .privacy-section + .privacy-section {
   padding-top: var(--s2);

@@ -9,9 +9,9 @@ import { sleepStatus, wakingDayStart } from '../kernel/sleepday'
 import type { StatId } from '../kernel/statRegistry'
 import type { MacroKey, Meal, SleepRecord, WeighIn, WeightUnit, Workout } from '../kernel/types'
 import { demoChanges, isDemoEdited, pristineDemo, type DemoChanges } from '../store/demoReset'
-import { emptyLog, startDemo, type BodyDetails, type LogDoc } from '../store/log'
+import { newOwnLog, startDemo, type BodyDetails, type LogDoc } from '../store/log'
 import { DEFAULT_LOOK, saveLook, type Look } from '../store/look'
-import { loadSession, type LogProblem, type Logs } from '../store/session'
+import { loadSession, newOwnLogIfUnsaved, type LogProblem, type Logs } from '../store/session'
 import { browserStore, KEYS, readRaw, saveActive, saveLog, storageWorks } from '../store/storage'
 import {
   backupsFileName,
@@ -50,6 +50,7 @@ import { MealDetails } from './MealDetails'
 import { MoreMenu } from './MoreMenu'
 import { moreEntries, type MoreEntryId } from './moreMenu'
 import { ProfilePrivacy, type DeleteOutcome, type ImportOutcome } from './ProfilePrivacy'
+import type { NameSaved } from './GuestNameSection'
 import { ResetDemoSheet } from './ResetDemoSheet'
 import { SetWakeSheet } from './SetWakeSheet'
 import { missedWakeDate, latestTime, type EditTarget } from './sleepEdit'
@@ -260,8 +261,26 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
     activate('demo')
   }
 
+  /**
+   * Open your own log. When nothing of it is saved (the first time, or a reload after Delete my
+   * data), it starts as a new log with a generated guest name (build-out item 2.10), saved at once
+   * so the name survives a reload; a start that opens straight into it does the same
+   * (store/session.ts > newOwnLogIfUnsaved). The log Delete my data left in memory already has a
+   * new name, so it is opened as it is. A log already saved is opened as it is: one saved without
+   * a name keeps none until you pick one.
+   */
   function openMine() {
+    const fresh = newOwnLogIfUnsaved(logs.mine, problems.mine, browserStore())
+    if (fresh) {
+      setLogs((l) => ({ ...l, mine: fresh }))
+      persist(fresh)
+    }
     activate('mine')
+  }
+
+  /** Build-out item 2.10: a new guest name for your own log (Reroll, Undo or Rename), saved at once. */
+  function setOwnName(name: string) {
+    update({ ...logs.mine, profile: { ...logs.mine.profile, name } })
   }
 
   const doc = active === 'demo' ? logs.demo : active === 'mine' ? logs.mine : null
@@ -309,6 +328,16 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
     () => (profileOpen ? countOlderCopies(problems.mine, browserStore()) : { backups: 0, original: false }),
     [profileOpen, problems.mine, logs.mine],
   )
+  // Build-out item 2.10: whether the guest name on screen is the one saved on the device, so the
+  // panel never calls a name saved that a reload would replace. 'notYet': nothing of your log is
+  // saved (just after Delete my data), and saving works. 'unknown': a save failed, the saved copy
+  // is left as it is (problems.mine), or storage can't be reached; the panel says so elsewhere.
+  const nameSaved = useMemo((): NameSaved => {
+    if (!profileOpen) return 'unknown'
+    const store = browserStore()
+    if (!store || !storageOk || problems.mine) return 'unknown'
+    return readRaw(store, KEYS.mine) === null ? 'notYet' : 'saved'
+  }, [profileOpen, problems.mine, logs.mine, storageOk])
 
   /** Put the changed log in place and write it to the device, then close the sheet. */
   function commit(next: LogDoc) {
@@ -536,6 +565,10 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
 
   /**
    * Delete your own log from the device; afterwards your own log is empty. The demo is untouched.
+   * Build-out item 2.10: the emptied log starts again at once as a new log with a new generated
+   * name, as a first open does, so it never goes on with no name. It is not saved (Delete leaves
+   * nothing of your log on the device) until something is: a meal, a name, targets. A reload
+   * before that starts it as a new log again (store/session.ts > newOwnLogIfUnsaved).
    * When the browser won't let HowSure reach its storage at all, there is no saved copy it can
    * reach: the log on screen is cleared and the panel says so ('noStorage'), instead of asking
    * the person to try again.
@@ -543,7 +576,7 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
   function deleteMine(): DeleteOutcome {
     const store = browserStore()
     const clear = () => {
-      setLogs((l) => ({ ...l, mine: emptyLog() }))
+      setLogs((l) => ({ ...l, mine: newOwnLog() }))
       setProblems((p) => ({ ...p, mine: null }))
       if (active === 'mine') setViewed(null)
     }
@@ -838,7 +871,7 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
         }}
         onOpenWeek={() => setSheet({ mode: 'week' })}
         onOpenTimeline={() => openTimeline('nav')}
-        ownName={logs.mine.profile.name}
+        name={doc.profile.name}
         onOpenProfile={() => setSheet({ mode: 'profile' })}
         targets={doc.profile.targets}
         onOpenTargets={() => setSheet({ mode: 'targets' })}
@@ -1097,12 +1130,14 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
           doc={logs.mine}
           problem={problems.mine}
           saved={storageOk}
+          nameSaved={nameSaved}
           olderCopies={olderCount}
           onExport={exportMine}
           onExportOlderCopies={exportOlderCopies}
           onImport={importMine}
           onDelete={deleteMine}
           onEditBody={() => setSheet({ mode: 'body', from: 'profile' })}
+          onSetName={setOwnName}
           nowIso={at}
           onClose={() => setSheet(null)}
         />

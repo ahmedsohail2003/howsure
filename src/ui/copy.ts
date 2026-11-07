@@ -48,6 +48,55 @@ export const copy = {
     yourLog: 'Your log',
     // spec.md > Screens > Dashboard: the guest name opens Profile and privacy.
     profileAndPrivacy: 'Profile and privacy',
+    // Build-out item 2.10: the button's spoken name. It starts with the words shown on it, in the
+    // same order (the name, then "Profile and privacy"), so saying what is shown matches it.
+    profileButtonLabel: (name: string) => `${name}, Profile and privacy`,
+    // The demo keeps Sam's name: shown in the header, not a button (Rename is for your own log).
+    demoNameNote: 'Name fixed in the demo',
+  },
+
+  // Build-out item 2.10 (prd.md > Guest Profile and Gamer-Tag Name): the guest name in Profile and
+  // privacy, with "Reroll" and "Rename".
+  guestName: {
+    title: 'Guest name',
+    label: 'Guest: saved on this device only',
+    // Just after Delete my data: the emptied log's new name is not on the device until the first
+    // change (a meal, targets, a name) saves the log; a reload before then gives another name.
+    notSavedYet:
+      'Not saved yet: it is saved on this device with your first change, such as a meal or a new name. Until then, a reload picks another name.',
+    // A log saved before item 2.10 has no name until you pick or type one. (After Delete my data
+    // the emptied log starts again with a new generated name.)
+    none: 'No name yet',
+    reroll: 'Reroll',
+    pickFirst: 'Pick a name',
+    rename: 'Rename',
+    renameFirst: 'Type a name',
+    newName: 'New name',
+    hint: (max: number) => `Up to ${max} letters or digits, with no spaces or symbols.`,
+    save: 'Save name',
+    cancel: 'Cancel',
+    picked: (name: string, before: string) => `Your name is now ${name}. It was ${before}.`,
+    pickedFirst: (name: string) => `Your name is now ${name}.`,
+    renamed: (name: string) => `Your name is now ${name}.`,
+    undo: 'Undo',
+    undone: (name: string) => `Your name is back to ${name}.`,
+    // Rename's inline messages (kernel/gamertag.ts > checkName).
+    errors: {
+      empty: 'Type a name, or press “Cancel” to keep this one.',
+      // The log has no name yet, so there is none to keep.
+      emptyNoName: 'Type a name, or press “Cancel”.',
+      tooLong: (max: number) => `That is too long. Use ${max} letters or digits at most.`,
+      // `bad`: the first character that can't be used: " " for a space, "hidden" for one that shows
+      // nothing, "#" (a generated name's ending, which a typed name can't have), or the character.
+      characters: (bad: string) =>
+        bad === ' '
+          ? 'Take out the spaces: a name is letters and digits only.'
+          : bad === 'hidden'
+            ? 'Take out the hidden character: a name is letters and digits only.'
+            : bad === '#'
+              ? 'Take out “#”: a name you type is letters and digits only. Only names HowSure picks end in “#” and 4 digits.'
+              : `Take out “${bad}”: a name is letters and digits only.`,
+    },
   },
 
   // Build-out item 2.1: Set wake time, for a log with no wake time yet (prd.md > Sleep and Waking
@@ -832,6 +881,8 @@ export const copy = {
     title: 'Profile and privacy',
     savedHere: 'Saved on this device only',
     savedHereDetail: 'Your log is kept in this browser on this device.',
+    // Build-out item 2.10: just after Delete my data, when nothing of your log is on the device yet.
+    savedHereDetailNotYet: 'Your log will be kept in this browser on this device. Nothing of it is saved yet.',
     and: 'and',
     meals: (n: number) => (n === 1 ? '1 meal' : `${n} meals`),
     nights: (n: number) => (n === 1 ? '1 night of sleep' : `${n} nights of sleep`),
@@ -868,15 +919,26 @@ export const copy = {
     previewFile: (file: string) => `File: ${file}`,
     previewHolds: 'The file holds',
     previewName: (name: string) => `Guest name: ${name}`,
+    // Build-out item 2.10: the file has no guest name, or one HowSure can't use (too long, or
+    // symbols, as in a hand-edited file), so the log keeps yours, or gets a new one. Shown under the
+    // list of what the file holds, not in it.
+    previewNameKept: (name: string) => `Guest name after import: ${name}, your current one. The file has none.`,
+    previewNameNew: (name: string) => `Guest name after import: ${name}, picked for you. The file has none, and your log has none yet.`,
+    previewNameRefusedKept: (name: string, max: number) =>
+      `Guest name after import: ${name}, your current one. The file’s name can’t be used: it isn’t 1 to ${max} letters or digits, nor a name HowSure picks.`,
+    previewNameRefusedNew: (name: string, max: number) =>
+      `Guest name after import: ${name}, picked for you. The file’s name can’t be used: it isn’t 1 to ${max} letters or digits, nor a name HowSure picks.`,
     previewUpgraded: (v: string) => `Saved in format version ${v}. It is updated to this version as it is imported.`,
-    previewReplaces: (what: string) =>
-      `Importing replaces your log on this device, which holds ${what}, and your guest name, targets, body details and settings. HowSure keeps a copy of it, which you can export from this panel.`,
+    // `name`: the import replaces your guest name (the file has its own, and you have another);
+    // when it keeps yours, brings the one you have, or you have none, the sentence leaves it out.
+    previewReplaces: (what: string, name: boolean) =>
+      `Importing replaces your log on this device, which holds ${what}, and your ${name ? 'guest name, ' : ''}targets, body details and settings. HowSure keeps a copy of it, which you can export from this panel.`,
     // When the log on screen holds changes that couldn't be saved, the kept copy is the saved one,
     // so it may not have them.
-    previewReplacesUnsaved: (what: string) =>
-      `Importing replaces your log on this device, which holds ${what}, and your guest name, targets, body details and settings. Some changes couldn’t be saved, so the copy HowSure keeps may not have them. Export your log first if you want to keep it.`,
-    previewReplacesEmpty:
-      'Importing replaces your guest name, targets, body details and settings on this device. Your log has no meals or sleep yet.',
+    previewReplacesUnsaved: (what: string, name: boolean) =>
+      `Importing replaces your log on this device, which holds ${what}, and your ${name ? 'guest name, ' : ''}targets, body details and settings. Some changes couldn’t be saved, so the copy HowSure keeps may not have them. Export your log first if you want to keep it.`,
+    previewReplacesEmpty: (name: boolean) =>
+      `Importing replaces your ${name ? 'guest name, ' : ''}targets, body details and settings on this device. Your log has no meals or sleep yet.`,
     importConfirm: 'Replace my log',
     importConfirmEmpty: 'Import',
     importCancel: 'Cancel',
@@ -909,7 +971,8 @@ export const copy = {
     deleteButton: 'Delete my data',
     confirmTitle: 'Delete your log from this device?',
     confirmDeletes: 'This deletes',
-    confirmProfile: 'your guest name, targets, body details and settings',
+    // `name`: false when your log has no guest name to delete (one saved before names existed).
+    confirmProfile: (name: boolean) => `your ${name ? 'guest name, ' : ''}targets, body details and settings`,
     confirmUnreadable: "your saved log, which this version of HowSure can't read",
     confirmUnsaved: (what: string) => `${what} on screen, which were never saved`,
     confirmOriginal: 'the older-format copy of your saved log, which was never backed up',

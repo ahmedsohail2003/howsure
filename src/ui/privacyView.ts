@@ -42,11 +42,15 @@ export function hasContent(s: LogSummary): boolean {
  * What an Import replaces, for its preview. It names the guest name, targets and settings too,
  * as the Delete confirmation does, because an import replaces the whole log. `saved` is false
  * when a recent save failed: the copy HowSure keeps is the saved text, which may then lack what
- * is on screen, so the preview says to export first.
+ * is on screen, so the preview says to export first. `newName` (build-out item 2.10) is false
+ * when the import leaves your guest name as it is: the file brings no name HowSure can use (yours
+ * is kept), or brings the one you have. The sentence then leaves the name out, as it does when
+ * your log has no name to replace.
  */
-export function replacesText(current: LogSummary, saved = true): string {
-  if (!hasContent(current)) return copy.privacy.previewReplacesEmpty
-  return saved ? copy.privacy.previewReplaces(holdsText(current)) : copy.privacy.previewReplacesUnsaved(holdsText(current))
+export function replacesText(current: LogSummary, saved = true, newName = true): string {
+  const name = newName && current.name !== ''
+  if (!hasContent(current)) return copy.privacy.previewReplacesEmpty(name)
+  return saved ? copy.privacy.previewReplaces(holdsText(current), name) : copy.privacy.previewReplacesUnsaved(holdsText(current), name)
 }
 
 /**
@@ -62,7 +66,7 @@ export function deleteItems(onScreen: LogSummary, problem: LogProblem | null, ol
     items.push(copy.privacy.confirmUnreadable)
     if (hasContent(onScreen)) items.push(copy.privacy.confirmUnsaved(holdsText(onScreen)))
   } else {
-    items.push(...contentItems(onScreen), copy.privacy.confirmProfile)
+    items.push(...contentItems(onScreen), copy.privacy.confirmProfile(onScreen.name !== ''))
     if (older.original) items.push(copy.privacy.confirmOriginal)
   }
   if (older.backups > 0) items.push(copy.privacy.confirmOlderCopies(older.backups))

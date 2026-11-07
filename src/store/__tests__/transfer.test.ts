@@ -11,7 +11,7 @@
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { emptyLog, startDemo, type LogDoc } from '../log'
+import { emptyLog, newOwnLog, startDemo, type LogDoc } from '../log'
 import { backupKey, DEFAULT_KEYS, storageKeys } from '../keys'
 import { MIGRATIONS, type Migrations, type StoredJson } from '../migrations'
 import { SCHEMA_VERSION } from '../schema'
@@ -25,6 +25,7 @@ import {
   exportFileName,
   exportOwnLog,
   IMPORT_MAX_BYTES,
+  isEmptyOwnLog,
   keepsOriginal,
   listBackups,
   olderCopies,
@@ -758,5 +759,115 @@ describe('replaceOwnLog keeps a backup of the log it replaces (build-out item 2.
     store.data.set(K.mine, before)
     expect(replaceOwnLog(emptyLog(), store)).toEqual({ ok: false, reason: 'notBackedUp' })
     expect(store.getItem(K.mine)).toBe(before)
+  })
+})
+
+// Build-out item 2.10: a new own log gets a generated guest name; an imported file keeps its own
+// name, and one with none takes the name the panel passes (yours, or a new generated one).
+describe('guest names (build-out item 2.10)', () => {
+  const fixed = () => {
+    const values = [0, 4821]
+    let i = 0
+    return () => values[i++ % values.length]!
+  }
+
+  it('a new own log is empty apart from its generated name, and still counts as empty', () => {
+    const doc = newOwnLog(fixed())
+    expect(doc.profile.name).toBe('BraveKefir#4821')
+    expect({ ...doc, profile: { ...doc.profile, name: '' } }).toStrictEqual(emptyLog())
+    expect(isEmptyOwnLog(doc)).toBe(true)
+    expect(isEmptyOwnLog(emptyLog())).toBe(true)
+    // A name the person typed is something they put there, so a later import keeps a backup.
+    expect(isEmptyOwnLog({ ...doc, profile: { ...doc.profile, name: 'Sam2026' } })).toBe(false)
+    // Anything else in the log still counts, whatever the name.
+    expect(isEmptyOwnLog({ ...doc, profile: { ...doc.profile, targets: { kcal: 2000 } } })).toBe(false)
+  })
+
+  it('replacing a log that holds only its generated name keeps no backup, as for an empty log', () => {
+    const store = new MemoryStore()
+    saveLog(newOwnLog(fixed()), store)
+    expect(replaceOwnLog(mineDoc(), store)).toEqual({ ok: true })
+    expect(backupKeys(store, DEFAULT_KEYS.mine)).toEqual([])
+  })
+
+  it('round-trips the name through Save, Export and Import', () => {
+    const doc = { ...newOwnLog(fixed()), profile: { name: 'Sam2026', kind: 'guest' as const } }
+    const store = new MemoryStore()
+    saveLog(doc, store)
+    const loaded = loadLog('mine', store)
+    if (loaded.status !== 'ok') throw new Error('not loaded')
+    expect(loaded.doc.profile.name).toBe('Sam2026')
+    const read = readImport(exportOwnLog(loaded.doc, null, store), MIGRATIONS, {}, { fallbackName: 'SwiftOtter#0042' })
+    expect(read).toMatchObject({ status: 'ok', summary: { name: 'Sam2026' } })
+    expect(read.status === 'ok' && read.nameGiven).toBe(undefined)
+  })
+
+  it('an imported HowSure log keeps the name in the file', () => {
+    const read = readImport(V1_MINE_TEXT, MIGRATIONS, {}, { fallbackName: 'SwiftOtter#0042' })
+    if (read.status !== 'ok') throw new Error('refused')
+    expect(read.doc.profile.name).toBe('Sam')
+    expect(read.nameGiven).toBeUndefined()
+  })
+
+  it('a file with no name, or a blank one, takes the fallback and says so', () => {
+    for (const name of ['', '   ']) {
+      const text = JSON.stringify({ ...V1_MINE, profile: { ...(V1_MINE.profile as object), name } })
+      const read = readImport(text, MIGRATIONS, {}, { fallbackName: 'SwiftOtter#0042' })
+      if (read.status !== 'ok') throw new Error('refused')
+      expect(read.doc.profile.name).toBe('SwiftOtter#0042')
+      expect(read.summary.name).toBe('SwiftOtter#0042')
+      expect(read.nameGiven).toBe('none')
+      // Everything else is the file's.
+      expect(read.doc.meals.length).toBe(6)
+    }
+  })
+
+  it('a tracker export, which has no name, takes the fallback too', () => {
+    const read = readImport(TRACKER_TEXT, MIGRATIONS, {}, { fallbackName: 'SwiftOtter#0042' })
+    if (read.status !== 'ok') throw new Error('refused')
+    expect(read.doc.profile.name).toBe('SwiftOtter#0042')
+    expect(read.nameGiven).toBe('none')
+    expect(read.tracker).toMatchObject({ meals: 19 })
+  })
+
+  it('a file whose name is neither generated-shaped nor one Rename would take (too long, symbols) takes the fallback, and says it was refused', () => {
+    for (const name of ['SamTheLentilLover', 'Sam 2026', 'Sam#2026', 'Sam_2026', ' Sam']) {
+      const text = JSON.stringify({ ...V1_MINE, profile: { ...(V1_MINE.profile as object), name } })
+      const read = readImport(text, MIGRATIONS, {}, { fallbackName: 'SwiftOtter#0042' })
+      if (read.status !== 'ok') throw new Error('refused')
+      expect(read.doc.profile.name, name).toBe('SwiftOtter#0042')
+      expect(read.nameGiven, name).toBe('refused')
+    }
+    // A generated name, which holds "#", and a typed one at the limit are kept, with no word list.
+    for (const name of ['CalmLentil#3108', 'SamTheLentilLove', 'Zoë', 'Nazim', 'Allcock']) {
+      const text = JSON.stringify({ ...V1_MINE, profile: { ...(V1_MINE.profile as object), name } })
+      const read = readImport(text, MIGRATIONS, {}, { fallbackName: 'SwiftOtter#0042' })
+      if (read.status !== 'ok') throw new Error('refused')
+      expect(read.doc.profile.name).toBe(name)
+      expect(read.nameGiven).toBeUndefined()
+    }
+  })
+
+  it('keeps a generated-looking name from another version, and an accented name written in parts, composed', () => {
+    // Word lists change between versions: a name shaped like a generated one is kept.
+    for (const name of ['BravePecan#1234', 'LoudPizza#1234']) {
+      const text = JSON.stringify({ ...V1_MINE, profile: { ...(V1_MINE.profile as object), name } })
+      const read = readImport(text, MIGRATIONS, {}, { fallbackName: 'SwiftOtter#0042' })
+      if (read.status !== 'ok') throw new Error('refused')
+      expect(read.doc.profile.name).toBe(name)
+      expect(read.nameGiven).toBeUndefined()
+    }
+    // "Zoë" as "Zoe" and a separate accent mark is kept, in its composed form, and listed so.
+    const text = JSON.stringify({ ...V1_MINE, profile: { ...(V1_MINE.profile as object), name: 'Zoë' } })
+    const read = readImport(text, MIGRATIONS, {}, { fallbackName: 'SwiftOtter#0042' })
+    if (read.status !== 'ok') throw new Error('refused')
+    expect(read.doc.profile.name).toBe('Zoë')
+    expect(read.summary.name).toBe('Zoë')
+    expect(read.nameGiven).toBeUndefined()
+  })
+
+  it('without a fallback, an unnamed file is read as it is (the callers that pass none)', () => {
+    const read = readImport(TRACKER_TEXT)
+    expect(read.status === 'ok' && read.doc.profile.name).toBe('')
   })
 })

@@ -11,6 +11,7 @@ import {
   type DemoClockState,
   type LogKind,
 } from '../clock'
+import { newGamerTag, type RandomInt } from '../kernel/gamertag'
 import { SOURCES } from '../kernel/sources'
 import type { ActivityLevel, BodySex } from '../kernel/energy'
 import type { BurnSourceId, ImportedFields, Meal, MealFood, MealLookup, MealSourceId, SleepRecord, WeighIn, Workout } from '../kernel/types'
@@ -91,8 +92,18 @@ export interface LogDoc {
   imported?: ImportedFields
 }
 
+/** Your own log with nothing in it and no guest name: what "nothing a person put there" is compared with. */
 export function emptyLog(): LogDoc {
   return { kind: 'mine', profile: { name: '', kind: 'guest' }, meals: [], sleeps: [], workouts: [], plates: [] }
+}
+
+/**
+ * A new own log (build-out item 2.10): empty, with a generated guest name such as
+ * "BraveKefir#4821". `rand` is the random source (crypto by default), so tests can fix the name.
+ */
+export function newOwnLog(rand?: RandomInt): LogDoc {
+  const doc = emptyLog()
+  return { ...doc, profile: { ...doc.profile, name: newGamerTag(rand) } }
 }
 
 type Obj = Record<string, unknown>

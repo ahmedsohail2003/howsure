@@ -2,14 +2,17 @@
 // both logs, the last active one, and the demo clock. No React, so it is unit-tested.
 
 import { setDemoClock, startDemoClock, type LogKind } from '../clock'
-import { demoLog, emptyLog, startDemo, type LogDoc } from './log'
+import type { RandomInt } from '../kernel/gamertag'
+import { demoLog, emptyLog, newOwnLog, startDemo, type LogDoc } from './log'
 import type { StorageKeys } from './keys'
 import type { Migrations } from './migrations'
+import { isEmptyOwnLog } from './transfer'
 import {
   browserStore,
   KEYS,
   loadActive,
   loadLog,
+  readRaw,
   saveLog,
   storageWorks,
   type KeyValueStore,
@@ -42,6 +45,29 @@ export interface Session {
 export interface SessionOptions {
   keys?: StorageKeys
   migrations?: Migrations
+  /** The random source for a new log's guest name (build-out item 2.10); crypto by default. */
+  rand?: RandomInt
+}
+
+/**
+ * Build-out item 2.10: opening your own log when nothing of it is saved starts a new log with a
+ * generated guest name, the same on every path (the first open, coming back from the demo, and a
+ * start or reload that opens straight into it, as after "Delete my data"). Returns that new log,
+ * for the caller to show and save, or null when the log is to be opened as it is: something of it
+ * is saved (also a log saved with no name, which keeps none until you pick one), its saved copy
+ * is left alone for a problem, or the log in memory holds anything (unsaved on a device that
+ * won't save) or already has a name.
+ */
+export function newOwnLogIfUnsaved(
+  mine: LogDoc,
+  problem: LogProblem | null,
+  store: KeyValueStore | null,
+  keys: StorageKeys = KEYS,
+  rand?: RandomInt,
+): LogDoc | null {
+  if (problem || readRaw(store, keys.mine) !== null) return null
+  if (!isEmptyOwnLog(mine) || mine.profile.name !== '') return null
+  return newOwnLog(rand)
 }
 
 function problemOf(res: LoadResult): LogProblem | null {
@@ -87,6 +113,14 @@ export function loadSession(
   } else if (active === null) {
     active = mineSaved ? 'mine' : demo ? 'demo' : null
   }
-  const mine = mineRes.status === 'ok' ? mineRes.doc : emptyLog()
-  return { active, logs: { demo, mine }, problems, storageOk }
+  let mine = mineRes.status === 'ok' ? mineRes.doc : emptyLog()
+  let saved = storageOk
+  if (active === 'mine') {
+    const fresh = newOwnLogIfUnsaved(mine, problems.mine, store, keys, opts.rand)
+    if (fresh) {
+      mine = fresh
+      if (!saveLog(fresh, store, keys)) saved = false
+    }
+  }
+  return { active, logs: { demo, mine }, problems, storageOk: saved }
 }

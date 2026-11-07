@@ -4,8 +4,8 @@
 import { describe, expect, it } from 'vitest'
 import { demoChanges, demoProjection, isDemoEdited, pristineDemo, stableJson, wallTime } from '../demoReset'
 import { emptyLog, startDemo, type LogDoc } from '../log'
-import { loadSession } from '../session'
-import { ACTIVE_KEY, saveActive, saveLog, serializeLog, STORAGE_KEYS } from '../storage'
+import { loadSession, newOwnLogIfUnsaved } from '../session'
+import { ACTIVE_KEY, KEYS, saveActive, saveLog, serializeLog, STORAGE_KEYS } from '../storage'
 import { changeLines } from '../../ui/ResetDemoSheet'
 import { MemoryStore } from './memoryStore'
 
@@ -192,11 +192,44 @@ describe('returning opens the last log used (loadSession)', () => {
     expect(loadSession(store, R0).active).toBe('mine')
   })
 
-  it('a saved choice of your own log with nothing saved yet opens your empty log', () => {
+  it('a saved choice of your own log with nothing saved yet (as after Delete my data) opens it as a new log, with a generated name, saved', () => {
     const store = new MemoryStore()
     store.setItem(ACTIVE_KEY, 'mine')
-    const s = loadSession(store, R0)
+    // The random source picks pair 0 ("BraveKefir") and the digits 4821 (build-out item 2.10).
+    const s = loadSession(store, R0, { rand: (n) => (n === 10000 ? 4821 : 0) })
     expect(s.active).toBe('mine')
-    expect(s.logs.mine).toEqual(emptyLog())
+    expect(s.logs.mine).toEqual({ ...emptyLog(), profile: { name: 'BraveKefir#4821', kind: 'guest' } })
+    // Saved at once, so the next start opens the same log and name.
+    expect(JSON.parse(store.getItem(STORAGE_KEYS.mine)!).profile.name).toBe('BraveKefir#4821')
+    expect(loadSession(store, R0).logs.mine.profile.name).toBe('BraveKefir#4821')
+  })
+
+  it('a log saved with no name, or a saved copy left alone for a problem, is opened as it is', () => {
+    const store = new MemoryStore()
+    store.setItem(ACTIVE_KEY, 'mine')
+    const unnamed = serializeLog(emptyLog())
+    store.setItem(STORAGE_KEYS.mine, unnamed)
+    expect(loadSession(store, R0).logs.mine.profile.name).toBe('')
+    expect(store.getItem(STORAGE_KEYS.mine)).toBe(unnamed)
+    store.setItem(STORAGE_KEYS.mine, '{not json')
+    const s = loadSession(store, R0)
+    expect(s.problems.mine).toBe('unreadable')
+    expect(s.logs.mine.profile.name).toBe('')
+    expect(store.getItem(STORAGE_KEYS.mine)).toBe('{not json')
+  })
+
+  it('newOwnLogIfUnsaved: a new named log only when nothing is saved and the log in memory is empty and unnamed', () => {
+    const store = new MemoryStore()
+    const rand = (n: number) => (n === 10000 ? 4821 : 0)
+    expect(newOwnLogIfUnsaved(emptyLog(), null, store, KEYS, rand)?.profile.name).toBe('BraveKefir#4821')
+    // A device that won't save: still a new log, as nothing is saved.
+    expect(newOwnLogIfUnsaved(emptyLog(), null, null, KEYS, rand)?.profile.name).toBe('BraveKefir#4821')
+    // Something in memory that couldn't be saved, a name already, or a problem: opened as it is.
+    const meal = { id: 'm1', name: 'Oat bowl', eatenAt: '2026-11-05T08:00:00-05:00', source: 'label' as const, kcal: 310, protein: null, carbs: null, fat: null }
+    expect(newOwnLogIfUnsaved({ ...emptyLog(), meals: [meal] }, null, null, KEYS, rand)).toBeNull()
+    expect(newOwnLogIfUnsaved({ ...emptyLog(), profile: { name: 'Sam', kind: 'guest' } }, null, store, KEYS, rand)).toBeNull()
+    expect(newOwnLogIfUnsaved(emptyLog(), 'unreadable', store, KEYS, rand)).toBeNull()
+    store.setItem(STORAGE_KEYS.mine, serializeLog(emptyLog()))
+    expect(newOwnLogIfUnsaved(emptyLog(), null, store, KEYS, rand)).toBeNull()
   })
 })

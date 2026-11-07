@@ -100,6 +100,14 @@ Every typical error is currently marked **assumption**. On 2026-10-26 each was r
 
 Nothing. The app makes no network requests beyond its own page (the browser tests check this), uses no account and no API key, and keeps your log in this browser's `localStorage`. The demo and your own log are stored separately.
 
+### Your guest name
+
+A new own log gets a readable random name such as "BraveKefir#4821": a clean adjective and noun (11 letters at most together), "#" and 4 digits, 16 characters at most. It shows at the top of the dashboard; tap it to open **Profile and privacy**, where it is labelled "Guest: saved on this device only" while that name is saved. **Reroll** gives a new generated name (with **Undo**), and **Rename** takes your own: the field starts with your current name and takes 1 to 16 letters or digits, spaces at either end trimmed, so a typed name never has the "#" and 4 digits. An empty name, one over 16 characters, or one with spaces or symbols inside gets a message under the field, and nothing is saved. There is no word list for a name you type: it is shown only to you, on your device. The demo keeps Sam's fixed name, "CalmLentil#3108"; Reroll and Rename are for your own log only. A log saved before names existed shows "No name yet", with no label, until you pick or type one.
+
+When nothing of your own log is saved, opening it gives it a new generated name, saved at once: the first time you open it, and on a reload. **Delete my data** leaves nothing of your log on the device, and the emptied log starts again at once with a new generated name. That name is not saved until your first change (a meal, targets, a new name): until then Profile says "Not saved yet" in place of the label, and a reload picks another name, while going to the demo and back keeps it as it is, still unsaved. An imported file keeps its own name when it is shaped like a generated one or Rename would take it; otherwise your log keeps yours (or gets a new one if you have none), and the preview says which and leaves the name out of what the import replaces.
+
+The word lists are `src/kernel/words.ts`. A unit test builds every adjective and noun pair and checks each word, and each pair across the join, against a short list of crude, hateful and awkward words kept in the test (sound-alikes such as "Pea" included) and against the copy word rules; the few pairs that spell such a word across the join are never made. The 4 digits are never one of a short list of hate or joke codes, such as 1488, 0088 or 0069.
+
 ### Your data: export, import, delete
 
 In your own log, tap your name at the top (or "Your log") to open **Profile and privacy**:
@@ -150,7 +158,6 @@ Logs are kept per browser origin, so a test run on http://127.0.0.1:5273 would s
 ## Roadmap
 
 These are designed in `devpost/prd.md` but not built for this submission:
-- gamer-tag guest names;
 - plates (weigh minus the plate);
 - barcode lookup;
 - the rest of the privacy panel (the sent-off-device count and the connector switch; export, import and delete are built);

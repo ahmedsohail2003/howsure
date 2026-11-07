@@ -137,8 +137,8 @@ interface DashboardProps {
   onOpenWeek: () => void
   /** Build-out item 2.8: the timeline of the last 3 or 4 waking days. */
   onOpenTimeline: () => void
-  /** The guest name in your own log ('' until item 2.10 gives one). */
-  ownName: string
+  /** The open log's guest name (build-out item 2.10): yours, or Sam's in the demo. */
+  name: string
   /** Opens Profile and privacy (build-out item 1.2). Your own log only. */
   onOpenProfile: () => void
   /** The open log's targets (build-out item 1.3), shown beside the score and under the macros. */
@@ -214,7 +214,7 @@ export function Dashboard(props: DashboardProps) {
       <DashboardHeader
         kind={kind}
         dayStart={dayStart}
-        ownName={props.ownName}
+        name={props.name}
         onOpenProfile={props.onOpenProfile}
         onSwitch={onSwitch}
         onSetWake={props.onSetWake}

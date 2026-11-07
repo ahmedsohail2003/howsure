@@ -29,6 +29,7 @@
 // marked "Bridge seam" below; nothing here pretends to do that part.
 
 import { convertTrackerBundle, looksLikeTrackerBundle, type TrackerOptions, type TrackerReport } from '../import/trackerBundle'
+import { isGamerTag, usableName } from '../kernel/gamertag'
 import type { LogDoc } from './log'
 import { emptyLog } from './log'
 import type { LogProblem } from './session'
@@ -250,9 +251,41 @@ export function summarize(doc: LogDoc): LogSummary {
 export type ImportProblem = 'tooLarge' | 'unreadable' | 'newer' | 'demo' | 'trackerVersion' | 'trackerUnreadable' | 'trackerEmpty'
 
 export type ImportRead =
-  /** `tracker`: the file was a tracker bundle, and this is what its conversion did. */
-  | { status: 'ok'; doc: LogDoc; summary: LogSummary; upgradedFrom?: number; tracker?: TrackerReport }
+  /**
+   * `tracker`: the file was a tracker bundle, and this is what its conversion did. `nameGiven`
+   * (build-out item 2.10): the log takes ImportOptions.fallbackName, because the file had no guest
+   * name ('none') or one HowSure can't use ('refused': too long, or symbols, as only a hand-edited
+   * file can hold).
+   */
+  | { status: 'ok'; doc: LogDoc; summary: LogSummary; upgradedFrom?: number; tracker?: TrackerReport; nameGiven?: 'none' | 'refused' }
   | { status: 'refused'; problem: ImportProblem; detail?: string }
+
+export interface ImportOptions {
+  /**
+   * Build-out item 2.10: the guest name an imported log takes when the file has none (a tracker
+   * export never has one; a HowSure log saved before item 2.10 may have an empty one) or one that
+   * can't be used. The panel passes your current name, or a new generated one when you have none.
+   * A usable name in the file is kept as it is.
+   */
+  fallbackName?: string
+}
+
+/**
+ * The file's own name when it is usable (in its composed form), or the fallback (blank counts as
+ * none).
+ */
+function withName(read: ImportRead, opts: ImportOptions): ImportRead {
+  if (read.status !== 'ok' || !opts.fallbackName) return read
+  const own = read.doc.profile.name
+  const kept = own.trim() === '' ? null : usableName(own)
+  if (kept === own) return read
+  if (kept !== null) {
+    const doc: LogDoc = { ...read.doc, profile: { ...read.doc.profile, name: kept } }
+    return { ...read, doc, summary: summarize(doc) }
+  }
+  const doc: LogDoc = { ...read.doc, profile: { ...read.doc.profile, name: opts.fallbackName } }
+  return { ...read, doc, summary: summarize(doc), nameGiven: own.trim() === '' ? 'none' : 'refused' }
+}
 
 /** A tracker bundle, converted, then put through the same check as every stored log. */
 function readTrackerImport(json: unknown, tracker: TrackerOptions): ImportRead {
@@ -274,7 +307,16 @@ function readTrackerImport(json: unknown, tracker: TrackerOptions): ImportRead {
  * is written until replaceOwnLog. `tracker` is passed to the tracker conversion (the UI gives the
  * device's now and the fallback meal name from copy.ts).
  */
-export function readImport(text: string, migrations: Migrations = MIGRATIONS, tracker: TrackerOptions = {}): ImportRead {
+export function readImport(
+  text: string,
+  migrations: Migrations = MIGRATIONS,
+  tracker: TrackerOptions = {},
+  opts: ImportOptions = {},
+): ImportRead {
+  return withName(readImportFile(text, migrations, tracker), opts)
+}
+
+function readImportFile(text: string, migrations: Migrations, tracker: TrackerOptions): ImportRead {
   if (overImportLimit(text)) return { status: 'refused', problem: 'tooLarge' }
   // A UTF-8 byte order mark, as some editors save one, is not part of the JSON.
   let json: unknown
@@ -313,9 +355,15 @@ function canonical(v: unknown): string {
   )
 }
 
-/** True when a log holds nothing a person put there: the same as a fresh empty log. */
+/**
+ * True when a log holds nothing a person put there: the same as a fresh empty log. Its guest name
+ * may be empty or one HowSure generated (build-out item 2.10: a new log gets one); a name the
+ * person typed counts as something they put there.
+ */
 export function isEmptyOwnLog(doc: LogDoc): boolean {
-  return canonical(doc) === canonical(emptyLog())
+  const name = doc.profile.name
+  const unnamed = name === '' || isGamerTag(name) ? { ...doc, profile: { ...doc.profile, name: '' } } : doc
+  return canonical(unnamed) === canonical(emptyLog())
 }
 
 /**

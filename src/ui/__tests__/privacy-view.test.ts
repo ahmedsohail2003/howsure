@@ -60,7 +60,8 @@ describe('privacy panel words', () => {
     expect(replacesText(SAM)).toBe(
       'Importing replaces your log on this device, which holds 6 meals, 3 nights of sleep, 1 workout and 1 saved plate, and your guest name, targets, body details and settings. HowSure keeps a copy of it, which you can export from this panel.',
     )
-    expect(replacesText(EMPTY)).toBe(
+    // An empty log with a generated name (build-out item 2.10), which a named file replaces.
+    expect(replacesText({ ...EMPTY, name: 'SwiftOtter#0042' })).toBe(
       'Importing replaces your guest name, targets, body details and settings on this device. Your log has no meals or sleep yet.',
     )
     // After a failed save, the kept copy may lack what is on screen: export first.
@@ -68,6 +69,23 @@ describe('privacy panel words', () => {
       "Importing replaces your log on this device, which holds 6 meals, 3 nights of sleep, 1 workout and 1 saved plate, and your guest name, targets, body details and settings. Some changes couldn’t be saved, so the copy HowSure keeps may not have them. Export your log first if you want to keep it.",
     )
     expect(replacesText(EMPTY, false)).toBe(replacesText(EMPTY))
+  })
+
+  it('leaves the guest name out of what an Import replaces when it is kept, or there is none (item 2.10)', () => {
+    // The file has no usable name, so yours is kept.
+    expect(replacesText(SAM, true, false)).toBe(
+      'Importing replaces your log on this device, which holds 6 meals, 3 nights of sleep, 1 workout and 1 saved plate, and your targets, body details and settings. HowSure keeps a copy of it, which you can export from this panel.',
+    )
+    expect(replacesText(SAM, false, false)).toBe(
+      "Importing replaces your log on this device, which holds 6 meals, 3 nights of sleep, 1 workout and 1 saved plate, and your targets, body details and settings. Some changes couldn’t be saved, so the copy HowSure keeps may not have them. Export your log first if you want to keep it.",
+    )
+    expect(replacesText({ ...EMPTY, name: 'SwiftOtter#0042' }, true, false)).toBe(
+      'Importing replaces your targets, body details and settings on this device. Your log has no meals or sleep yet.',
+    )
+    // Your log has no name, so there is none to replace, whatever the file holds.
+    expect(replacesText(EMPTY)).toBe('Importing replaces your targets, body details and settings on this device. Your log has no meals or sleep yet.')
+    expect(replacesText({ ...SAM, name: '' })).not.toMatch(/guest name/)
+    for (const text of [replacesText(SAM, true, false), replacesText(EMPTY), replacesText({ ...SAM, name: '' }, false)]) expect(text).not.toMatch(/guest name/)
     expect(hasContent(EMPTY)).toBe(false)
     expect(hasContent({ ...EMPTY, plates: 1 })).toBe(true)
   })
@@ -80,11 +98,20 @@ describe('privacy panel words', () => {
       '1 saved plate',
       'your guest name, targets, body details and settings',
     ])
-    expect(deleteItems(EMPTY, null, { backups: 1, original: false })).toEqual([
+    expect(deleteItems({ ...EMPTY, name: 'SwiftOtter#0042' }, null, { backups: 1, original: false })).toEqual([
       '0 meals',
       '0 nights of sleep',
       'your guest name, targets, body details and settings',
       '1 older copy, kept when the saved format was updated or an import replaced your log',
+    ])
+    // A log with no guest name (one saved before names existed) has none to delete, so the list
+    // leaves it out, as the Import preview does.
+    expect(deleteItems({ ...SAM, name: '' }, null, NONE)).toEqual([
+      '6 meals',
+      '3 nights of sleep',
+      '1 workout',
+      '1 saved plate',
+      'your targets, body details and settings',
     ])
   })
 

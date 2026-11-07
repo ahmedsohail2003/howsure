@@ -102,10 +102,20 @@ test.describe('item 1.2: export, import and delete your own log', () => {
     await panel.getByRole('button', { name: 'Close' }).click()
     await expect(page.getByTestId('empty-day')).toBeVisible()
     await expect(page.getByTestId('meal-row')).toHaveCount(0)
-    await expect(page.getByTestId('open-profile')).toContainText('Your log')
+    // Build-out item 2.10: the emptied log starts again at once with a new generated name (not
+    // Sam's), which nothing has saved yet.
+    await expect(page.getByTestId('open-profile')).not.toContainText('Sam')
+    await expect(page.getByTestId('header-name')).toHaveText(/^[A-Z][a-z]+[A-Z][a-z]+#\d{4}$/)
+    expect(await read(page, E2E_KEYS.mine)).toBeNull()
     await page.reload()
     await expect(page.getByTestId('empty-day')).toBeVisible()
     await expect(page.locator('.storage-notice')).toHaveCount(0)
+    // Build-out item 2.10: opened again with nothing saved, it starts as a new log, saved with a
+    // generated guest name and nothing else.
+    const fresh = JSON.parse((await read(page, E2E_KEYS.mine)) ?? 'null')
+    expect(fresh).toMatchObject({ kind: 'mine', meals: [], sleeps: [], workouts: [], plates: [] })
+    expect(fresh.profile).toEqual({ name: expect.stringMatching(/^[A-Z][a-z]+[A-Z][a-z]+#\d{4}$/), kind: 'guest' })
+    await expect(page.getByTestId('header-name')).toHaveText(fresh.profile.name)
 
     // Import the exported file: a preview first, then the confirmation.
     panel = await openPanel(page)
@@ -121,7 +131,8 @@ test.describe('item 1.2: export, import and delete your own log', () => {
     await expect(preview.getByTestId('import-preview-replaces')).toHaveText(
       'Importing replaces your guest name, targets, body details and settings on this device. Your log has no meals or sleep yet.',
     )
-    expect(await read(page, E2E_KEYS.mine)).toBeNull()
+    // Nothing is written until the person confirms.
+    expect(JSON.parse((await read(page, E2E_KEYS.mine)) ?? 'null')).toStrictEqual(fresh)
     await preview.getByTestId('import-confirm').click()
     await expect(panel.getByTestId('privacy-status')).toHaveText(`Imported. Your log now holds ${HOLDS}.`)
 
@@ -170,8 +181,10 @@ test.describe('item 1.2: export, import and delete your own log', () => {
     const other = { ...JSON.parse(V1_MINE), meals: [] }
     await chooseFile(page, jsonFile('other.json', JSON.stringify(other)))
     const preview = panel.getByTestId('import-preview')
+    // Build-out item 2.10: the file's guest name is Sam, the one you have, so the import does not
+    // say it replaces it.
     await expect(preview.getByTestId('import-preview-replaces')).toHaveText(
-      `Importing replaces your log on this device, which holds ${HOLDS}, and your guest name, targets, body details and settings. HowSure keeps a copy of it, which you can export from this panel.`,
+      `Importing replaces your log on this device, which holds ${HOLDS}, and your targets, body details and settings. HowSure keeps a copy of it, which you can export from this panel.`,
     )
     await preview.getByTestId('import-cancel').click()
     await expect(panel.getByTestId('import-data')).toBeFocused()

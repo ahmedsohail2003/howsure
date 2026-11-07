@@ -20,6 +20,7 @@ const TRACKER = readFileSync(fileURLToPath(new URL('../../fixtures/tracker-bundl
 const V1_MINE = readFileSync(fileURLToPath(new URL('../../fixtures/saved/v1-mine.json', import.meta.url)), 'utf8')
 const NOW = new Date('2026-10-20T12:00:00-04:00')
 
+const NAME_KEPT = /^Guest name after import: [A-Z][a-z]+[A-Z][a-z]+#\d{4}, your current one\. The file has none\.$/
 const BECOMES = ['19 meals on 5 days', '5 nights of sleep', '2 weigh-ins', 'From Mon 12 Oct to Sat 17 Oct', 'Targets: 2,300 kcal and at least 140 g protein']
 const NOTES = [
   'All 19 meals’ times are approximate. Your tracker kept the day, not the time eaten, so HowSure placed each meal in its waking day by its type.',
@@ -63,13 +64,19 @@ for (const { id: look, name } of LOOKS) {
       const preview = panel.getByTestId('import-preview')
       await expect(preview.getByTestId('import-preview-kind')).toHaveText('An export from your earlier tracker. HowSure turns it into your log.')
       await expect(preview.getByTestId('import-preview-holds').getByRole('listitem')).toHaveText(BECOMES)
+      // Build-out item 2.10: a tracker export has no guest name, so the log keeps yours. A line under
+      // the list says so; the list of what the file becomes holds no name.
+      await expect(preview.getByTestId('import-preview-name')).toHaveText(NAME_KEPT)
+      await expect(preview.getByTestId('import-preview-name')).toHaveClass(/privacy-hint/)
+      await expect(preview.getByTestId('import-preview-holds')).not.toContainText('Guest name')
       await expect(preview.getByTestId('import-preview-notes').getByRole('listitem')).toHaveText(NOTES)
       await expect(preview.getByTestId('import-preview-joined').getByRole('listitem')).toHaveText(['Wed 14 Oct joins Tue 13 Oct'])
       await expect(preview.getByText('Dates joined to the day before', { exact: true })).toHaveClass(/privacy-subtitle/)
       // Dates stay whole when the line wraps.
       await expect(preview.getByTestId('import-preview-holds').locator('.keep-together')).toHaveText(['2 weigh-ins', 'Mon 12 Oct', 'Sat 17 Oct'])
+      // The name is kept, so it is not among what the import replaces.
       await expect(preview.getByTestId('import-preview-replaces')).toHaveText(
-        'Importing replaces your guest name, targets, body details and settings on this device. Your log has no meals or sleep yet.',
+        'Importing replaces your targets, body details and settings on this device. Your log has no meals or sleep yet.',
       )
       // Nothing to replace yet, so the button just imports, in the plain main style.
       await expect(preview.getByTestId('import-confirm')).toHaveText('Import')
@@ -226,8 +233,10 @@ test.describe('item 2.1b: importing over a log keeps it, and Cancel changes noth
     const panel = page.getByTestId('profile-privacy')
     await chooseTracker(page)
     await expect(panel.getByTestId('import-preview-replaces')).toHaveText(
-      'Importing replaces your log on this device, which holds 6 meals, 3 nights of sleep, 1 workout, 1 saved plate and 1 weigh-in, and your guest name, targets, body details and settings. HowSure keeps a copy of it, which you can export from this panel.',
+      'Importing replaces your log on this device, which holds 6 meals, 3 nights of sleep, 1 workout, 1 saved plate and 1 weigh-in, and your targets, body details and settings. HowSure keeps a copy of it, which you can export from this panel.',
     )
+    // Build-out item 2.10: Sam's name is kept, as the tracker export has none.
+    await expect(panel.getByTestId('import-preview-name')).toHaveText('Guest name after import: Sam, your current one. The file has none.')
     await expect(panel.getByTestId('import-confirm')).toHaveText('Replace my log')
     // Replacing a log that holds something uses the destructive style, as Delete my data does.
     await expect(panel.getByTestId('import-confirm')).toHaveClass(/btn-ink/)

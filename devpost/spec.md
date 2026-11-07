@@ -275,7 +275,7 @@ PRD ref: `prd.md > Calorie Input Rules`.
 ### Maths Core: Plates and Gamer Tags
 **Tier 2.**
 - `src/kernel/plates.ts`: `foodGrams = reading − plate`. A reading at or below the plate is an error. `kcal = foodGrams · kcalPer100 / 100`, and it returns the arithmetic line. It also resolves a weighed Claude proposal's `plateName` against the saved plates; an unknown name returns "No saved plate called [name]." Golden G7: a 612 g reading with a 212 g plate at 165 kcal/100 g gives 400 g and 660 kcal.
-- `src/kernel/gamertag.ts`: adjective + noun, together at most 11 letters (from curated lists in `src/kernel/words.ts`, about 60 + 60, all clean), + `#` + 4 digits from `crypto.getRandomValues`, 16 characters at most. **Rename** replaces the whole name with 1–16 letters or digits, and the `#NNNN` suffix is dropped.
+- `src/kernel/gamertag.ts`: adjective + noun, together at most 11 letters (from curated lists in `src/kernel/words.ts`, about 60 + 60, all clean), + `#` + 4 digits from `crypto.getRandomValues`, 16 characters at most. **Rename** replaces the whole name with 1–16 letters or digits, and the `#NNNN` suffix is dropped. Build-out item 2.10: the random source is passed in (`crypto.getRandomValues` by default), so tests are deterministic. A draw whose 4 digits are one of a short explicit list of hate or joke codes (`SKIPPED_ENDINGS`: 1488, 0088, 0014, 0069, 6969, 0420, 8008 and a few more) is thrown away. The words are clean by construction: a unit test builds every adjective + noun pair and checks each word and each pair, across the join and in any case, against a short list of crude, hateful and awkward substrings kept in the test file; the few pairs that spell one across the join are left out (`AWKWARD_PAIRS`). `checkName()` trims the typed name and refuses an empty one, one over 16 characters, and any character that is not a letter or digit (an accent counts only on a letter); it has no word list, as the name is shown only to the person who typed it, on their own device. An imported file's name is kept when it is shaped like a generated one or `checkName()` takes it unchanged; otherwise the log keeps its own name or gets a generated one, and the preview says which. Opening your own log with nothing of it saved (the first time, or a reload) gives an unnamed log a generated name, saved at once (`store/session.ts > newOwnLogIfUnsaved`); Delete my data starts the emptied log again at once with a new generated name, unsaved until the first change; until then Profile says "Not saved yet" in place of the "saved on this device only" label, and a reload picks another name.
 
 PRD ref: `prd.md > Plates: Weigh Minus the Plate`, `prd.md > Guest Profile and Gamer-Tag Name`.
 
@@ -360,7 +360,7 @@ PRD ref: `prd.md > First Open`.
 - **`WeekView.tsx`** (Tier 2): SVG bars with range whiskers, a sleep row and the gut meters.
 - **`WorkoutSheet.tsx`**, **`WorkoutList.tsx`** (Tier 2). The list header shows burned's ranges and score from `net.combine()`.
 - **`ProfilePrivacy.tsx`** (Tier 2):
-  - the guest name labelled "Guest: saved on this device only", with Reroll and Rename;
+  - the guest name labelled "Guest: saved on this device only" (only while it is saved; "Not saved yet" just after Delete my data), with Reroll and Rename (build-out item 2.10: `GuestNameSection.tsx`; Reroll has **Undo**; a log with no name shows "No name yet" with **Pick a name** and **Type a name**);
   - plates;
   - "Saved on this device only";
   - "Sent off this device: N lookups", by kind (barcodes, and food searches once built);

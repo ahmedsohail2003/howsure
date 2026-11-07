@@ -230,14 +230,17 @@ test.describe('item 1.3: the targets editor', () => {
 
     await page.reload()
     await expect(page.getByTestId('headline-target')).toHaveText('Daily target 2,000 kcal')
-    expect((await stored(page, E2E_KEYS.mine))?.profile).toStrictEqual({ name: '', kind: 'guest', targets: { kcal: 2000 } })
+    // Build-out item 2.10: a new log has its generated guest name; the targets are all that changed.
+    const name = ((await stored(page, E2E_KEYS.mine))?.profile as { name: string }).name
+    expect(name).toMatch(/^[A-Z][a-z]+[A-Z][a-z]+#\d{4}$/)
+    expect((await stored(page, E2E_KEYS.mine))?.profile).toStrictEqual({ name, kind: 'guest', targets: { kcal: 2000 } })
 
     // Clearing every box removes the targets: no line on the dashboard, no key saved.
     sheet = await openTargets(page)
     await sheet.getByTestId('target-kcal-input').fill('')
     await sheet.getByTestId('save-targets').click()
     await expect(page.getByTestId('headline-target')).toHaveCount(0)
-    expect((await stored(page, E2E_KEYS.mine))?.profile).toStrictEqual({ name: '', kind: 'guest' })
+    expect((await stored(page, E2E_KEYS.mine))?.profile).toStrictEqual({ name, kind: 'guest' })
   })
 
   test("the demo shows Sam's made-up targets, and a change stays in the demo", async ({ page }) => {
