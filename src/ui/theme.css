@@ -1703,6 +1703,21 @@ button {
   margin-top: 2px;
 }
 
+/* A subtitle with a shorter wording for the narrowest phones shows one or the other. */
+.sheet-sub-narrow {
+  display: none;
+}
+
+@media (max-width: 359px) {
+  .sheet-sub-wide {
+    display: none;
+  }
+
+  .sheet-sub-narrow {
+    display: inline;
+  }
+}
+
 .sheet-body > * + * {
   margin-top: var(--s2);
 }
@@ -3581,6 +3596,473 @@ details.more > summary {
   margin-top: var(--s1);
   color: var(--ink-soft);
   font-size: 13px;
+}
+
+/* ---------- timeline (build-out item 2.8; checklist slice 18) ---------- */
+
+/* The choice of 3 or 4 days and the usual day length sit above the drawing. The select stops at a
+   width that fits its longest choice ("16 h 30 min"). */
+.tld-settings {
+  margin-bottom: var(--s3);
+}
+
+.tld-usual select {
+  max-width: 240px;
+}
+
+.tld-days {
+  margin-top: var(--s3);
+}
+
+/* "Hour by hour": one row per waking day, each starting at its wake, on one shared scale. Drawn for
+   the eye only (aria-hidden); every entry is in the list under it. */
+.tld-figure {
+  margin: var(--s1) 0 0;
+}
+
+.tld-row + .tld-row {
+  margin-top: var(--s2);
+}
+
+.tld-row-name,
+.tld-day-name {
+  font-weight: 600;
+}
+
+.tld-row-name {
+  margin-bottom: 4px;
+  font-size: 14px;
+}
+
+.tld-today {
+  font-weight: 400;
+  color: var(--ink-soft);
+}
+
+.tld-not-drawn {
+  color: var(--ink-soft);
+  font-size: 14px;
+}
+
+.tld-strip {
+  position: relative;
+  height: 32px;
+}
+
+.tld-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+/* The sleep that ended the day (or is going on), drawn under the lines. Its length is written
+   above the strip (the note lane), so it shows however short the block is. */
+.tld-sleep {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  border: 1px solid var(--ink-soft);
+  border-radius: 4px;
+  background: var(--teal-bg);
+}
+
+/* Still going on: an open, dashed end. */
+.tld-sleep.ongoing {
+  border-style: dashed;
+  border-right-width: 0;
+  border-radius: 4px 0 0 4px;
+}
+
+/* A night whose sleep start was not logged: hatched from the last thing logged awake to the
+   closing wake. Asleep somewhere in it; never drawn as time awake, and never as no sleep. */
+.tld-unlogged {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  border: 1px dashed var(--ink-soft);
+  border-radius: 4px;
+  /* Hatching in --ink-soft over whatever is under it; no text sits on it. */
+  background-color: transparent;
+  background-image: repeating-linear-gradient(135deg, var(--ink-soft) 0 1px, transparent 1px 6px);
+}
+
+/* Over the sleep: its length, or "sleep start not logged". Anchored at the stretch's end (or its
+   start, early in the scale), so it stays inside the drawing. */
+.tld-note-lane {
+  position: relative;
+  height: 16px;
+  margin-bottom: 2px;
+}
+
+.tld-sleep-len {
+  position: absolute;
+  top: 0;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 16px;
+  white-space: nowrap;
+}
+
+.tld-sleep-len.end {
+  transform: translateX(-100%);
+}
+
+.tld-sleep-len.unlogged {
+  color: var(--ink-soft);
+  font-weight: 400;
+}
+
+/* Strokes keep their look at any width: the track (dotted for the rest of today, while awake), midnight
+   lines, the wake bar, and the dashed expected-sleep line. The marks are shapes as well as
+   colours: a dot for a meal (hollow amber when its calories are unknown), a diamond for a workout,
+   a hollow square for a weigh-in and a ring for now. Each mark has a thin edge in the sheet's
+   colour, so two close together stay apart. */
+.tld-track {
+  stroke: var(--line-strong);
+  stroke-width: 2;
+}
+
+.tld-track.ahead {
+  stroke-dasharray: 2 4;
+}
+
+.tld-midnight {
+  stroke: var(--ink-soft);
+  stroke-width: 1.5;
+}
+
+.tld-wake {
+  fill: var(--teal);
+}
+
+/* The wake that ended an earlier day sits inside the end of its sleep. */
+.tld-wake.closing {
+  transform: translateX(-4px);
+}
+
+/* A mark too close to the one before it: just above or below the track, inside the strip. */
+.tld-lane.above {
+  transform: translateY(-9px);
+}
+
+.tld-lane.below {
+  transform: translateY(9px);
+}
+
+.tld-expected {
+  stroke: var(--ink);
+  stroke-width: 2;
+  stroke-dasharray: 5 3;
+}
+
+.tld-meal {
+  fill: var(--teal);
+  stroke: var(--surface);
+  stroke-width: 1.5;
+}
+
+.tld-meal.unknown {
+  fill: var(--surface);
+  stroke: var(--amber);
+  stroke-width: 2;
+}
+
+.tld-workout {
+  fill: var(--ink);
+  stroke: var(--surface);
+  stroke-width: 1.5;
+}
+
+.tld-workout.unknown {
+  fill: var(--surface);
+  stroke: var(--amber);
+  stroke-width: 2;
+}
+
+.tld-weigh-in {
+  fill: var(--surface);
+  stroke: var(--ink);
+  stroke-width: 2;
+}
+
+/* Now: a filled triangle pointing down at the track, a shape no entry uses, so it never reads as a
+   hollow meal with unknown calories whatever the colours. */
+.tld-now {
+  fill: var(--ink);
+  stroke: var(--surface);
+  stroke-width: 1.5;
+}
+
+/* The axis: hour ticks, and clock hours every 6 hours, a midnight named by the new date's weekday. */
+.tld-axis {
+  position: relative;
+  height: 22px;
+  margin-top: 2px;
+}
+
+.tld-tick {
+  position: absolute;
+  top: 0;
+  height: 4px;
+  margin-left: -0.5px;
+  border-left: 1px solid var(--line-strong);
+}
+
+.tld-tick.midnight {
+  height: 7px;
+  margin-left: -1px;
+  border-left: 2px solid var(--ink-soft);
+}
+
+.tld-label {
+  position: absolute;
+  top: 7px;
+  color: var(--ink-soft);
+  font-size: 12px;
+  line-height: 14px;
+  white-space: nowrap;
+  transform: translateX(-50%);
+}
+
+.tld-label.start {
+  transform: none;
+}
+
+.tld-label.end {
+  transform: translateX(-100%);
+}
+
+.tld-label.midnight {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.tld-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px var(--s2);
+  margin-top: var(--s2);
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+
+.tld-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* A mark's shape, in the legend and beside each entry in the list, drawn with borders (no text
+   sits on any of them). */
+.tld-key {
+  display: inline-block;
+  flex: none;
+  width: 10px;
+  height: 10px;
+}
+
+.tld-key.wake {
+  width: 0;
+  height: 14px;
+  border-left: 4px solid var(--teal);
+}
+
+.tld-key.expected {
+  width: 0;
+  height: 14px;
+  border-left: 2px dashed var(--ink);
+}
+
+.tld-key.midnight {
+  width: 0;
+  height: 14px;
+  border-left: 2px solid var(--ink-soft);
+}
+
+.tld-key.sleep {
+  width: 16px;
+  border: 1px solid var(--ink-soft);
+  border-radius: 2px;
+  background: var(--teal-bg);
+}
+
+.tld-key.meal {
+  border: 5px solid var(--teal);
+  border-radius: 50%;
+}
+
+.tld-key.mealUnknown {
+  border: 2px solid var(--amber);
+  border-radius: 50%;
+  background: var(--surface);
+}
+
+.tld-key.workout {
+  width: 9px;
+  height: 9px;
+  border: 4.5px solid var(--ink);
+  transform: rotate(45deg);
+}
+
+.tld-key.unlogged {
+  width: 16px;
+  border: 1px dashed var(--ink-soft);
+  border-radius: 2px;
+  background-color: transparent;
+  background-image: repeating-linear-gradient(135deg, var(--ink-soft) 0 1px, transparent 1px 4px);
+}
+
+/* The rest of today, up to expected sleep: the track's dotted stroke. */
+.tld-key.ahead {
+  width: 16px;
+  height: 0;
+  border-top: 2px dotted var(--line-strong);
+}
+
+.tld-key.workoutUnknown {
+  width: 9px;
+  height: 9px;
+  border: 2px solid var(--amber);
+  background: var(--surface);
+  transform: rotate(45deg);
+}
+
+.tld-key.weighIn {
+  width: 9px;
+  height: 9px;
+  border: 2px solid var(--ink);
+  background: var(--surface);
+}
+
+/* Now's triangle, pointing down, drawn with borders. */
+.tld-key.now {
+  width: 0;
+  height: 0;
+  border-top: 11px solid var(--ink);
+  border-right: 6px solid transparent;
+  border-left: 6px solid transparent;
+}
+
+.tld-key.none {
+  visibility: hidden;
+}
+
+/* "Each day": the time, the mark's shape, then what it is. A row that opens something is one
+   button; its focus ring hugs the row, and it stops clear of the sheet's sticky header. */
+.tld-day-name {
+  margin: var(--s2) 0 4px;
+  font-size: 16px;
+}
+
+/* The time column fits "12:40 AM" and "Mon Oct 26", so names and values keep room beside it. */
+.tld-list {
+  --tld-time: 4.6em;
+}
+
+.tld-list > li + li {
+  border-top: 1px solid var(--line);
+}
+
+.tld-item {
+  display: grid;
+  grid-template-columns: var(--tld-time) 14px minmax(0, 1fr);
+  gap: 2px 8px;
+  align-items: start;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 4px;
+  border: 0;
+  background: none;
+  text-align: left;
+}
+
+.tld-open {
+  border-radius: var(--radius);
+  cursor: pointer;
+  scroll-margin: calc(var(--sheet-head-h, 150px) + 12px) 0 12px;
+}
+
+.tld-open:hover .tld-main {
+  color: var(--teal-ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.tld-time {
+  color: var(--ink-soft);
+  font-size: 14px;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+/* "time not recorded" is words: it may wrap, and has no number style. */
+.tld-time.words {
+  white-space: normal;
+}
+
+.tld-weekday {
+  display: block;
+  font-size: 12px;
+}
+
+.tld-glyph {
+  justify-self: center;
+  margin-top: 5px;
+}
+
+.tld-line {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0 var(--s1);
+}
+
+.tld-main {
+  min-width: 0;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+/* A value ("410 kcal", "8 h 45 min") never splits; words in its place ("unknown") are plain. */
+.tld-value {
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.tld-value.num {
+  font-weight: 600;
+}
+
+.tld-value.words {
+  color: var(--ink-soft);
+}
+
+.tld-detail {
+  display: block;
+  color: var(--ink-soft);
+  font-size: 14px;
+}
+
+/* A row with no time ("No meals logged", "No wake time recorded before this day") is a status
+   sentence: normal weight. */
+.tld-entry.noWake .tld-main,
+.tld-entry.empty .tld-main {
+  color: var(--ink-soft);
+  font-weight: 400;
+}
+
+/* The smallest phones: a narrower time column, so names and values keep room beside it. */
+@media (max-width: 359.98px) {
+  .tld-list {
+    --tld-time: 4.4em;
+  }
+
+  .tld-item {
+    column-gap: 8px;
+  }
 }
 
 @keyframes sheet-in {
@@ -5860,4 +6342,53 @@ details.more > summary {
   .sleep-open .sleep-sep {
     display: none;
   }
+}
+
+/* Panel: the drawing and each day as tiles on the page tone inside the sheet, like the week view's
+   groups (build-out item 2.8). */
+[data-look="panel"] .tld-figure,
+[data-look="panel"] .tld-day {
+  padding: 12px;
+  border-radius: 14px;
+  background: var(--bg);
+}
+
+[data-look="panel"] .tld-day + .tld-day {
+  margin-top: 12px;
+}
+
+[data-look="panel"] .tld-day-name {
+  margin-top: 0;
+}
+
+[data-look="panel"] .tld-open {
+  transition: background-color var(--t);
+}
+
+[data-look="panel"] .tld-open:hover {
+  background: var(--teal-bg);
+}
+
+/* Night: each day framed on the dark surface, its name in the light teal of the night timeline,
+   and the rows without lines between them (build-out item 2.8). */
+[data-look="night"] .tld-day {
+  padding: 0 12px var(--s1);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+[data-look="night"] .tld-day + .tld-day {
+  margin-top: 12px;
+}
+
+[data-look="night"] .tld-day-name {
+  color: var(--teal-ink);
+}
+
+[data-look="night"] .tld-list > li + li {
+  border-top: 0;
+}
+
+[data-look="night"] .tld-track {
+  stroke-width: 3;
 }

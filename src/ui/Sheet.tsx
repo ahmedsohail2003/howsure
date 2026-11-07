@@ -6,6 +6,8 @@ import { TimesTogether } from './KeepTogether'
 interface SheetProps {
   title: string
   sub?: string
+  /** A shorter `sub` shown instead on the narrowest phones (under 360 px), so the sticky header stays small. */
+  subShort?: string
   demo: boolean
   onClose: () => void
   children: ReactNode
@@ -26,7 +28,7 @@ export const FOCUS_RETURN = 'data-focus-return'
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([hidden]):not([type="hidden"]), select, textarea, summary, [tabindex]:not([tabindex="-1"])'
 
 /** A sheet over the dashboard: a bottom sheet on phones, a centred panel on desktop. */
-export function Sheet({ title, sub, demo, onClose, children, testId, footer, initialFocusTestId }: SheetProps) {
+export function Sheet({ title, sub, subShort, demo, onClose, children, testId, footer, initialFocusTestId }: SheetProps) {
   const titleId = useId()
   const panelRef = useRef<HTMLDivElement>(null)
   const closeRef = useRef<HTMLButtonElement>(null)
@@ -109,11 +111,21 @@ export function Sheet({ title, sub, demo, onClose, children, testId, footer, ini
               <h2 className="sheet-title" id={titleId}>
                 {title}
               </h2>
-              {sub && (
-                <p className="sheet-sub">
-                  <TimesTogether text={sub} />
-                </p>
-              )}
+              {sub &&
+                (subShort ? (
+                  <p className="sheet-sub">
+                    <span className="sheet-sub-wide">
+                      <TimesTogether text={sub} />
+                    </span>
+                    <span className="sheet-sub-narrow">
+                      <TimesTogether text={subShort} />
+                    </span>
+                  </p>
+                ) : (
+                  <p className="sheet-sub">
+                    <TimesTogether text={sub} />
+                  </p>
+                ))}
             </div>
             <button ref={closeRef} type="button" className="btn btn-quiet" onClick={onClose}>
               {copy.sheet.close}

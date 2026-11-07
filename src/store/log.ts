@@ -39,6 +39,11 @@ export interface Profile {
   targets?: { kcal?: number; protein?: number; carbs?: number; fat?: number }
   /** Build-out item 2.5b: optional, so a log saved before it loads unchanged (no version bump). */
   body?: BodyDetails
+  /**
+   * Build-out item 2.8: hours from a wake to the expected-sleep marker on the timeline (6 to 23).
+   * Optional: missing reads as the 16 h preset (kernel/sleepday.ts usualDayHours). No version bump.
+   */
+  usualDayHours?: number
 }
 
 /**

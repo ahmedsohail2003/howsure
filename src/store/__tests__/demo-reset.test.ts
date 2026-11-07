@@ -6,10 +6,11 @@ import { demoChanges, demoProjection, isDemoEdited, pristineDemo, stableJson, wa
 import { emptyLog, startDemo, type LogDoc } from '../log'
 import { loadSession } from '../session'
 import { ACTIVE_KEY, saveActive, saveLog, serializeLog, STORAGE_KEYS } from '../storage'
+import { changeLines } from '../../ui/ResetDemoSheet'
 import { MemoryStore } from './memoryStore'
 
 const R0 = Date.parse('2026-11-05T09:00:00-05:00')
-const NONE = { mealsAdded: 0, mealsChanged: 0, mealsDeleted: 0, sleepChanged: false, targetsChanged: false, bodyChanged: false, savedMealsChanged: false, workoutsChanged: false, weighInsChanged: false, otherChanged: false }
+const NONE = { mealsAdded: 0, mealsChanged: 0, mealsDeleted: 0, sleepChanged: false, targetsChanged: false, bodyChanged: false, savedMealsChanged: false, workoutsChanged: false, weighInsChanged: false, usualDayChanged: false, otherChanged: false }
 
 describe('stableJson', () => {
   it('sorts keys at every level and leaves out undefined values', () => {
@@ -151,6 +152,14 @@ describe('is the demo edited?', () => {
     const fresh = pristineDemo()
     expect(demoChanges({ ...fresh, plates: [] }, fresh)).toEqual({ ...NONE, otherChanged: true })
     expect(demoChanges({ ...fresh, profile: { ...fresh.profile, name: 'Other' } }, fresh)).toEqual({ ...NONE, otherChanged: true })
+  })
+
+  it('a usual day length set for the timeline counts as its own change (build-out item 2.8)', () => {
+    const fresh = pristineDemo()
+    const set = { ...fresh, profile: { ...fresh.profile, usualDayHours: 15 } }
+    expect(demoChanges(set, fresh)).toEqual({ ...NONE, usualDayChanged: true })
+    expect(isDemoEdited(set, fresh)).toBe(true)
+    expect(changeLines(demoChanges(set, fresh))).toEqual(['Sam’s usual day length changed'])
   })
 })
 

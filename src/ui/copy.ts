@@ -109,6 +109,8 @@ export const copy = {
     otherChanged: 'Other demo details changed',
     // Build-out item 2.5b.
     bodyChanged: 'Sam’s body details changed',
+    // Build-out item 2.8.
+    usualDayChanged: 'Sam’s usual day length changed',
     discards: 'Resetting puts back Sam’s week as it started and discards these changes. Your own log is not affected.',
     confirm: 'Reset demo',
     keep: 'Keep the changes',
@@ -1067,6 +1069,9 @@ export const copy = {
     // Build-out item 2.7: the week view, in both logs.
     week: 'Week',
     weekHint: 'The averages of every stat over up to 7 waking days, ending at the day on screen.',
+    // Build-out item 2.8.
+    timeline: 'Timeline',
+    timelineHint: 'The 3 or 4 waking days to the day on screen, hour by hour, with when you woke and your expected sleep.',
     // Build-out item 2.1: in the demo only.
     resetDemo: 'Reset demo',
     resetDemoHint: 'Puts back Sam’s week as it started. Your own log is not affected.',
@@ -1651,6 +1656,95 @@ export const copy = {
     // Build-out item 2.5b: once body details are in, the line under the headline adds resting burn.
     balancePointer:
       'The estimated deficit or surplus under the headline adds an estimate of your resting burn and everyday activity, from your body details.',
+  },
+
+  // Build-out item 2.8 (checklist slice 18; prd.md > 3-Day Timeline): 3 or 4 waking days, hour by
+  // hour, with a wake marker and an expected-sleep marker on each. Expected sleep is the wake plus the
+  // usual day length, the person's setting (preset to 16 h), never a guess and never advice.
+  timeline: {
+    title: 'Timeline',
+    // The dashboard's way in, beside Week, and its spoken name.
+    open: 'Timeline',
+    openLabel: 'Timeline: the 3 or 4 waking days to the day on screen, hour by hour, with wake and expected-sleep markers',
+    // "The 3 waking days to Wed Oct 21". Fewer only at the start of a log. `whose` is "your" or "Sam’s".
+    // `before`: the window also holds the time before the first wake time, which is not a waking day.
+    window: (n: number, span: number, last: string, whose: string, before = false) =>
+      before
+        ? `The ${n} waking ${n === 1 ? 'day' : 'days'} to ${last}, and the time before ${whose} first wake time`
+        : n === span
+          ? `The ${n} waking days to ${last}`
+          : `The ${n} waking ${n === 1 ? 'day' : 'days'} to ${last}, from the start of ${whose} log`,
+    // The same, shorter, for the narrowest phones (under 360 px), so the sticky header stays small.
+    windowShort: (n: number, last: string, before: boolean) =>
+      before
+        ? `${n} waking ${n === 1 ? 'day' : 'days'} to ${last}, and the time before ${n === 1 ? 'it' : 'them'}`
+        : `${n} waking ${n === 1 ? 'day' : 'days'} to ${last}, from the log’s start`,
+    // Two waking days that start on the same date (a long daytime sleep logged as a night): "Mon Oct 19, from 2:00 PM".
+    dayFrom: (name: string, wake: string) => `${name}, from ${wake}`,
+    spanGroup: 'Days shown',
+    spanOption: (n: string) => `${n} days`,
+    usualLabel: 'Usual day length',
+    usualHint: 'Expected sleep is marked this long after each wake time. Your setting, not advice.',
+    usualPreset: (preset: string) => `Preset to ${preset} until you change it.`,
+    usualSavedDemo: 'Changing it here changes it in the demo only.',
+    hours: (h: string) => `${h} h`,
+    hoursMinutes: (h: string, m: string) => `${h} h ${m} min`,
+    minutes: (m: string) => `${m} min`,
+    hour: (h: string, half: string) => `${h} ${half}`,
+    drawingTitle: 'Hour by hour',
+    drawingNote: 'Each row starts when you woke, on one scale, so the days line up. Every entry is also listed under “Each day”.',
+    notDrawn: 'There is no wake time to draw this time from, so it is listed below but not drawn.',
+    // While the timeline holds only the time before the first wake time, its two settings change nothing.
+    settingsLater: '“Days shown” and “Usual day length” apply from the first waking day.',
+    notDrawnNoWake: 'No wake time is recorded yet, so this day is listed below but not drawn. “Set wake time” on the dashboard starts your first waking day.',
+    legend: {
+      wake: 'woke up',
+      expected: 'expected sleep',
+      sleep: 'asleep, with its length above',
+      unlogged: 'sleep start not logged: asleep at some point in this stretch',
+      ahead: 'the rest of today, up to expected sleep',
+      midnight: 'midnight, named by the new day',
+      meal: 'meal',
+      mealUnknown: 'meal with unknown calories',
+      workout: 'workout',
+      workoutUnknown: 'workout with unknown calories',
+      weighIn: 'weigh-in',
+      now: 'now',
+    },
+    today: 'today',
+    listTitle: 'Each day',
+    noMeals: 'No meals logged',
+    wokeUp: 'Woke up',
+    noWake: 'No wake time recorded before this',
+    noWakeYet: 'No wake time recorded yet',
+    sleptBefore: (duration: string) => `after ${duration} of sleep`,
+    nightBeforeNotLogged: 'the night before is not fully logged',
+    expected: 'Expected sleep',
+    expectedBasis: (length: string, wake: string) => `${length} after you woke at ${wake}: your setting, not advice`,
+    now: 'Now',
+    awake: 'awake',
+    wentToSleep: 'Went to sleep',
+    sleepStartNotLogged: 'Sleep start not logged',
+    until: (wake: string) => `until ${wake}`,
+    lengthUnknown: 'length unknown',
+    asleepNow: 'asleep now',
+    // Over a stretch whose sleep start was not logged.
+    unloggedNote: 'sleep start not logged',
+    gymSession: 'gym session',
+    // A gym session's spoken name starts by saying so: "gym session, 6:30 PM, 45 min, …".
+    gymMeta: (meta: string) => `gym session, ${meta}`,
+    // In a row's detail line, after a separator.
+    noScore: 'no estimate score',
+    weighIn: 'Weigh-in',
+    soFar: (duration: string) => `${duration} so far`,
+    // Spoken names: everything the row says, then what it opens.
+    wakeLabel: (time: string, detail: string) => `Woke up at ${time}, ${detail}. Opens this night in the sleep editor.`,
+    sleepLabel: (time: string, length: string, until: string) =>
+      `Went to sleep at ${time}, ${length}, ${until}. Opens this night in the sleep editor.`,
+    sleepNoStartLabel: (until: string) => `Sleep start not logged, ${until}. Opens this night in the sleep editor.`,
+    asleepLabel: (time: string, length: string) => `Went to sleep at ${time}, asleep now, ${length}. Opens this sleep in the sleep editor.`,
+    weighInLabel: (time: string, value: string, extra: string) =>
+      extra ? `Weigh-in, ${time}, ${value}, ${extra}. Opens it to edit or delete.` : `Weigh-in, ${time}, ${value}. Opens it to edit or delete.`,
   },
 
   // Build-out item 2.7 (checklist slice 8; prd.md > Week View): the week view, the averages of every

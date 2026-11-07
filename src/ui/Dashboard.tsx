@@ -135,6 +135,8 @@ interface DashboardProps {
   onToday: () => void
   /** Opens the week view (build-out item 2.7), beside previous and next. */
   onOpenWeek: () => void
+  /** Build-out item 2.8: the timeline of the last 3 or 4 waking days. */
+  onOpenTimeline: () => void
   /** The guest name in your own log ('' until item 2.10 gives one). */
   ownName: string
   /** Opens Profile and privacy (build-out item 1.2). Your own log only. */
@@ -489,6 +491,7 @@ export function Dashboard(props: DashboardProps) {
             onPickDate={props.onPickDate}
             onToday={props.onToday}
             onOpenWeek={props.onOpenWeek}
+            onOpenTimeline={props.onOpenTimeline}
           />
         </div>
       </div>

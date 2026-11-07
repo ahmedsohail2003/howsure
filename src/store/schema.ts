@@ -8,6 +8,7 @@
 
 import { z } from 'zod'
 import { hasOffset } from '../clock'
+import { USUAL_DAY_MAX_HOURS, USUAL_DAY_MIN_HOURS } from '../kernel/sleepday'
 import type { BurnSourceId, MealSourceId } from '../kernel/types'
 
 /**
@@ -217,6 +218,9 @@ export const profileSchema = z.looseObject({
     })
     .optional(),
   body: bodySchema.optional(),
+  // Build-out item 2.8: the usual day length the timeline's expected-sleep marker is drawn from
+  // (your setting, not advice). Optional, so a log saved before it loads unchanged (no version bump).
+  usualDayHours: z.number().min(USUAL_DAY_MIN_HOURS).max(USUAL_DAY_MAX_HOURS).optional(),
 })
 
 /** spec.md > Clock: demo now = demoEpochFixture + (Date.now() - demoEpochReal). Demo document only.

@@ -119,6 +119,8 @@ export const STATS: { readonly [K in StatId]: StatEntry } = {
  */
 export const NOT_STATS: Readonly<Record<string, string>> = {
   'profile.targets': 'Targets the person sets, compared with a stat (eaten, protein); not something measured.',
+  'profile.usualDayHours':
+    'A setting the person chooses (build-out item 2.8): the usual day length the timeline’s expected-sleep marker is drawn from; not something measured.',
   'clock': 'The demo clock’s anchor, not something measured.',
   'plates[]': 'Saved plates (a later item) are weights of empty plates, not entries of a day.',
   'savedMeals[]': 'Meals saved to log again; nothing counts until one is logged as a meal.',

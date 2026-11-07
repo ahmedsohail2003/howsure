@@ -79,9 +79,11 @@ import { WorkoutSheet } from './WorkoutSheet'
 import { WeighInSheet } from './WeighInSheet'
 import { unitToRemember, withoutWeighIn, withWeighIn, withWeightUnit } from './weighInEdit'
 import { WeightDetails } from './WeightDetails'
-import { buildWeightView } from './weightView'
+import { buildWeightView, weightUnitOf } from './weightView'
 import { buildWeekView } from './weekView'
 import { WeekBreakdownSheet, WeekSheet } from './WeekView'
+import { TimelineSheet, type TimelineTarget } from './Timeline3Day'
+import { buildTimelineView, DEFAULT_SPAN, timelineNav, withUsualHours, type TimelineSpan } from './timelineView'
 import { FOCUS_RETURN } from './Sheet'
 
 type SheetState =
@@ -137,6 +139,24 @@ type SheetState =
   // goes back to the week, with focus on that stat's row.
   | { mode: 'week'; focusStat?: StatId }
   | { mode: 'weekStat'; stat: StatId }
+  // Build-out item 2.8: the timeline of the last 3 or 4 waking days. Coming back from an entry opened
+  // in it, focus goes to that entry's row, or, when it has gone (deleted, or its night removed), to
+  // the row after it, else the row before it (`focusKeys`, in that order).
+  | { mode: 'timeline'; focusKeys?: string[] }
+
+/**
+ * Build-out item 2.8: while the timeline is open, and while an entry opened from it is looked at.
+ * `anchor` is the day it ends at (the `viewed` state when it opened: null follows the current day),
+ * `restore` the day the dashboard showed then, put back when the timeline closes, and `focusKeys` the
+ * entry last opened, then the rows after and before it in case it has gone. Opening an entry shows that entry's day behind its sheet, so its details, edit
+ * and preview are about its own day; closing that sheet comes back to the timeline.
+ */
+interface TimelineFlow {
+  anchor: { dayStart: string | null } | null
+  restore: { dayStart: string | null } | null
+  from: 'nav' | 'more'
+  focusKeys?: string[]
+}
 
 /**
  * The one-line confirmation of the last action: under the header (Reset demo), or in the action
@@ -173,8 +193,16 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
   // A one-line confirmation under the header (Reset demo; Logged, with Undo). Any next step clears
   // it: opening a sheet, switching logs, or moving to another day.
   const [statusNote, setStatusNote] = useState<StatusNote | null>(null)
+  // Build-out item 2.8: the timeline's state while it, or an entry opened from it, is open.
+  const [timelineFlow, setTimelineFlow] = useState<TimelineFlow | null>(null)
+  const [timelineSpan, setTimelineSpan] = useState<TimelineSpan>(DEFAULT_SPAN)
   function setSheet(next: SheetState | null) {
     if (next !== null) setStatusNote(null)
+    // An entry opened from the timeline goes back to it when its sheet closes (after a save too).
+    if (next === null && timelineFlow !== null) {
+      setSheetState({ mode: 'timeline', focusKeys: timelineFlow.focusKeys })
+      return
+    }
     setSheetState(next)
   }
   // The waking day on screen; null follows the current day (the dashboard opens on it, and
@@ -215,7 +243,8 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
   }
 
   function activate(kind: LogKind) {
-    setSheet(null)
+    setTimelineFlow(null)
+    setSheetState(null)
     setStatusNote(null)
     setViewed(null)
     setActive(kind)
@@ -257,6 +286,21 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
     if (!focusDayLine.current) return
     focusDayLine.current = false
     document.querySelector<HTMLElement>(`[${FOCUS_RETURN}]`)?.focus()
+  })
+  // Build-out item 2.8: the timeline, worked out while it is open, for the days to its anchor day.
+  // Closing it (opened from the Timeline link) puts focus back on that link, even after entries
+  // were opened from it on the way.
+  const timelineOpen = sheet?.mode === 'timeline'
+  const timelineAnchor = timelineFlow?.anchor
+  const timeline = useMemo(() => {
+    if (!timelineOpen || !doc || !at) return null
+    return buildTimelineView(doc, timelineNav(doc, timelineAnchor ?? null, at), at, timelineSpan, active === 'demo')
+  }, [timelineOpen, doc, at, timelineAnchor, timelineSpan, active])
+  const focusTimelineLink = useRef(false)
+  useEffect(() => {
+    if (!focusTimelineLink.current) return
+    focusTimelineLink.current = false
+    document.querySelector<HTMLElement>('[data-testid="open-timeline"]')?.focus()
   })
   // The older copies the panel offers, counted when it opens and after Delete or Import change
   // your own log (not on every render: it scans the device's keys).
@@ -334,6 +378,49 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
     setSheet({ mode: 'gymLog' })
   }
 
+  /** Build-out item 2.8: open the timeline, ending at the day on screen. */
+  function openTimeline(from: 'nav' | 'more') {
+    setTimelineFlow({ anchor: viewed, restore: viewed, from })
+    setSheet({ mode: 'timeline' })
+  }
+
+  /** Close the timeline: the dashboard shows the day it showed before, and focus goes back to the Timeline link. */
+  function closeTimeline() {
+    const flow = timelineFlow
+    setTimelineFlow(null)
+    setSheetState(null)
+    if (!flow) return
+    setViewed(flow.restore)
+    if (flow.from === 'nav') focusTimelineLink.current = true
+  }
+
+  /** An entry opened from the timeline: its day goes on screen behind its sheet, and closing comes back here. */
+  function openFromTimeline(target: TimelineTarget, dayStart: string | null, keys: string[]) {
+    if (!at) return
+    setTimelineFlow((f) => (f ? { ...f, focusKeys: keys } : f))
+    showDay(dayStart)
+    switch (target.kind) {
+      case 'meal':
+        // The meal's score and Edit come back to its details, as from a macro's detail; closing them goes back to the timeline.
+        setSheet({ mode: 'details', mealId: target.id, back: { mode: 'timeline', focusKeys: keys } })
+        return
+      case 'workout':
+        setSheet({ mode: 'workout', workoutId: target.id })
+        return
+      case 'weighIn':
+        setSheet({ mode: 'weighIn', id: target.id, from: 'dashboard', startAt: at })
+        return
+      case 'night':
+        setSheet({ mode: 'sleepEdit', target: { kind: 'edit', recordId: target.recordId } })
+        return
+    }
+  }
+
+  /** The usual day length behind the timeline's expected-sleep marker (your setting, not advice). */
+  function setUsualHours(hours: number) {
+    if (doc) update(withUsualHours(doc, hours))
+  }
+
   /** Show a waking day; the current one is followed (null) so a new wake moves the dashboard on. */
   function showDay(dayStart: string | null) {
     setStatusNote(null)
@@ -381,9 +468,12 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
       next = { ...next, clock: reanchorDemoClock(Date.parse(last)) }
     }
     const oldWake = change.before?.wake ?? null
-    if (viewed && oldWake !== null && viewed.dayStart === oldWake) {
-      const newWake = change.after?.wake ?? null
-      setViewed({ dayStart: newWake ?? wakingDayStart(sleeps, oldWake) })
+    const movedTo = oldWake === null ? null : (change.after?.wake ?? wakingDayStart(sleeps, oldWake))
+    if (viewed && oldWake !== null && viewed.dayStart === oldWake) setViewed({ dayStart: movedTo })
+    // Build-out item 2.8: the timeline's own days follow the edited wake the same way.
+    if (timelineFlow && oldWake !== null) {
+      const follow = (v: { dayStart: string | null } | null) => (v && v.dayStart === oldWake ? { dayStart: movedTo } : v)
+      setTimelineFlow({ ...timelineFlow, anchor: follow(timelineFlow.anchor), restore: follow(timelineFlow.restore) })
     }
     commit(next)
     // Opened from the sleep details (build-out item 2.9), it goes back there, with the change in it.
@@ -511,6 +601,9 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
         return
       case 'week':
         setSheet({ mode: 'week' })
+        return
+      case 'timeline':
+        openTimeline('more')
         return
       case 'look':
         setSheet({ mode: 'look' })
@@ -744,6 +837,7 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
           setViewed(null)
         }}
         onOpenWeek={() => setSheet({ mode: 'week' })}
+        onOpenTimeline={() => openTimeline('nav')}
         ownName={logs.mine.profile.name}
         onOpenProfile={() => setSheet({ mode: 'profile' })}
         targets={doc.profile.targets}
@@ -975,6 +1069,18 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
             showDay(dayStart)
             focusDayLine.current = true
           }}
+        />
+      )}
+      {sheet?.mode === 'timeline' && timeline && (
+        <TimelineSheet
+          timeline={timeline}
+          unit={weightUnitOf(doc)}
+          demo={demo}
+          onClose={closeTimeline}
+          onSpan={setTimelineSpan}
+          onUsualHours={setUsualHours}
+          onOpen={openFromTimeline}
+          focusKeys={sheet.focusKeys ?? []}
         />
       )}
       {sheet?.mode === 'savedMeals' && (

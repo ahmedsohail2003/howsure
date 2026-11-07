@@ -82,8 +82,8 @@ test.describe('item 1.3: the More menu', () => {
     const menu = await openMore(page)
     await expect(more).toHaveAttribute('aria-expanded', 'true')
     await expect(menu.getByRole('heading', { name: 'More' })).toBeVisible()
-    // Build-out item 2.3 adds Saved meals, item 2.4 Weight, item 2.5b Body details, item 2.6 Gym log and item 2.7 Week, in both logs.
-    await expect(menu.locator('.more-label')).toHaveText(['Profile and privacy', 'Targets', 'Body details', 'Saved meals', 'Week', 'Weight', 'Gym log', 'Look', 'Show full screen'])
+    // Build-out item 2.3 adds Saved meals, item 2.4 Weight, item 2.5b Body details, item 2.6 Gym log, item 2.7 Week and item 2.8 Timeline, in both logs.
+    await expect(menu.locator('.more-label')).toHaveText(['Profile and privacy', 'Targets', 'Body details', 'Saved meals', 'Week', 'Timeline', 'Weight', 'Gym log', 'Look', 'Show full screen'])
 
     // Focus stays inside: Close is first, the full-screen switch last.
     const close = menu.getByRole('button', { name: 'Close' })
@@ -130,8 +130,8 @@ test.describe('item 1.3: the More menu', () => {
     await startDemo(page)
     const menu = await openMore(page)
     await expect(menu.getByTestId('fictional-banner')).toHaveText('Sample person — fictional')
-    // Build-out item 2.1 adds Reset demo, in the demo only; items 2.4, 2.5b, 2.6 and 2.7 add Weight, Body details, Gym log and Week, in both logs.
-    await expect(menu.locator('.more-label')).toHaveText(['Targets', 'Body details', 'Saved meals', 'Week', 'Weight', 'Gym log', 'Look', 'Show full screen', 'Reset demo'])
+    // Build-out item 2.1 adds Reset demo, in the demo only; items 2.4, 2.5b, 2.6, 2.7 and 2.8 add Weight, Body details, Gym log, Week and Timeline, in both logs.
+    await expect(menu.locator('.more-label')).toHaveText(['Targets', 'Body details', 'Saved meals', 'Week', 'Timeline', 'Weight', 'Gym log', 'Look', 'Show full screen', 'Reset demo'])
     await expect(menu.getByTestId('more-targets')).toContainText('Sam’s daily targets, which are made up.')
   })
 })

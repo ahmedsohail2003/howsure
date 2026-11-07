@@ -241,8 +241,9 @@ PRD ref: `prd.md > Workouts and Net Calories`.
   - G8c: 23:30 and 23:50 → 23:40.
   - G8d: 06:00 and 18:00 → no average (resultant 0).
   - Demo: the snack at Thu 00:40 belongs to Wed's day (wake Wed 13:20).
+- **Expected sleep (build-out item 2.8, the timeline):** `expectedSleepMs(wake, hours)` is the wake plus the usual day length, counted as hours that pass (across a clock change the marker still sits that many hours after the wake). `usualDayHours(profile.usualDayHours)` is the saved setting when it is a number from 6 to 23, otherwise the 16 h preset. It never reads sleep times, so it is a setting, labelled "your setting, not advice", and never a prediction. Demo: Wed's wake at 13:20 gives Thu 05:20.
 
-PRD ref: `prd.md > Sleep and Waking Days`, `prd.md > Editing Sleep and Wake Times`, `prd.md > Previous Days`.
+PRD ref: `prd.md > Sleep and Waking Days`, `prd.md > Editing Sleep and Wake Times`, `prd.md > Previous Days`, `prd.md > 3-Day Timeline`.
 
 ### Maths Core: Week Summary
 **Tier 2.** `src/kernel/week.ts`. Covers the seven waking days ending at the viewed day.
@@ -465,7 +466,7 @@ One document per log (`howsure.demo.v1` and `howsure.mine.v1`). The `zod` schema
 
 | Data | Shape (key fields) | Updated by | When you leave and come back |
 |---|---|---|---|
-| profile | `{ name, kind: 'guest'\|'demo', targets?: {kcal, protein, carbs, fat}, body?: {age, ageSetOn, sex, heightCm, heightUnit, weightKg, weightUnit, activity} (build-out 2.5b), usualDayHours?, usualMealsPerDay?, avgPerMealOverride?, savedTreats?: [{name, kcal}], sugarTargetG? }` (the last four Tier 3) | first use, Reroll/Rename, settings | read back from the sticky note |
+| profile | `{ name, kind: 'guest'\|'demo', targets?: {kcal, protein, carbs, fat}, body?: {age, ageSetOn, sex, heightCm, heightUnit, weightKg, weightUnit, activity} (build-out 2.5b), usualDayHours? (build-out 2.8: 6 to 23 h, the 16 h preset when missing), usualMealsPerDay?, avgPerMealOverride?, savedTreats?: [{name, kcal}], sugarTargetG? }` (the last four Tier 3) | first use, Reroll/Rename, settings | read back from the sticky note |
 | meals | `{ id, name, eatenAt, source, kcal: number\|null, protein/carbs/fat: number\|null, note?, foods?: [{ name, amount: number, unit: 'g'\|'oz'\|'serving', tagOverrides?: { add?: string[], remove?: string[] }, fiberPer100?: number }], fiberG?: number\|null, plate?: {name, grams, readingG, kcalPer100}, lookup?: { kind: 'barcode'\|'foodSearch', id, credit, fetchedAt, saved: boolean, amount: { kind: 'weighed'\|'package'\|'portion', grams } }, nutrients?: {sugarG, sodiumMg}, nova?, proposedBy?: 'claude', guess?, link?, photoId? }` (`foods`, `fiberG`, `lookup` Tier 2; `nutrients`, `nova`, `photoId` Tier 3) | Log, Edit, Improve, Delete, Add from inbox, gut breakdown tag edits | same |
 | sleeps | `{ id, sleepStart: ISO\|null, wake: ISO\|null, tags?: [string] }` | sleep buttons, editor, import | same |
 | workouts (Tier 2) | `{ id, name, startedAt, minutes, kcal, source, run?: {km, route?}, gym?: {unit, exercises: [{name, sets: [{kind, weightKg, reps, drops?}]}]} }` (`run` Tier 3; `gym` build-out item 2.6, with the name as the split) | Log a workout, runs, gym log | same |

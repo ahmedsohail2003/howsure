@@ -9,7 +9,7 @@ import { copy } from './copy'
 import type { FullScreenMode } from './fullScreen'
 import { lookDef } from './looks'
 
-export type MoreEntryId = 'profile' | 'targets' | 'body' | 'savedMeals' | 'week' | 'weight' | 'gym' | 'look' | 'fullScreen' | 'resetDemo'
+export type MoreEntryId = 'profile' | 'targets' | 'body' | 'savedMeals' | 'week' | 'timeline' | 'weight' | 'gym' | 'look' | 'fullScreen' | 'resetDemo'
 
 /** What an entry may depend on: which log is open, the full-screen view's state, the look. */
 export interface MoreContext {
@@ -61,6 +61,13 @@ export const MORE_ENTRIES: readonly MoreEntryDef[] = [
     shows: () => true,
     label: () => copy.moreMenu.week,
     hint: () => copy.moreMenu.weekHint,
+  },
+  {
+    // Build-out item 2.8: the timeline of the last 3 or 4 waking days, with wake and expected-sleep markers. In both logs.
+    id: 'timeline',
+    shows: () => true,
+    label: () => copy.moreMenu.timeline,
+    hint: () => copy.moreMenu.timelineHint,
   },
   {
     // Build-out item 2.4: the weight details (weigh-ins, the 7-day average and the trend). In both logs.

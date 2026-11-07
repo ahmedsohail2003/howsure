@@ -259,3 +259,33 @@ export function validateSleep(
   }
   return null
 }
+
+/* ---------- build-out item 2.8: the expected-sleep marker (prd.md > 3-Day Timeline) ---------- */
+
+/**
+ * The usual day length's preset (prd.md > 3-Day Timeline: "Expected sleep is marked at wake time +
+ * your usual day length, preset to 16 h ... and editable, labelled 'your setting, not advice'").
+ */
+export const DEFAULT_USUAL_DAY_HOURS = 16
+/** The setting's bounds, in hours awake. store/schema.ts accepts the same range. */
+export const USUAL_DAY_MIN_HOURS = 6
+export const USUAL_DAY_MAX_HOURS = 23
+
+/** True for a saved usual day length the app can use: a number of hours within the bounds. */
+export function isUsualDayHours(v: unknown): v is number {
+  return typeof v === 'number' && Number.isFinite(v) && v >= USUAL_DAY_MIN_HOURS && v <= USUAL_DAY_MAX_HOURS
+}
+
+/** The usual day length in use: the saved setting (profile.usualDayHours), or the 16 h preset when none is saved. */
+export function usualDayHours(saved: unknown): number {
+  return isUsualDayHours(saved) ? saved : DEFAULT_USUAL_DAY_HOURS
+}
+
+/**
+ * Expected sleep, in ms since the epoch: the wake plus the usual day length, counted as time that
+ * passes (so across a clock change the marker still sits that many hours after the wake). The rule
+ * is the spec's; nothing here reads sleep times, so it never pretends to predict them.
+ */
+export function expectedSleepMs(wakeIso: string, hours: number): number {
+  return ms(wakeIso) + hours * 3_600_000
+}

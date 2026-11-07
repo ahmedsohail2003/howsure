@@ -37,6 +37,10 @@
 // Build-out item 2.9: each macro's detail (with a target, without one, and with a meal missing its
 // value), the sleep details (today, an earlier day, and asleep), the foods stored on a meal and its
 // lookup, the eaten detail with the target, and the meal score opened from its row.
+//
+// Build-out item 2.8: the timeline in 3 and 4 days with the usual day length set, a sleep going on
+// and an earlier day in the demo, Reset demo naming the usual day length, your own log with every
+// kind of entry, and a log with no wake time yet.
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { expect, test, type Page } from '@playwright/test'
@@ -974,6 +978,69 @@ for (const { id: look, name: lookName } of LOOKS) {
       await opened(page, 'meal-details')
       await sweep.take('meal details with a lookup that has its grams and date')
       sweep.check(11)
+    })
+
+    test('the timeline (build-out item 2.8): 3 and 4 days, a sleep going on, your own log with every kind of entry, and no wake time yet', async ({ page }) => {
+      test.setTimeout(120_000)
+      const sweep = new Sweep(page)
+      /** The timeline in 3 days, then 4, then the usual day length changed. */
+      async function sweepTimeline(label: string) {
+        await page.getByTestId('open-timeline').click()
+        const t = await opened(page, 'timeline-view')
+        await sweep.take(`${label}: the timeline, 3 days`)
+        await t.getByTestId('timeline-span-4').check()
+        await sweep.take(`${label}: the timeline, 4 days`)
+        await t.getByTestId('timeline-usual').selectOption({ label: '15 h 30 min' })
+        await sweep.take(`${label}: the timeline with the usual day length set`)
+        await t.getByTestId('timeline-span-3').check()
+        await closeWithEsc(page, 'timeline-view')
+      }
+
+      await page.clock.setFixedTime(DEMO_NOW)
+      await page.goto('/')
+      await page.getByRole('button', { name: 'Try the fictional demo' }).click()
+      await expect(page.getByTestId('dashboard')).toBeVisible()
+      await sweepTimeline('demo')
+      // Reset demo now lists the usual day length among the changes.
+      await page.getByTestId('open-more').click()
+      await page.getByTestId('more-resetDemo').click()
+      await opened(page, 'reset-demo-sheet')
+      await sweep.take('demo: Reset demo with the usual day length changed')
+      await closeWithEsc(page, 'reset-demo-sheet')
+      // A sleep going on: the timeline's "so far".
+      await page.getByTestId('sleep-action').click()
+      const sleep = await opened(page, 'sleep-sheet')
+      await sleep.getByTestId('sleep-time-input').fill('1:00 AM')
+      await sleep.getByTestId('sleep-save').click()
+      await expect(sleep).toBeHidden()
+      await page.getByTestId('open-timeline').click()
+      await opened(page, 'timeline-view')
+      await sweep.take('demo: the timeline with a sleep going on')
+      await closeWithEsc(page, 'timeline-view')
+      // An earlier day.
+      await page.getByTestId('day-prev').click()
+      await page.getByTestId('open-timeline').click()
+      await opened(page, 'timeline-view')
+      await sweep.take('demo: the timeline to an earlier day')
+      await closeWithEsc(page, 'timeline-view')
+
+      // Your own log with every kind of entry: weigh-ins with body fat, a gym session, a workout and a meal with unknown calories.
+      await seedAndOpen(page, new Date('2026-10-21T20:00:00-04:00'), { [E2E_KEYS.mine]: JSON.stringify(samWeek()), [E2E_KEYS.active]: 'mine' })
+      await sweepTimeline('own log')
+      // No wake time yet: the one day, listed and not drawn.
+      await seedAndOpen(page, new Date('2026-10-21T20:00:00-04:00'), {
+        [E2E_KEYS.mine]: JSON.stringify({
+          version: 1, kind: 'mine', profile: { name: '', kind: 'guest' },
+          meals: [{ id: 'm1', name: 'Toast', eatenAt: '2026-10-21T08:00:00-04:00', source: 'label', kcal: 200, protein: null, carbs: null, fat: null }],
+          sleeps: [], workouts: [], plates: [],
+        }),
+        [E2E_KEYS.active]: 'mine',
+      })
+      await page.getByTestId('open-timeline').click()
+      await opened(page, 'timeline-view')
+      await sweep.take('own log with no wake time: the timeline')
+      await closeWithEsc(page, 'timeline-view')
+      sweep.check(10)
     })
 
     test('the saved-log notices: newer version and unreadable', async ({ page }) => {

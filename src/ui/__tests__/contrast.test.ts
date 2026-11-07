@@ -872,6 +872,61 @@ describe.each(analyses.map((a) => [a.look, a] as const))('the %s look', (_look, 
       }
     })
 
+    // Build-out item 2.8: the timeline's drawing. The wake bar and meal dots (--teal), the hollow
+    // dot of a meal with unknown calories (--amber), and the track and hour ticks (--line-strong) are
+    // checked as signals above; here every line and mark in a text colour, at 3:1 on what it crosses:
+    // the sheet, Panel's tiles (--bg), and the sleep block's --teal-bg fill, which a midnight line
+    // and the expected-sleep line can run through. The hatched stretch of a night with no sleep start
+    // is drawn in --ink-soft. The sleep's length is text above the strip, on the sheet or Panel's
+    // tile (4.5:1), and "sleep start not logged" there is --ink-soft text (4.5:1).
+    it('the timeline drawing: its rules use these tokens, and every line and mark is 3:1 on what it crosses', () => {
+      const decl = (sel: string, prop: string) => a.rules.filter((r) => r.selector === sel).map((r) => r.decls.get(prop)).find(Boolean)
+      expect(decl('.tld-sleep', 'background')).toBe('var(--teal-bg)')
+      expect(decl('.tld-sleep', 'border')).toBe('1px solid var(--ink-soft)')
+      expect(decl('.tld-unlogged', 'border')).toBe('1px dashed var(--ink-soft)')
+      expect(decl('.tld-unlogged', 'background-image')).toBe('repeating-linear-gradient(135deg, var(--ink-soft) 0 1px, transparent 1px 6px)')
+      expect(decl('.tld-unlogged', 'background-color')).toBe('transparent')
+      expect(decl('.tld-sleep-len', 'background')).toBeUndefined()
+      expect(decl('.tld-sleep-len', 'color')).toBe('var(--ink)')
+      expect(decl('.tld-sleep-len.unlogged', 'color')).toBe('var(--ink-soft)')
+      expect(decl('.tld-workout.unknown', 'stroke')).toBe('var(--amber)')
+      expect(decl('.tld-midnight', 'stroke')).toBe('var(--ink-soft)')
+      expect(decl('.tld-expected', 'stroke')).toBe('var(--ink)')
+      expect(decl('.tld-wake', 'fill')).toBe('var(--teal)')
+      expect(decl('.tld-meal', 'fill')).toBe('var(--teal)')
+      expect(decl('.tld-workout', 'fill')).toBe('var(--ink)')
+      // Now is a filled --ink triangle (its shape tells it from a hollow meal), outlined in the sheet's colour.
+      expect(decl('.tld-now', 'fill')).toBe('var(--ink)')
+      expect(decl('.tld-now', 'stroke')).toBe('var(--surface)')
+      expect(decl('.tld-key.now', 'border-top')).toBe('11px solid var(--ink)')
+      expect(decl('.tld-track', 'stroke')).toBe('var(--line-strong)')
+      // The legend's key for the dotted rest of today is drawn in the track's own colour.
+      expect(decl('.tld-key.ahead', 'border-top')).toBe('2px dotted var(--line-strong)')
+      const hex = (t: string) => solid(`var(${t})`, a.tokens) as string
+      for (const [mark, under] of [
+        ['--ink-soft', '--teal-bg'],
+        ['--ink-soft', '--surface'],
+        ['--ink-soft', '--bg'],
+        ['--ink', '--teal-bg'],
+        ['--ink', '--surface'],
+        ['--ink', '--bg'],
+        ['--teal', '--surface'],
+        ['--teal', '--bg'],
+        ['--amber', '--surface'],
+        ['--amber', '--bg'],
+        ['--line-strong', '--surface'],
+        ['--line-strong', '--bg'],
+      ]) {
+        expect(ratio(hex(mark), hex(under)), `${mark} on ${under}`).toBeGreaterThanOrEqual(3)
+      }
+      expect(ratio(hex('--ink'), hex('--teal-bg')), 'text on the sleep fill').toBeGreaterThanOrEqual(4.5)
+      for (const text of ['--ink', '--ink-soft']) {
+        for (const under of ['--surface', '--bg']) {
+          expect(ratio(hex(text), hex(under)), `the note over the sleep: ${text} on ${under}`).toBeGreaterThanOrEqual(4.5)
+        }
+      }
+    })
+
     it('--teal and --amber are never used as text colours (the -ink tokens are)', () => {
       const misuse = a.rules.filter((r) => /^var\(--(teal|amber)\)$/.test(r.decls.get('color') ?? '')).map((r) => r.selector)
       expect(misuse).toEqual([])

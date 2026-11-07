@@ -132,7 +132,17 @@ export function fmtWeekdayDateTime(iso: string): string {
  */
 export function fmtTimeInDay(iso: string, dayStart: string | null): string {
   if (!onLaterDate(iso, dayStart)) return fmtTime(iso)
-  return dayStart !== null && Date.parse(iso) - Date.parse(dayStart) >= 6 * 86_400_000 ? fmtWeekdayDateTime(iso) : fmtWeekdayTime(iso)
+  return farIntoDay(iso, dayStart) ? fmtWeekdayDateTime(iso) : fmtWeekdayTime(iso)
+}
+
+/** True 6 or more days after the waking day's wake, where a weekday alone is ambiguous. */
+function farIntoDay(iso: string, dayStart: string | null): boolean {
+  return dayStart !== null && Date.parse(iso) - Date.parse(dayStart) >= 6 * 86_400_000
+}
+
+/** The date part fmtTimeInDay gives a time on a later date: "Thu", or "Mon Oct 26" 6 or more days on. */
+export function fmtDateInDay(iso: string, dayStart: string | null): string {
+  return farIntoDay(iso, dayStart) ? fmtWeekdayDate(iso) : fmtWeekday(iso)
 }
 
 /**

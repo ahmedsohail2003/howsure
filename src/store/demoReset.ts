@@ -99,6 +99,8 @@ export interface DemoChanges {
   bodyChanged: boolean
   /** Weigh-ins were added, changed or deleted (build-out item 2.4). */
   weighInsChanged: boolean
+  /** The usual day length behind the timeline's expected-sleep marker was set or changed (build-out item 2.8). */
+  usualDayChanged: boolean
   /** The rest of the projection: the profile's other fields and plates. */
   otherChanged: boolean
 }
@@ -119,8 +121,8 @@ export function demoChanges(doc: LogDoc, pristine: LogDoc = pristineDemo()): Dem
   }
   const mealsDeleted = [...was.keys()].filter((id) => !now.has(id)).length
   const sleepText = (s: SleepRecord[]) => demoJson(inIdOrder(s))
-  const { targets: targetsNow, body: bodyNow, ...profileNow } = doc.profile
-  const { targets: targetsWas, body: bodyWas, ...profileWas } = pristine.profile
+  const { targets: targetsNow, body: bodyNow, usualDayHours: dayNow, ...profileNow } = doc.profile
+  const { targets: targetsWas, body: bodyWas, usualDayHours: dayWas, ...profileWas } = pristine.profile
   return {
     mealsAdded,
     mealsChanged,
@@ -131,6 +133,7 @@ export function demoChanges(doc: LogDoc, pristine: LogDoc = pristineDemo()): Dem
     savedMealsChanged: demoJson(inIdOrder(doc.savedMeals ?? [])) !== demoJson(inIdOrder(pristine.savedMeals ?? [])),
     workoutsChanged: demoJson(inIdOrder(doc.workouts)) !== demoJson(inIdOrder(pristine.workouts)),
     weighInsChanged: demoJson(inIdOrder(doc.weighIns ?? [])) !== demoJson(inIdOrder(pristine.weighIns ?? [])),
+    usualDayChanged: (dayNow ?? null) !== (dayWas ?? null),
     otherChanged:
       demoJson(profileNow) !== demoJson(profileWas) || demoJson(inIdOrder(doc.plates)) !== demoJson(inIdOrder(pristine.plates)),
   }

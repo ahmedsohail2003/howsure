@@ -292,6 +292,22 @@ describe('Import reads a file through the same pipeline as a stored log', () => 
     expect(res.summary.workouts).toBe(3)
   })
 
+  it('the usual day length round-trips through Export and Import unchanged; one out of its range is refused, naming the field (build-out item 2.8)', () => {
+    const doc = mineDoc()
+    const withDay: LogDoc = { ...doc, profile: { ...doc.profile, usualDayHours: 15.5 } }
+    const res = readImport(exportOwnLog(withDay, null, null))
+    expect(res.status).toBe('ok')
+    if (res.status !== 'ok') return
+    expect(res.doc).toStrictEqual(withDay)
+    expect(res.doc.profile.usualDayHours).toBe(15.5)
+    // A log saved before item 2.8 has none, and loads (the 16 h preset is used, nothing is written).
+    expect(mineDoc().profile.usualDayHours).toBeUndefined()
+    for (const bad of [5.5, 23.5, -16]) {
+      const text = JSON.stringify({ ...V1_MINE, profile: { ...(V1_MINE as { profile: object }).profile, usualDayHours: bad } })
+      expect(readImport(text)).toMatchObject({ status: 'refused', problem: 'unreadable', detail: expect.stringContaining('usualDayHours') })
+    }
+  })
+
   it('a gym session with drop sets round-trips through Export and Import unchanged, with the weight unit setting (build-out item 2.6)', () => {
     const doc = mineDoc()
     const withGym: LogDoc = {
