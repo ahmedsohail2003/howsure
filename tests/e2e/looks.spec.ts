@@ -481,16 +481,22 @@ test.describe('the Journal look in detail', () => {
     expect(target.x).toBeGreaterThan(pill.x + pill.width)
   })
 
-  test('meal rows are one button each, with the score as plain text', async ({ page }) => {
+  test('meal rows: the row opens the meal’s details, and the score is its own button (build-out item 2.9)', async ({ page }) => {
     await openDemo(page)
     const pasta = row(page, 'Pasta bake (ready meal)')
-    await expect(pasta.getByRole('button')).toHaveCount(1)
+    // Item 2.9 split Journal's one-button row into two targets: the row, and its score.
+    await expect(pasta.getByRole('button')).toHaveCount(2)
     await expect(pasta.getByTestId('meal-score')).toHaveText('Score 54')
-    await expect(pasta.getByRole('button')).toHaveAccessibleName(
+    await expect(pasta.getByTestId('meal-open')).toHaveAccessibleName(
       'Pasta bake (ready meal), 5:30 PM · Photo estimate, 760 kcal, Estimate score 54. Opens the meal details.',
     )
-    // Tapping the score text opens the meal's details, like the rest of the row.
+    await expect(pasta.getByTestId('meal-score')).toHaveAccessibleName('Pasta bake (ready meal): Estimate score 54. Opens the score explanation.')
+    // Tapping the score opens its explanation in one tap; the rest of the row opens the meal's details.
     await pasta.getByTestId('meal-score').click()
+    await expect(page.getByTestId('explain-meal').getByTestId('meal-score-sentence')).toContainText('A 54% estimate score')
+    await closeWithEsc(page, 'explain-meal')
+    // A real tap where the calories are drawn: the row's tap layer lies over them.
+    await pasta.locator('.meal-kcal').click({ force: true })
     await expect(page.getByTestId('meal-details').getByTestId('details-score')).toHaveText('Estimate score 54')
   })
 
@@ -680,7 +686,8 @@ test.describe('the Panel look in detail', () => {
   }) => {
     await openDemo(page)
     const kefir = row(page, 'Kefir with oats and blueberries')
-    await expect(kefir.getByRole('button')).toHaveCount(1)
+    // Two targets since item 2.9: the row (its details) and its score (the explanation).
+    await expect(kefir.getByRole('button')).toHaveCount(2)
     await expect(kefir.getByTestId('meal-score')).toHaveText('Estimate score 90')
     await expect(kefir.getByTestId('score-bar')).toHaveAttribute('aria-hidden', 'true')
     const bar = (await kefir.getByTestId('score-bar').boundingBox())!
@@ -691,7 +698,7 @@ test.describe('the Panel look in detail', () => {
     const pasta = row(page, 'Pasta bake (ready meal)')
     await expect(pasta.getByTestId('meal-score')).toHaveText('Estimate score 54 · biggest uncertainty')
     await expect(pasta.locator('.score-fill')).toHaveCSS('background-color', 'rgb(183, 121, 31)')
-    await expect(pasta.getByRole('button')).toHaveAccessibleName(
+    await expect(pasta.getByTestId('meal-open')).toHaveAccessibleName(
       'Pasta bake (ready meal), 5:30 PM · Photo estimate, 760 kcal, Estimate score 54 · biggest uncertainty. Opens the meal details.',
     )
     // Amber on one row only.
@@ -710,8 +717,9 @@ test.describe('the Panel look in detail', () => {
     expect(share.startsWith(`${listed} `)).toBe(true)
     await closeWithEsc(page, 'explain-day')
 
-    // Tapping a row still opens the meal's details.
-    await pasta.getByTestId('meal-score').click()
+    // Tapping a row still opens the meal's details (its score opens the explanation: item 2.9).
+    // A real tap where the calories are drawn: the row's tap layer lies over them.
+    await pasta.locator('.meal-kcal').click({ force: true })
     await expect(page.getByTestId('meal-details').getByTestId('details-score')).toHaveText('Estimate score 54')
   })
 
@@ -733,7 +741,8 @@ test.describe('the Panel look in detail', () => {
     expect(anim.duration).toBeLessThanOrEqual(0.3)
     expect(anim.transition).toBeLessThanOrEqual(0.3)
 
-    const kefir = row(page, 'Kefir with oats and blueberries').getByTestId('meal-open')
+    // The row tilts as a whole (item 2.9: the row holds its details button and its score button).
+    const kefir = row(page, 'Kefir with oats and blueberries').locator('.meal-line')
     expect(await kefir.evaluate((e) => parseFloat(getComputedStyle(e).transitionDuration))).toBeLessThanOrEqual(0.3)
     const pressed = async () => {
       await kefir.scrollIntoViewIfNeeded()
@@ -916,7 +925,7 @@ test.describe('the Night look in detail', () => {
     const kefir = row(page, 'Kefir with oats and blueberries')
     await expect(kefir.locator('.meal-kcal')).toHaveText('410 kcal')
     await expect(kefir.locator('.tl-meta')).toHaveText('Nutrition label (typed) · score 90')
-    await expect(kefir.getByRole('button')).toHaveAccessibleName(
+    await expect(kefir.getByTestId('meal-open')).toHaveAccessibleName(
       'Kefir with oats and blueberries, 1:50 PM · Nutrition label (typed), 410 kcal, Estimate score 90. Opens the meal details.',
     )
 
@@ -936,7 +945,7 @@ test.describe('the Night look in detail', () => {
     // The snack after midnight is still on Wednesday's waking day, and says so.
     const apple = row(page, 'Apple and peanut butter')
     await expect(apple.getByTestId('still-day')).toHaveText('still Wednesday’s day')
-    await expect(apple.getByRole('button')).toHaveAccessibleName(/Thu 12:40 AM · Description · still Wednesday’s day/)
+    await expect(apple.getByTestId('meal-open')).toHaveAccessibleName(/Thu 12:40 AM · Description · still Wednesday’s day/)
     await expect(page.getByTestId('still-day')).toHaveCount(1)
 
     // The day ends now, with the 7-night average.

@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, type KeyboardEvent, type ReactNode } from 'react'
 import { copy } from './copy'
 import { FictionalBanner } from './FictionalBanner'
+import { TimesTogether } from './KeepTogether'
 
 interface SheetProps {
   title: string
@@ -108,7 +109,11 @@ export function Sheet({ title, sub, demo, onClose, children, testId, footer, ini
               <h2 className="sheet-title" id={titleId}>
                 {title}
               </h2>
-              {sub && <p className="sheet-sub">{sub}</p>}
+              {sub && (
+                <p className="sheet-sub">
+                  <TimesTogether text={sub} />
+                </p>
+              )}
             </div>
             <button ref={closeRef} type="button" className="btn btn-quiet" onClick={onClose}>
               {copy.sheet.close}

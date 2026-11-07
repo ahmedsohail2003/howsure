@@ -10,12 +10,15 @@
 // sits under the nights. The Night look's timeline also opens the editor from its points.
 // Build-out item 1.5.2: the sleep button sits in the dashboard's action bar beside Log a meal
 // (Dashboard.tsx), so it stays in reach on a phone; this section shows the status and the nights.
+// Build-out item 2.9: last night and the 7-night average are one button that opens the sleep
+// details (SleepDetails.tsx), like the weight summary; so is "Asleep since …" while a sleep is
+// going on. Each night's Edit and Add a missed night stay here, one tap deep, as before.
 
 import { copy } from './copy'
 import { fmtWeekday, fmtWeekdayDate, fmtWeekdayTime } from './format'
 import { KeepTogether } from './KeepTogether'
 import { useLook } from './lookContext'
-import { fmtClockMinutes, fmtDuration, nightGoneBySince, type SleepView } from './sleepView'
+import { fmtClockMinutes, fmtDuration, headEdit, lastNightLabel, type SleepView } from './sleepView'
 
 interface SleepSectionProps {
   sleep: SleepView
@@ -27,12 +30,14 @@ interface SleepSectionProps {
   onEditNight: (recordId: string) => void
   /** Opens the editor on a new, missed night. */
   onAddNight: () => void
+  /** Opens the sleep details (build-out item 2.9). */
+  onOpenSleep: () => void
 }
 
 export function SleepSection(props: SleepSectionProps) {
   const { look } = useLook()
   if (look === 'night') return <NightSleep {...props} />
-  const { sleep, today, nowIso, onEditNight } = props
+  const { sleep, today, nowIso, onEditNight, onOpenSleep } = props
   const { status, lastNight, stats, dayRecordId } = sleep
   const asleep = status.kind === 'asleep'
   const edit = headEdit(sleep, today, nowIso)
@@ -44,9 +49,24 @@ export function SleepSection(props: SleepSectionProps) {
         </h2>
         {/* The status and Edit share the right-hand side; on a narrow screen Edit wraps under the status. */}
         <div className="sleep-head-end">
-          <p className="sleep-status num" data-testid="sleep-status">
-            {asleep ? <KeepTogether text={copy.sleep.asleepSince(fmtWeekdayTime(status.since))} part={fmtWeekdayTime(status.since)} /> : copy.sleep.awake}
-          </p>
+          {asleep ? (
+            <p className="sleep-status-line">
+              <button
+                type="button"
+                className="sleep-status status-link num"
+                onClick={onOpenSleep}
+                aria-label={copy.sleepDetail.openLabel(copy.sleep.asleepSince(fmtWeekdayTime(status.since)))}
+                data-testid="sleep-status"
+                data-opens="sleep-details"
+              >
+                <KeepTogether text={copy.sleep.asleepSince(fmtWeekdayTime(status.since))} part={fmtWeekdayTime(status.since)} />
+              </button>
+            </p>
+          ) : (
+            <p className="sleep-status" data-testid="sleep-status">
+              {copy.sleep.awake}
+            </p>
+          )}
           {edit && (
             <button
               type="button"
@@ -60,34 +80,57 @@ export function SleepSection(props: SleepSectionProps) {
         </div>
       </div>
 
-      <ul className="fact-list sleep-facts">
-        <li>
-          <span className="k" data-testid="last-night-label">
-            {lastNightLabel(sleep, today, nowIso)}
-          </span>
-          {lastNight?.minutes != null ? (
-            <span className="num" data-testid="last-night">
-              {fmtDuration(lastNight.minutes)}
+      <button
+        type="button"
+        className="sleep-open"
+        onClick={onOpenSleep}
+        aria-label={copy.sleepDetail.rowsLabel(
+          lastNightLabel(sleep, today, nowIso),
+          lastNight?.minutes != null ? fmtDuration(lastNight.minutes) : copy.sleep.notLogged,
+          copy.sleep.average,
+          stats.avgMinutes !== null ? fmtDuration(stats.avgMinutes) : copy.sleep.notAvailable.toLowerCase(),
+          stats.total > 0 ? copy.sleep.nightCount(String(stats.complete), String(stats.total)) : null,
+        )}
+        data-testid="sleep-open"
+        data-opens="sleep-details"
+      >
+        <span className="sleep-facts">
+          <span className="sleep-fact">
+            <span className="k" data-testid="last-night-label">
+              {lastNightLabel(sleep, today, nowIso)}
             </span>
-          ) : (
-            <span className="not-logged" data-testid="last-night">
-              {copy.sleep.notLogged}
-            </span>
-          )}
-        </li>
-        <li>
-          <span className="k">{copy.sleep.average}</span>
-          <span className="num sleep-avg" data-testid="sleep-average">
-            {stats.avgMinutes !== null ? fmtDuration(stats.avgMinutes) : copy.sleep.notAvailable}
-            {stats.total > 0 && (
-              <span className="sleep-count" data-testid="night-count">
-                {copy.sep}
-                {copy.sleep.nightCount(String(stats.complete), String(stats.total))}
+            {lastNight?.minutes != null ? (
+              <span className="num sleep-figure sleep-duration" data-testid="last-night">
+                {fmtDuration(lastNight.minutes)}
+              </span>
+            ) : (
+              <span className="not-logged" data-testid="last-night">
+                {copy.sleep.notLogged}
               </span>
             )}
           </span>
-        </li>
-      </ul>
+          <span className="sleep-fact">
+            <span className="k">{copy.sleep.average}</span>
+            <span className="sleep-avg" data-testid="sleep-average">
+              {/* A real duration is a value: number style, on one line. "Not available yet" is a
+                  status: plain text, and it may wrap. Where the row is too narrow for the duration
+                  and the count side by side, the count goes on its own line under it and the
+                  separator is not drawn (theme.css), so no line ends in " ·". */}
+              {stats.avgMinutes !== null ? (
+                <span className="num sleep-figure sleep-duration">{fmtDuration(stats.avgMinutes)}</span>
+              ) : (
+                <span className="sleep-na">{copy.sleep.notAvailable}</span>
+              )}
+              {stats.total > 0 && (
+                <span className="sleep-count" data-testid="night-count">
+                  <span className="sleep-sep">{copy.sep}</span>
+                  <span className="sleep-count-words num">{copy.sleep.nightCount(String(stats.complete), String(stats.total))}</span>
+                </span>
+              )}
+            </span>
+          </span>
+        </span>
+      </button>
 
       <details className="more sleep-nights" data-testid="sleep-nights">
         <summary>{copy.sleep.eachNight}</summary>
@@ -97,42 +140,7 @@ export function SleepSection(props: SleepSectionProps) {
   )
 }
 
-/**
- * What Edit in the head opens, and its visible words. On the current day while asleep: the sleep
- * going on, beside "Asleep since …". Otherwise the night that started the viewed day: "last night"
- * when no night has passed since it (isLastNight); otherwise named by its day (an earlier day, or
- * a current day that runs on because nothing was logged for last night).
- */
-export function headEdit(sleep: SleepView, today: boolean, nowIso: string): { recordId: string; label: string } | null {
-  if (today && sleep.status.kind === 'asleep') return { recordId: sleep.status.recordId, label: copy.sleepEditor.editThisSleep }
-  if (!sleep.dayRecordId || !sleep.dayStart) return null
-  const last = isLastNight(sleep, today, nowIso)
-  return {
-    recordId: sleep.dayRecordId,
-    label: last ? copy.sleepEditor.editLastNight : copy.sleepEditor.editNight(fmtWeekday(sleep.dayStart)),
-  }
-}
-
-/**
- * True when the night that started the viewed day is the one the person last woke from with no
- * night since: the current day, woken up from under 24 hours ago (nightGoneBySince). So at 1:30 AM,
- * still up after waking at 7:10 AM the day before, that night is still "last night"; at 10:00 AM
- * the day after, with nothing logged in between, it is named by its day.
- */
-function isLastNight(sleep: SleepView, today: boolean, nowIso: string): boolean {
-  return today && sleep.dayStart !== null && !nightGoneBySince(sleep.dayStart, nowIso)
-}
-
-/**
- * The name of the row under the head: "Last night" only under the same test Edit in the head uses. On a current day that runs on because nothing was logged for last night,
- * the night is named by its day ("Night before Wed"), so the row never claims it was last night.
- * With no night at all on the current day, "Last night" reads "not logged", which is true.
- */
-export function lastNightLabel(sleep: SleepView, today: boolean, nowIso: string): string {
-  if (!today) return copy.sleep.nightBefore
-  if (sleep.dayStart === null || isLastNight(sleep, today, nowIso)) return copy.sleep.lastNight
-  return copy.sleep.nightRow(fmtWeekday(sleep.dayStart))
-}
+export { headEdit, lastNightLabel }
 
 /**
  * Night look (build-out item 1.5.2c): the timeline already shows last night, now's status and the
@@ -147,7 +155,7 @@ function NightSleep({ sleep, today, onEditNight, onAddNight }: SleepSectionProps
         {copy.sleep.title}
       </h2>
       <details className="more sleep-nights" data-testid="sleep-nights">
-        <summary>
+        <summary data-opens="expand">
           {copy.sleep.eachNight}
           {stats.total > 0 && (
             <span className="sleep-count num" data-testid="night-count">
@@ -173,7 +181,7 @@ interface EachNightProps {
  * Each night's length, newest first, each with Edit, and the average wake time. On the current
  * day a sleep still going on comes first, so it can be corrected too. Add a missed night is last.
  */
-function EachNight({ sleep, today, onEditNight, onAddNight }: EachNightProps) {
+export function EachNight({ sleep, today, onEditNight, onAddNight }: EachNightProps) {
   const { stats, status } = sleep
   const open = today && status.kind === 'asleep' ? status : null
   const counts = new Map<string, number>()
@@ -183,7 +191,9 @@ function EachNight({ sleep, today, onEditNight, onAddNight }: EachNightProps) {
   }
   const repeated = new Set([...counts].filter(([, c]) => c > 1).map(([w]) => w))
   return (
-    <div className="more-body">
+    // The list is itself the detail its disclosure opens (data-detail, tests/e2e/tap-through.spec.ts):
+    // each night's figure sits beside its own Edit.
+    <div className="more-body" data-detail="each-night">
       {stats.total === 0 && !open ? (
         <p className="small">{copy.sleep.noNights}</p>
       ) : (

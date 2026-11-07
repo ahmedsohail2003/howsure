@@ -955,6 +955,20 @@ button {
   text-align: left;
 }
 
+/* Build-out item 2.9: the whole row opens the entry, "calories unknown" included: the name's
+   button lays a tap layer over its row (44 px tall), and its focus ring still hugs the name. */
+.missing-list li {
+  position: relative;
+  align-items: center;
+  min-height: 44px;
+}
+
+.missing-list .link-btn::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+
 /* A day with no meals: one line and one action (prd.md > States and Boundaries). */
 .empty-day {
   padding: var(--s4) 0;
@@ -1144,6 +1158,13 @@ button {
 }
 
 .meal-score.none {
+  color: var(--ink-soft);
+}
+
+/* Build-out item 2.9: a meal row's score is its own underlined button (it opens the score's
+   explanation). A workout row's score is not: the whole row opens the workout's details, so its
+   score is plain text, in the meta's soft ink, never the meal score's teal link look. */
+.workout-row .meal-score {
   color: var(--ink-soft);
 }
 
@@ -1603,7 +1624,8 @@ button {
 .sheet > header {
   position: sticky;
   top: 0;
-  z-index: 1;
+  /* Above any positioned row button in the sheet's body (z-index 1 at most). */
+  z-index: 2;
   margin: 0 calc(-1 * var(--sheet-pad)) var(--s2);
   padding: var(--sheet-pad) var(--sheet-pad) var(--s1);
   background: var(--surface);
@@ -2051,7 +2073,7 @@ details.more > summary {
 .sheet-footer {
   position: sticky;
   bottom: 0;
-  z-index: 1;
+  z-index: 2;
   margin: var(--s3) calc(-1 * var(--sheet-pad)) 0;
   padding: 12px var(--sheet-pad) max(12px, env(safe-area-inset-bottom));
   background: var(--surface);
@@ -4196,8 +4218,10 @@ details.more > summary {
   font-weight: 600;
 }
 
-/* A tapped tile or row tilts slightly as it is pressed (none under reduced motion). */
-[data-look="panel"] .meal-open:active,
+/* A tapped tile or row tilts slightly as it is pressed (none under reduced motion). A meal row
+   (build-out item 2.9) tilts only while its details are pressed, not its score. */
+[data-look="panel"] .meal-open:not(.meal-line):active,
+[data-look="panel"] .meal-open.meal-line:has(> .meal-name-btn:active),
 [data-look="panel"] .range-summary:active,
 [data-look="panel"] .improve-btn:active,
 [data-look="panel"] .action-bar .btn:active {
@@ -5003,7 +5027,8 @@ details.more > summary {
   }
 
   /* Panel's press tilt is a transform, not an animation, so it is turned off here by name. */
-  [data-look="panel"] .meal-open:active,
+  [data-look="panel"] .meal-open:not(.meal-line):active,
+  [data-look="panel"] .meal-open.meal-line:has(> .meal-name-btn:active),
   [data-look="panel"] .range-summary:active,
   [data-look="panel"] .improve-btn:active,
   [data-look="panel"] .action-bar .btn:active,
@@ -5142,4 +5167,618 @@ details.more > summary {
   font-size: 18px;
   font-weight: 400;
   letter-spacing: 0;
+}
+
+/* ---------- tap-through (build-out item 2.9) ----------
+   Every number on the dashboard opens its detail. Controls that were text become buttons that
+   keep their look: no fill, no border, the same type. Each focus ring hugs its control; a small
+   one reaches 44 px with an invisible ::after layer centred on it, never by growing its box. */
+
+/* A text-like button: the type and colour of the text it replaces. */
+.status-open,
+.target-open,
+.share-open,
+.status-link,
+.ring-caption-open,
+.macro-open,
+.sleep-open,
+.meal-name-btn,
+.meal-score-btn,
+.tl-side-btn,
+.tl-edit-btn {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: inherit;
+  cursor: pointer;
+}
+
+/* The headline number: still the largest thing on the screen, now one tap from the meals behind
+   it (or how net is worked out). Its size and spacing stay the look's .headline-number rules. */
+.headline-number-line {
+  margin: 0;
+}
+
+.headline-open {
+  display: inline-block;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
+
+.headline-open:hover [data-testid="headline-kcal"] {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 6px;
+}
+
+/* Small text buttons (an unknown count, the target line, the uncertainty share, "Asleep since"):
+   the box hugs the words; the tap area is the 44 px layer. */
+.status-open,
+.target-open,
+.share-open,
+.status-link,
+.ring-caption-open,
+.meal-score-btn,
+.tl-side-btn {
+  position: relative;
+  border-radius: 2px;
+}
+
+.status-open::after,
+.target-open::after,
+.share-open::after,
+.status-link::after,
+.ring-caption-open::after,
+.tl-side-btn::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: max(100%, 44px);
+  height: 44px;
+  transform: translate(-50%, -50%);
+}
+
+.status-open,
+.target-open,
+.share-open,
+.status-link {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+.status-open {
+  color: var(--amber-ink);
+}
+
+.target-open {
+  color: var(--ink-soft);
+}
+
+.status-link {
+  color: var(--ink-soft);
+}
+
+.status-open:hover,
+.target-open:hover,
+.share-open:hover,
+.status-link:hover {
+  color: var(--teal-ink);
+}
+
+/* "Asleep since Wed 11:10 PM": the status line holds its button, wrapping as the text did. */
+.sleep-status-line {
+  font-size: 14px;
+}
+
+/* Macros: each column (Journal, and under Night's chip) is one button with its name, value, any
+   missing entries and its target. The focus ring hugs the column. */
+.macro-open {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+  min-height: 44px;
+  margin: -4px;
+  padding: 4px;
+  border-radius: 6px;
+  text-align: left;
+}
+
+.macro-open > span {
+  display: block;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.macro-open:hover .macro-value {
+  color: var(--teal-ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* A meal row (build-out item 2.9): two targets. The name's button lays a tap layer over the whole
+   row, so a tap anywhere on it opens the meal's details, and its focus ring outlines the row; the
+   score is a second button drawn above that layer. */
+.meal-line {
+  position: relative;
+  cursor: default;
+}
+
+.meal-name-btn {
+  display: block;
+  max-width: 100%;
+  text-align: left;
+}
+
+.meal-name-btn::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 4px;
+}
+
+.meal-name-btn:focus-visible {
+  outline: 0;
+}
+
+.meal-name-btn:focus-visible::after {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
+}
+
+.meal-name-btn:hover .meal-name {
+  color: var(--teal-ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* The score sits above its own row's layer because it comes after the name's button in the row
+   (both positioned, neither with a z-index), so it needs no z-index of its own. That keeps it
+   under the sticky sheet header and footer when a list scrolls, and under the next row's layer.
+   Its 44 px tap layer ends at its own row's bottom edge (the row's bottom padding, --row-pad-b)
+   and reaches up from there, so it never runs into the next row; the calories above it keep
+   their middle for the meal's details (Journal leaves a little space between the two). */
+.meal-score-btn {
+  --row-pad-b: 10px;
+  display: inline-block;
+  max-width: 100%;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+.meal-score-btn::after {
+  content: "";
+  position: absolute;
+  bottom: calc(-1 * var(--row-pad-b));
+  left: -4px;
+  right: -4px;
+  height: 44px;
+}
+
+.meal-right .meal-score-btn {
+  margin-top: 4px;
+}
+
+.meal-score-btn:hover {
+  text-decoration-thickness: 2px;
+}
+
+.meal-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+/* The sleep section's two rows (last night, the 7-night average): one button, like the weight
+   summary, that opens the sleep details. */
+.sleep-open {
+  display: block;
+  width: 100%;
+  border-radius: 4px;
+  text-align: left;
+}
+
+.sleep-facts,
+.sleep-fact {
+  display: block;
+}
+
+.sleep-fact {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--s2);
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.sleep-fact:last-child {
+  border-bottom: 0;
+}
+
+.sleep-fact .k {
+  color: var(--ink-soft);
+}
+
+.sleep-duration {
+  white-space: nowrap;
+}
+
+/* "Not available yet" is a status, not a value: the plain small text of a sentence. The same
+   style holds a status in a detail's figure slot ("Not available yet" for the 7-night average,
+   "No meals logged" for a macro on a day with none). */
+.sleep-na,
+.details-status {
+  color: var(--ink-soft);
+  font-size: 14px;
+  font-weight: 400;
+}
+
+.sleep-open:hover .sleep-figure {
+  color: var(--teal-ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* The sleep details and a macro's detail. */
+.sleep-detail-block,
+.macro-detail-block {
+  display: grid;
+  gap: 6px;
+}
+
+.sleep-detail-edit .btn,
+.macro-detail-edit .btn {
+  min-height: 44px;
+}
+
+/* A second figure in a detail, under the one that leads (the 7-night average under the night). */
+.mid-figure {
+  font-size: 22px;
+  font-weight: 600;
+}
+
+/* "Each night" in the sleep details: the same space above its heading as every other section in
+   the sheet (.sleep-nights' own smaller margin is for the dashboard's disclosure). Each night's
+   row is 44 px tall, so its Edit's 44 px tap layer is not cut short by the next row's. */
+.sheet-body > .sleep-detail-nights {
+  margin-top: var(--s2);
+}
+
+.sleep-detail-nights .fact-list li {
+  align-items: center;
+  min-height: 45px;
+  padding: 0;
+}
+
+.macro-detail-sub {
+  margin-top: var(--s1);
+}
+
+.macro-meals {
+  display: grid;
+}
+
+.macro-meal {
+  border-bottom: 1px solid var(--line);
+}
+
+.macro-meal:last-child {
+  border-bottom: 0;
+}
+
+.macro-meal-open {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 4px var(--s2);
+  width: 100%;
+  min-height: 56px;
+  padding: 10px 0;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.macro-meal-main,
+.macro-meal-right {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.macro-meal-right {
+  align-items: flex-end;
+  text-align: right;
+}
+
+.macro-meal-value {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.macro-meal-value.unknown {
+  color: var(--amber-ink);
+  font-weight: 400;
+}
+
+.macro-meal-share {
+  color: var(--ink-soft);
+  font-size: 14px;
+}
+
+.macro-meal-open:hover .meal-name {
+  color: var(--teal-ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* Eaten's detail: the daily target with the best estimate's share of it. */
+.eaten-target {
+  display: grid;
+  gap: 6px;
+}
+
+.eaten-target .btn {
+  min-height: 44px;
+}
+
+/* The foods stored on a meal: each food's name on the left, its amount on the right. */
+.meal-foods {
+  display: grid;
+  gap: 6px;
+}
+
+.food-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.food-amount {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  text-align: right;
+}
+
+.food-fiber {
+  color: var(--ink-soft);
+}
+
+.meal-lookup .k {
+  color: var(--ink-soft);
+}
+
+/* "Not used now: …" after an edit: a change of state, set apart from the lookup's own lines. */
+.meal-lookup-unused {
+  margin-top: 8px;
+  padding: 8px 12px;
+}
+
+/* Panel: each macro tile is the button; the ring is one button with the number in it. */
+[data-look="panel"] .macro-open.macro-tile {
+  align-items: center;
+  margin: 0;
+  text-align: center;
+  cursor: pointer;
+}
+
+[data-look="panel"] .macro-open.macro-tile:hover {
+  background: var(--teal-bg);
+}
+
+[data-look="panel"] .macro-tile .ring {
+  flex-shrink: 0;
+}
+
+[data-look="panel"] .ring-open {
+  display: block;
+  flex-shrink: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+[data-look="panel"] .ring-open:hover [data-testid="headline-kcal"] {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+[data-look="panel"] .ring-centre .headline-number,
+[data-look="panel"] .ring-centre .headline-na,
+[data-look="panel"] .ring-words {
+  display: block;
+}
+
+[data-look="panel"] .ring-caption-open {
+  display: block;
+  max-width: 160px;
+}
+
+[data-look="panel"] .ring-caption-open:hover .ring-caption {
+  color: var(--teal-ink);
+}
+
+[data-look="panel"] .meal-line > .meal-name-btn {
+  grid-area: name;
+}
+
+/* The row lights up when its details are under the pointer, not when the score is. */
+[data-look="panel"] .meal-open.meal-line:hover {
+  background: none;
+}
+
+[data-look="panel"] .meal-open.meal-line:has(> .meal-name-btn:hover) {
+  background: var(--teal-bg);
+}
+
+[data-look="panel"] .meal-name-btn::after {
+  border-radius: 10px;
+}
+
+[data-look="panel"] .meal-sub .meal-score-btn {
+  margin: 0 0 0 auto;
+}
+
+/* When the score wraps under the time and source, it moves down a little, so its 44 px tap layer
+   (ending at the row's bottom edge) stops below the middle of that line. */
+[data-look="panel"] .meal-line .meal-sub {
+  row-gap: 12px;
+}
+
+[data-look="panel"] .uncertainty-share-line {
+  line-height: 1.3;
+}
+
+/* Night: a meal point's name button lays its layer over the point; the dot and the line between
+   points let taps through to it. Sleep figures on the points are their own buttons. */
+[data-look="night"] .tl .tl-dot,
+[data-look="night"] .tl-point::after {
+  pointer-events: none;
+}
+
+[data-look="night"] .tl .meal-line .tl-line {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+[data-look="night"] .tl-split {
+  position: relative;
+  min-height: 44px;
+}
+
+[data-look="night"] .tl-edit-btn {
+  text-align: left;
+}
+
+[data-look="night"] .tl-edit-btn::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius);
+}
+
+[data-look="night"] .tl-edit-btn:focus-visible {
+  outline: 0;
+}
+
+[data-look="night"] .tl-edit-btn:focus-visible::after {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
+}
+
+[data-look="night"] .tl-split:has(.tl-edit-btn:hover) .tl-main {
+  color: var(--teal-ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+[data-look="night"] .tl-side-btn {
+  z-index: 1;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+[data-look="night"] .tl-side-btn:hover {
+  color: var(--teal-ink);
+}
+
+[data-look="night"] .tl-side-btn.not-logged:hover {
+  color: var(--amber-ink);
+}
+
+[data-look="night"] .tl .meal-score-btn {
+  --row-pad-b: 12px;
+  display: inline;
+  color: var(--ink-soft);
+}
+
+/* Night: a little more room under a meal point and above its score line, so the score's 44 px tap
+   layer (ending at the point's bottom edge) stops below the middle of the name line above it. */
+[data-look="night"] .tl .meal-open.meal-line {
+  padding-bottom: 12px;
+}
+
+[data-look="night"] .tl .meal-line .tl-meta {
+  margin-top: 4px;
+}
+
+[data-look="night"] .tl .meal-score-btn:hover {
+  color: var(--teal-ink);
+}
+
+[data-look="night"] .tl .meal-name-btn::after {
+  border-radius: var(--radius);
+}
+
+/* The point for now: one button that opens the sleep details. */
+[data-look="night"] button.tl-row.tl-open {
+  width: 100%;
+  padding: 8px 0;
+  border: 0;
+  border-radius: var(--radius);
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+[data-look="night"] .tl-open:hover .tl-side {
+  color: var(--teal-ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* Hovering the score points at the score, not the meal's name. */
+.meal-open.meal-line:has(.meal-score-btn:hover) .meal-name {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* Night: the 7-night average on the point for now reads as a link, like the figures on the other points. */
+[data-look="night"] .tl-open .tl-side {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+/* "6 of 7 nights" never splits. Where the row is too narrow for the average and the count side by
+   side (a phone in Journal and Panel, measured on the row itself: the label, its gap and
+   "10 h 59 min · 7 of 7 nights" need about 322 px), the count goes on its own line under the
+   average and the separator is not drawn, so no line ends in " ·". */
+.sleep-open {
+  container-type: inline-size;
+}
+
+.sleep-open .sleep-count-words {
+  white-space: nowrap;
+}
+
+@container (max-width: 340px) {
+  .sleep-open .sleep-count {
+    display: block;
+  }
+
+  .sleep-open .sleep-sep {
+    display: none;
+  }
 }

@@ -37,7 +37,10 @@ export function DashboardHeader(props: DashboardHeaderProps) {
         <h1 className="wordmark">{copy.appName}</h1>
         {kind === 'mine' && (
           <button type="button" className="profile-btn" onClick={props.onOpenProfile} data-testid="open-profile">
-            <span className="profile-name">{props.ownName || copy.header.yourLog}</span>
+            {/* A name, marked so the tap-through test reads its digits as part of a name (item 2.9). */}
+            <span className="profile-name" data-name="">
+              {props.ownName || copy.header.yourLog}
+            </span>
             <span className="profile-link">{copy.header.profileAndPrivacy}</span>
           </button>
         )}
@@ -52,6 +55,7 @@ export function DashboardHeader(props: DashboardHeaderProps) {
               aria-label={copy.sleepEditor.editWake(copy.header.awakeSince(fmtWeekday(dayStart), fmtTime(dayStart)))}
               data-testid="waking-day"
               data-focus-return=""
+              data-opens="sleep-editor"
             >
               <KeepTogether text={copy.header.awakeSince(fmtWeekday(dayStart), fmtTime(dayStart))} part={fmtTime(dayStart)} />
             </button>

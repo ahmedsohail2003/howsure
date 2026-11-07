@@ -39,7 +39,13 @@ export function GymSummary({ items, onOpenWorkout, onOpenLog }: SummaryProps) {
       <ul>
         {items.map((item) => (
           <li key={item.workoutId} className="meal-row gym-row" data-testid="gym-summary-session">
-            <button type="button" className="meal-open gym-open" onClick={() => onOpenWorkout(item.workoutId)} aria-label={item.label}>
+            <button
+              type="button"
+              className="meal-open gym-open"
+              onClick={() => onOpenWorkout(item.workoutId)}
+              aria-label={item.label}
+              data-opens="workout-details"
+            >
               <span className="meal-main">
                 <span className="meal-name">{item.name}</span>
                 <span className="meal-meta num">{item.meta}</span>

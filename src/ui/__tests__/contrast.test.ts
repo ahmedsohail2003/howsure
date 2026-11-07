@@ -852,6 +852,26 @@ describe.each(analyses.map((a) => [a.look, a] as const))('the %s look', (_look, 
       }
     })
 
+    // Build-out item 2.9: the hover fills behind tap-through text. Panel's macro tile and meal row
+    // light up in --teal-bg under the pointer, with the macro's value (--ink, then --teal-ink), its
+    // target (--ink-soft), "1 entry missing" (--amber-ink) and a row's meta and score on it. Named
+    // here as pairs, on top of the every-surface check above, so a change to either side is caught.
+    it('the tap-through hover fills: every text colour drawn on them is 4.5:1', () => {
+      const fills = [
+        '.macro-open.macro-tile:hover',
+        '.meal-open.meal-line:has(> .meal-name-btn:hover)',
+      ]
+      const found = a.rules.filter((r) => fills.includes(r.selector)).map((r) => [r.selector, r.decls.get('background')])
+      if (a.look === 'panel') {
+        expect(found).toEqual(fills.map((f) => [f, 'var(--teal-bg)']))
+      }
+      if (found.length === 0) return
+      const hex = (t: string) => solid(`var(${t})`, a.tokens) as string
+      for (const text of ['--ink', '--ink-soft', '--teal-ink', '--amber-ink']) {
+        expect(ratio(hex(text), hex('--teal-bg')), `${text} on --teal-bg`).toBeGreaterThanOrEqual(4.5)
+      }
+    })
+
     it('--teal and --amber are never used as text colours (the -ink tokens are)', () => {
       const misuse = a.rules.filter((r) => /^var\(--(teal|amber)\)$/.test(r.decls.get('color') ?? '')).map((r) => r.selector)
       expect(misuse).toEqual([])

@@ -6,7 +6,7 @@
 import { movedMeals, nightStats, sleepStatus, sortedSleeps, validateSleep } from '../kernel/sleepday'
 import type { Meal, Night, NightStats, SleepProblem, SleepRecord, SleepStatus } from '../kernel/types'
 import { copy } from './copy'
-import { fmtWeekdayDateTime, fmtWeekdayTime } from './format'
+import { fmtWeekday, fmtWeekdayDateTime, fmtWeekdayTime } from './format'
 
 export interface SleepView {
   /** Now's status: awake or asleep. It is about now, whichever day is on screen. */
@@ -176,4 +176,94 @@ const NIGHT_GONE_MS = 24 * 60 * 60 * 1000
  */
 export function nightGoneBySince(wakeIso: string, nowIso: string): boolean {
   return Date.parse(nowIso) - Date.parse(wakeIso) >= NIGHT_GONE_MS
+}
+
+// The sleep section's head and its first row (build-out item 2.2), kept here so the sleep details
+// (build-out item 2.9) name the same night the same way.
+
+/**
+ * What Edit in the head opens, and its visible words. On the current day while asleep: the sleep
+ * going on, beside "Asleep since …". Otherwise the night that started the viewed day: "last night"
+ * when no night has passed since it (isLastNight); otherwise named by its day (an earlier day, or
+ * a current day that runs on because nothing was logged for last night).
+ */
+export function headEdit(sleep: SleepView, today: boolean, nowIso: string): { recordId: string; label: string } | null {
+  if (today && sleep.status.kind === 'asleep') return { recordId: sleep.status.recordId, label: copy.sleepEditor.editThisSleep }
+  return dayNightEdit(sleep, today, nowIso)
+}
+
+/**
+ * Edit for the night that started the viewed day, named as the section names it ("Edit last night"
+ * or "Edit the night before Wed"); null with no record (the provisional day). The head's Edit and
+ * the sleep details' Edit both use it.
+ */
+function dayNightEdit(sleep: SleepView, today: boolean, nowIso: string): { recordId: string; label: string } | null {
+  if (!sleep.dayRecordId || !sleep.dayStart) return null
+  const last = isLastNight(sleep, today, nowIso)
+  return {
+    recordId: sleep.dayRecordId,
+    label: last ? copy.sleepEditor.editLastNight : copy.sleepEditor.editNight(fmtWeekday(sleep.dayStart)),
+  }
+}
+
+/**
+ * True when the night that started the viewed day is the one the person last woke from with no
+ * night since: the current day, woken up from under 24 hours ago (nightGoneBySince). So at 1:30 AM,
+ * still up after waking at 7:10 AM the day before, that night is still "last night"; at 10:00 AM
+ * the day after, with nothing logged in between, it is named by its day.
+ */
+function isLastNight(sleep: SleepView, today: boolean, nowIso: string): boolean {
+  return today && sleep.dayStart !== null && !nightGoneBySince(sleep.dayStart, nowIso)
+}
+
+/**
+ * The name of the row under the head: "Last night" only under the same test Edit in the head uses. On a current day that runs on because nothing was logged for last night,
+ * the night is named by its day ("Night before Wed"), so the row never claims it was last night.
+ * With no night at all on the current day, "Last night" reads "not logged", which is true.
+ */
+export function lastNightLabel(sleep: SleepView, today: boolean, nowIso: string): string {
+  if (!today) return copy.sleep.nightBefore
+  if (sleep.dayStart === null || isLastNight(sleep, today, nowIso)) return copy.sleep.lastNight
+  return copy.sleep.nightRow(fmtWeekday(sleep.dayStart))
+}
+
+/**
+ * Build-out item 2.9: what the sleep details show for the viewed day. Now's status (the current
+ * day only: it is about now), the night that started the day with its two times and length (each
+ * "not logged" when missing, never 0), how to edit that night, and the 7-night average with its
+ * count. The nights themselves come from the same SleepView the section draws.
+ */
+export interface SleepDetailView {
+  /** "Awake" or "Asleep since Thu 4:40 AM" on the current day; null on an earlier day. */
+  now: string | null
+  /** The row name the section uses: "Last night", "Night before Wed" or "Night before this day". */
+  lastNightLabel: string
+  /** The night that ended at the day's wake, or null when none was logged. */
+  lastNight: { sleptAt: string | null; wokeAt: string; length: string | null } | null
+  /** Edit for that night, named as the section names it; null with no record (the provisional day). */
+  edit: { recordId: string; label: string } | null
+  /** "8 h 49 min", or null when no night has both times. */
+  average: string | null
+  /** "6 of 7 nights", or null with no nights. */
+  count: string | null
+}
+
+export function sleepDetailView(sleep: SleepView, today: boolean, nowIso: string): SleepDetailView {
+  const label = lastNightLabel(sleep, today, nowIso)
+  const n = sleep.lastNight
+  return {
+    now: today ? (sleep.status.kind === 'asleep' ? copy.sleep.asleepSince(fmtWeekdayTime(sleep.status.since)) : copy.sleep.awake) : null,
+    lastNightLabel: label,
+    lastNight:
+      n && n.wake !== null
+        ? {
+            sleptAt: n.sleepStart === null ? null : fmtWeekdayTime(n.sleepStart),
+            wokeAt: fmtWeekdayTime(n.wake),
+            length: n.minutes === null ? null : fmtDuration(n.minutes),
+          }
+        : null,
+    edit: dayNightEdit(sleep, today, nowIso),
+    average: sleep.stats.avgMinutes !== null ? fmtDuration(sleep.stats.avgMinutes) : null,
+    count: sleep.stats.total > 0 ? copy.sleep.nightCount(String(sleep.stats.complete), String(sleep.stats.total)) : null,
+  }
 }

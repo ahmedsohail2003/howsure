@@ -17,6 +17,7 @@ import { buildSleepView } from '../sleepView'
 
 const WED = '2026-10-21T13:20:00-04:00'
 const MON = '2026-10-19T13:15:00-04:00'
+const FRI = '2026-10-16T13:25:00-04:00'
 const run: Workout = {
   id: 'w-run',
   name: 'Evening run',
@@ -49,6 +50,18 @@ describe('headlineView: calories eaten with no workout', () => {
       status: null,
       ringValue: 2280,
     })
+  })
+
+  it('build-out item 2.9: the number opens the meals behind it, named so', () => {
+    expect(hv.numberOpen).toEqual({ mode: 'eaten' })
+    expect(hv.numberLabel).toBe('Calories today 2,280 kcal. Opens the meals behind it.')
+  })
+
+  it('build-out item 2.9: an unknown count opens the meals it counts', () => {
+    const fri = headlineView(buildDayViewFor(demoDoc, FRI), false)
+    expect(fri.status?.counts).toEqual([
+      { kind: 'meals', text: '1 meal with unknown calories', open: { mode: 'eaten' }, label: '1 meal with unknown calories. Opens the meals.' },
+    ])
   })
 
   it('on an earlier day says "that day"', () => {
@@ -84,6 +97,11 @@ describe('headlineView: net calories once the day has a workout', () => {
     expect(hv.burned).toEqual({ value: 300, text: '300 kcal', label: 'Burned 300 kcal. Opens the workouts.' })
   })
 
+  it('build-out item 2.9: the net number opens how net is worked out', () => {
+    expect(hv.numberOpen).toEqual({ mode: 'net' })
+    expect(hv.numberLabel).toBe('Net calories today 1,980 kcal. Opens how net is worked out.')
+  })
+
   it('the Panel ring keeps comparing calories eaten with the target', () => {
     expect(hv.ringValue).toBe(2280)
   })
@@ -99,10 +117,10 @@ describe('headlineView: net calories once the day has a workout', () => {
     const only = headlineView(buildDayViewFor(withWorkouts(swim), WED))
     expect(only).toMatchObject({ net: true, value: null, likelyText: null, bar: false })
     expect(only.burned.text).toBe('unknown')
-    expect(only.status).toEqual({ pill: null, counts: [{ kind: 'workouts', text: '1 workout with unknown calories burned' }] })
+    expect(only.status).toEqual({ pill: null, counts: [{ kind: 'workouts', text: '1 workout with unknown calories burned', open: { mode: 'workouts' }, label: '1 workout with unknown calories burned. Opens the workouts.' }] })
     const both = headlineView(buildDayViewFor(withWorkouts(swim, run), WED))
     expect(both).toMatchObject({ value: 1980, knownOnly: true, label: 'Net calories, known entries only', bar: false })
-    expect(both.status).toEqual({ pill: 'Known entries only — incomplete day', counts: [{ kind: 'workouts', text: '1 workout with unknown calories burned' }] })
+    expect(both.status).toEqual({ pill: 'Known entries only — incomplete day', counts: [{ kind: 'workouts', text: '1 workout with unknown calories burned', open: { mode: 'workouts' }, label: '1 workout with unknown calories burned. Opens the workouts.' }] })
   })
 
   it('net below 0 keeps its minus sign and reads "to" between the ends', () => {

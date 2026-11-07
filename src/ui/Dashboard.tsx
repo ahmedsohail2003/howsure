@@ -32,9 +32,17 @@
 //
 // Build-out item 2.6 (slice 26): the viewed day's gym sessions (GymLog.tsx GymSummary), or nothing
 // on a day without one, right below the weight section (item 2.4) in every look.
+//
+// Build-out item 2.9: every number on the dashboard opens its detail, in every look. Each macro
+// opens its detail, last night and the 7-night average open the sleep details, a meal row's score
+// opens its explanation in one tap (the rest of the row still opens the meal's details), and Panel's
+// share of the day's uncertainty opens the explanation that lists every meal's share. Each number
+// carries data-opens with the test id of what it opens; tests/e2e/tap-through.spec.ts taps every
+// one, and fails on any number without it.
 
 import { useEffect, useLayoutEffect, useRef } from 'react'
 import type { LogKind } from '../clock'
+import type { MacroKey } from '../kernel/types'
 import type { Profile } from '../store/log'
 import { copy } from './copy'
 import { DashboardHeader } from './DashboardHeader'
@@ -81,6 +89,10 @@ interface DashboardProps {
   onLogMeal: () => void
   /** Opens a meal's details (prd.md > Meal Details, Edit and Delete). */
   onOpenMeal: (mealId: string) => void
+  /** Build-out item 2.9: a meal's score explanation, a macro's detail and the sleep details. */
+  onOpenScore: (mealId: string) => void
+  onOpenMacro: (key: MacroKey) => void
+  onOpenSleep: () => void
   /** Opens a workout's details, and Log a workout (build-out item 2.5a). */
   onOpenWorkout: (workoutId: string) => void
   onLogWorkout: () => void
@@ -155,7 +167,14 @@ export function Dashboard(props: DashboardProps) {
   const editDay = dayRecordId ? () => props.onEditNight({ kind: 'edit', recordId: dayRecordId }) : undefined
   const editRecord = (recordId: string) => props.onEditNight({ kind: 'edit', recordId })
   const sleepSection = (
-    <SleepSection sleep={sleep} today={nav.today} nowIso={props.nowIso} onEditNight={editRecord} onAddNight={props.onAddNight} />
+    <SleepSection
+      sleep={sleep}
+      today={nav.today}
+      nowIso={props.nowIso}
+      onEditNight={editRecord}
+      onAddNight={props.onAddNight}
+      onOpenSleep={props.onOpenSleep}
+    />
   )
   const weightSection = (
     <WeightSection weight={props.weight} today={nav.today} onOpen={props.onOpenWeight} onLog={props.onLogWeight} />
@@ -197,31 +216,49 @@ export function Dashboard(props: DashboardProps) {
             targets={targets}
             balance={props.balance}
             onOpenBody={props.onOpenBody}
+            onOpenMacro={props.onOpenMacro}
           />
 
-          {day.status !== 'empty' && !night && <MacroRow macros={view.macros} targets={targets} />}
+          {day.status !== 'empty' && !night && <MacroRow macros={view.macros} targets={targets} onOpenMacro={props.onOpenMacro} />}
 
           {(unknownMeals.length > 0 || unknownWorkouts.length > 0) && (
             <section className="section" aria-labelledby="missing-title" data-testid="missing-info">
               <h2 className="section-title" id="missing-title">
                 {copy.missing.title}
               </h2>
-              {/* Listed as things to improve, with no number: no uncertainty is invented for them. */}
+              {/* Listed as things to improve, with no number: no uncertainty is invented for them.
+                  The name's button covers its row (theme.css), so "calories unknown" opens it too. */}
               <ul className="missing-list">
                 {unknownMeals.map((m) => (
                   <li key={m.id} data-testid="missing-meal">
-                    <button type="button" className="link-btn" onClick={() => onOpenMeal(m.id)}>
+                    <button
+                      type="button"
+                      className="link-btn"
+                      onClick={() => onOpenMeal(m.id)}
+                      aria-label={copy.missing.mealLabel(m.name)}
+                      data-opens="meal-details"
+                    >
                       {m.name}
                     </button>
-                    <span className="unknown">{copy.missing.unknownKcal}</span>
+                    <span className="unknown" data-opens="meal-details">
+                      {copy.missing.unknownKcal}
+                    </span>
                   </li>
                 ))}
                 {unknownWorkouts.map((w) => (
                   <li key={w.id} data-testid="missing-workout">
-                    <button type="button" className="link-btn" onClick={() => props.onOpenWorkout(w.id)}>
+                    <button
+                      type="button"
+                      className="link-btn"
+                      onClick={() => props.onOpenWorkout(w.id)}
+                      aria-label={copy.missing.workoutLabel(w.name)}
+                      data-opens="workout-details"
+                    >
                       {w.name}
                     </button>
-                    <span className="unknown">{copy.missing.unknownBurned}</span>
+                    <span className="unknown" data-opens="workout-details">
+                      {copy.missing.unknownBurned}
+                    </span>
                   </li>
                 ))}
               </ul>
@@ -235,15 +272,32 @@ export function Dashboard(props: DashboardProps) {
                   {copy.uncertainty.sectionTitle}
                 </h2>
                 {biggestShare !== undefined && (
-                  <p className="uncertainty-share num" data-testid="biggest-share">
-                    {knownOnly
-                      ? copy.panel.biggestShareKnownOnly(fmtSharePct(biggestShare))
-                      : copy.panel.biggestShare(fmtSharePct(biggestShare))}
+                  // Build-out item 2.9: the share opens the explanation that lists every meal's share.
+                  <p className="uncertainty-share-line">
+                    <button
+                      type="button"
+                      className="uncertainty-share share-open num"
+                      onClick={() => onOpen({ mode: 'day' })}
+                      aria-label={copy.headline.openShare(
+                        knownOnly
+                          ? copy.panel.biggestShareKnownOnly(fmtSharePct(biggestShare))
+                          : copy.panel.biggestShare(fmtSharePct(biggestShare)),
+                      )}
+                      data-testid="biggest-share"
+                      data-opens="explain-day"
+                    >
+                      {knownOnly
+                        ? copy.panel.biggestShareKnownOnly(fmtSharePct(biggestShare))
+                        : copy.panel.biggestShare(fmtSharePct(biggestShare))}
+                    </button>
                   </p>
                 )}
                 <p className="uncertainty-line">
                   <span data-testid="biggest-line">
-                    {knownOnly ? copy.uncertainty.mostFromKnownOnly(biggest.name) : copy.uncertainty.mostFrom(biggest.name)}
+                    <NamedText
+                      text={knownOnly ? copy.uncertainty.mostFromKnownOnly(biggest.name) : copy.uncertainty.mostFrom(biggest.name)}
+                      name={biggest.name}
+                    />
                     {improvement === null && (
                       <>
                         {' '}
@@ -274,7 +328,10 @@ export function Dashboard(props: DashboardProps) {
               </h2>
               <p className="uncertainty-line">
                 <span data-testid="biggest-line">
-                  {knownOnly ? copy.uncertainty.mostFromKnownOnly(biggest.name) : copy.uncertainty.mostFrom(biggest.name)}
+                  <NamedText
+                    text={knownOnly ? copy.uncertainty.mostFromKnownOnly(biggest.name) : copy.uncertainty.mostFrom(biggest.name)}
+                    name={biggest.name}
+                  />
                   {improvement === null && (
                     <>
                       {' '}
@@ -350,6 +407,8 @@ export function Dashboard(props: DashboardProps) {
               sleep={sleep}
               nowIso={props.nowIso}
               onOpenMeal={onOpenMeal}
+              onOpenScore={props.onOpenScore}
+              onOpenSleep={props.onOpenSleep}
               onImprove={onImprove}
               onOpenWorkout={props.onOpenWorkout}
               onEditNight={editRecord}
@@ -359,7 +418,13 @@ export function Dashboard(props: DashboardProps) {
               <p className="empty-title">{copy.emptyDay.noMeals}</p>
             </section>
           ) : (
-            <MealList meals={meals} dayStart={dayStart} onOpenMeal={onOpenMeal} biggestId={biggest?.id ?? null} />
+            <MealList
+              meals={meals}
+              dayStart={dayStart}
+              onOpenMeal={onOpenMeal}
+              onOpenScore={props.onOpenScore}
+              biggestId={biggest?.id ?? null}
+            />
           )}
 
           {/* In the Night look, "Each night" follows its timeline directly, so nothing splits them. */}
@@ -392,6 +457,23 @@ export function Dashboard(props: DashboardProps) {
         </div>
       </div>
     </main>
+  )
+}
+
+/**
+ * A sentence with a name typed by the person in it ("Most uncertainty comes from 2 boiled eggs."):
+ * the name is marked data-name, so the tap-through test (build-out item 2.9) reads a digit in it as
+ * part of a name, not as a number that needs a detail. The words stay one sentence.
+ */
+function NamedText({ text, name }: { text: string; name: string }) {
+  const at = name ? text.indexOf(name) : -1
+  if (at < 0) return <>{text}</>
+  return (
+    <>
+      {text.slice(0, at)}
+      <span data-name="">{name}</span>
+      {text.slice(at + name.length)}
+    </>
   )
 }
 

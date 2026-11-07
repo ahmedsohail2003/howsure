@@ -32,6 +32,20 @@ export interface SideFigure {
   label: string
 }
 
+/** An unknown count under the headline, and the detail it opens. */
+export interface StatusCount {
+  kind: 'meals' | 'workouts'
+  text: string
+  open: HeadlineOpen
+  label: string
+}
+
+function statusCount(kind: 'meals' | 'workouts', text: string): StatusCount {
+  return kind === 'meals'
+    ? { kind, text, open: { mode: 'eaten' }, label: copy.headline.openUnknownMeals(text) }
+    : { kind, text, open: { mode: 'workouts' }, label: copy.headline.openUnknownWorkouts(text) }
+}
+
 export interface HeadlineView {
   /** True when the day has a workout, so the headline is net calories. */
   net: boolean
@@ -42,8 +56,14 @@ export interface HeadlineView {
   valueText: string
   /** The known-meals-only (or known-entries-only) wording applies. */
   knownOnly: boolean
-  /** The pill and the unknown counts under the number; null when there is nothing to say. */
-  status: { pill: string | null; counts: { kind: 'meals' | 'workouts'; text: string }[] } | null
+  /**
+   * The pill and the unknown counts under the number; null when there is nothing to say. Build-out
+   * item 2.9: each count opens the entries it counts (the meals, or the workouts).
+   */
+  status: { pill: string | null; counts: StatusCount[] } | null
+  /** Build-out item 2.9: what the headline number opens (the meals behind eaten, or how net is worked out), and its name. */
+  numberOpen: HeadlineOpen
+  numberLabel: string
   likely: Range | null
   veryLikely: Range | null
   /** "1,870–2,780 kcal" (or a net range, which may run below 0). */
@@ -76,6 +96,14 @@ function hasKnown(status: string): boolean {
   return status === 'complete' || status === 'partial'
 }
 
+/**
+ * The calories the Panel ring and the Eaten sheet compare with the target: the best estimate on a
+ * complete day only (known meals are part of an incomplete day). One definition for both.
+ */
+export function ringValueOf(day: DayView['day']): number | null {
+  return day.status === 'complete' ? day.knownTotal : null
+}
+
 export function headlineView(view: DayView, today = true): HeadlineView {
   const { day, burned, net } = view
   const isNet = view.workouts.length > 0
@@ -92,19 +120,22 @@ export function headlineView(view: DayView, today = true): HeadlineView {
     label: copy.net.burnedOpen(burnedText),
   }
   const score = day.score
-  const ringValue = day.status === 'complete' ? day.knownTotal : null
+  const ringValue = ringValueOf(day)
 
   if (!isNet) {
     const partial = day.status === 'partial'
+    const label = partial ? copy.headline.labelKnownOnly : today ? copy.headline.label : copy.headline.labelEarlierDay
     return {
       net: false,
-      label: partial ? copy.headline.labelKnownOnly : today ? copy.headline.label : copy.headline.labelEarlierDay,
+      label,
+      numberOpen: { mode: 'eaten' },
+      numberLabel: copy.headline.openEaten(label, eatenKnown ? copy.units.kcalValue(fmtInt(day.knownTotal)) : copy.headline.notAvailable),
       value: eatenKnown ? day.knownTotal : null,
       valueText: eatenKnown ? fmtInt(day.knownTotal) : '',
       knownOnly: partial,
       status:
         partial || day.status === 'all-unknown'
-          ? { pill: partial ? copy.headline.incompleteDay : null, counts: [{ kind: 'meals', text: copy.headline.unknownCount(unknownMeals) }] }
+          ? { pill: partial ? copy.headline.incompleteDay : null, counts: [statusCount('meals', copy.headline.unknownCount(unknownMeals))] }
           : null,
       likely: day.likely,
       veryLikely: day.veryLikely,
@@ -125,13 +156,16 @@ export function headlineView(view: DayView, today = true): HeadlineView {
   }
 
   const knownOnly = net !== null ? net.knownOnly : false
-  const counts: { kind: 'meals' | 'workouts'; text: string }[] = [
-    ...(unknownMeals > 0 ? [{ kind: 'meals' as const, text: copy.headline.unknownCount(unknownMeals) }] : []),
-    ...(unknownWorkouts > 0 ? [{ kind: 'workouts' as const, text: copy.headline.unknownWorkouts(unknownWorkouts) }] : []),
+  const counts: StatusCount[] = [
+    ...(unknownMeals > 0 ? [statusCount('meals', copy.headline.unknownCount(unknownMeals))] : []),
+    ...(unknownWorkouts > 0 ? [statusCount('workouts', copy.headline.unknownWorkouts(unknownWorkouts))] : []),
   ]
+  const label = knownOnly ? copy.headline.netLabelKnownOnly : today ? copy.headline.netLabel : copy.headline.netLabelEarlierDay
   return {
     net: true,
-    label: knownOnly ? copy.headline.netLabelKnownOnly : today ? copy.headline.netLabel : copy.headline.netLabelEarlierDay,
+    label,
+    numberOpen: { mode: 'net' },
+    numberLabel: copy.headline.openNet(label, net ? copy.units.kcalValue(fmtSigned(net.total)) : copy.headline.notAvailable),
     value: net ? net.total : null,
     valueText: net ? fmtSigned(net.total) : '',
     knownOnly,

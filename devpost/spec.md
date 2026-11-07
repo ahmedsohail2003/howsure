@@ -351,7 +351,8 @@ PRD ref: `prd.md > First Open`.
   - The biggest-uncertainty line and **Improve that entry** follow `improve()`.
   - **Week** sits next to previous/next.
 - **`HeadlineEstimate.tsx`:** the calorie or net headline, both ranges, and the score button.
-- **`MealList.tsx`**, **`MealDetails.tsx`** (what would improve it, or "No better source in HowSure.").
+- **`MealList.tsx`**, **`MealDetails.tsx`** (what would improve it, or "No better source in HowSure."). Build-out item 2.9: a meal row has two targets, the row (the details) and its score (the meal-score explanation, one tap); the details also list the `foods` and `lookup` stored on the meal (`mealFoods.ts`).
+- **`MacroDetails.tsx`**, **`SleepDetails.tsx`** (build-out item 2.9): a macro's detail (`macroView.ts`: each meal's value and share, the target, how a missing value is handled, no range yet) and the sleep details (`sleepView.ts` `sleepDetailView`). Every number on the dashboard carries `data-opens`, naming the test id of what it opens; `tests/e2e/tap-through.spec.ts` taps them all in every look.
 - **`LogMealSheet.tsx`:** also edit and improve, with the photo-estimate hint under **How do you know?**, and **Look up a barcode**, **Use a saved plate** and **Foods in this meal** (Tier 2).
 - **`ExplainSheet.tsx`:** modes for meal score, day score, ranges and net (Tier 2), each with More detail.
 - **`SleepSection.tsx`**, **`SleepEditor.tsx`**.

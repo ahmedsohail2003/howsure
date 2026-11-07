@@ -4,6 +4,9 @@
 // no invented number: it says so, and points at what would let HowSure count it.
 // Build-out item 2.3: Save as a usual meal, with a name, so it can be logged again from the top of
 // Log a meal. Once saved (same name and values), the details say so instead of offering it again.
+// Build-out item 2.9: the foods stored on the meal (meals.foods) and its lookup (meals.lookup),
+// saved before but shown nowhere, are listed under "Foods in this meal" with their amounts, and
+// with where the meal's values come from: the meal's own source (mealFoods.ts).
 
 import { useId, useLayoutEffect, useRef, useState } from 'react'
 import { estimateMeal, improve } from '../kernel/estimate'
@@ -13,7 +16,8 @@ import type { SavedMeal } from '../store/log'
 import { copy } from './copy'
 import type { DayView } from './dayView'
 import { fmtInt, fmtPct, fmtRange } from './format'
-import { mealSourceLabel, mealTimeLabel } from './MealList'
+import { foodRows, lookupView } from './mealFoods'
+import { mealSourceLabel, mealTimeLabel } from './mealLabels'
 import { Sheet } from './Sheet'
 import { BasisTag } from './SourceBasis'
 import { checkSavedName, nameKey, savedEarlier, savedMatch } from './usualMeals'
@@ -134,6 +138,8 @@ export function MealDetails(props: MealDetailsProps) {
         </li>
       </ul>
 
+      <MealFoods meal={meal} />
+
       <div>
         <h3 className="section-title">{copy.details.noteTitle}</h3>
         <p className={meal.note ? undefined : 'small'} data-testid="details-note">
@@ -160,6 +166,71 @@ export function MealDetails(props: MealDetailsProps) {
         onFormOpen={setNaming}
       />
     </Sheet>
+  )
+}
+
+/**
+ * The foods stored on the meal and its lookup, or nothing when it has neither. With no foods, the
+ * section is the lookup alone and is named so. A lookup the meal's source no longer uses (after an
+ * edit of "How do you know?") says so (mealFoods.ts > lookupView).
+ */
+function MealFoods({ meal }: { meal: Meal }) {
+  const foods = foodRows(meal)
+  const lookup = lookupView(meal)
+  if (foods.length === 0 && lookup === null) return null
+  const lookupOnly = foods.length === 0
+  return (
+    <section className="meal-foods" aria-labelledby="meal-foods-title" data-testid="meal-foods">
+      <h3 className="section-title" id="meal-foods-title">
+        {lookupOnly ? copy.foods.lookupTitle : copy.foods.title}
+      </h3>
+      {foods.length > 0 && (
+        <ul className="fact-list" data-testid="meal-foods-list">
+          {foods.map((f, i) => (
+            <li key={i} data-testid="meal-food">
+              <span className="food-name">{f.name}</span>
+              <span className="food-amount">
+                <span className="num nowrap" data-testid="meal-food-amount">
+                  {f.amount}
+                </span>
+                {f.fiber && <span className="food-fiber small num">{f.fiber}</span>}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {lookup && (
+        <div className="meal-lookup" data-testid="meal-lookup">
+          {!lookupOnly && <p className="k">{copy.foods.lookupTitle}</p>}
+          {/* Each part stays on one line with the dot after it, so a line never starts with " · ". */}
+          <p className="small" data-testid="meal-lookup-parts">
+            {lookup.parts.map((part, i) => (
+              <span key={i}>
+                <span className="nowrap">
+                  {part}
+                  {i < lookup.parts.length - 1 && copy.sep.trimEnd()}
+                </span>
+                {i < lookup.parts.length - 1 && ' '}
+              </span>
+            ))}
+          </p>
+          {lookup.credit && <p className="small">{lookup.credit}</p>}
+          {lookup.unused && (
+            // A change of state, not more of the lookup: set apart in a callout, with words that say so.
+            <p className="callout amber small meal-lookup-unused" data-testid="meal-lookup-unused">
+              {lookup.unused}
+            </p>
+          )}
+        </div>
+      )}
+      {foods.length > 0 && (
+        <p className="small" data-testid="meal-foods-note">
+          {meal.source === null ? copy.foods.noteNoSource : copy.foods.note(mealSourceLabel(meal.source))}
+          {foods.some((f) => f.fiber !== null) && ` ${copy.foods.fiberNote}`}
+          {` ${copy.foods.keptNote}`}
+        </p>
+      )}
+    </section>
   )
 }
 

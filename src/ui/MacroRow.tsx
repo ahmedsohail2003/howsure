@@ -10,6 +10,10 @@
 // Build-out item 1.5.2c, Night look: one chip under the headline ("P 124 · C 272 · F 74 g", with
 // "entries missing" when an entry has no value for a macro). The chip opens Journal's row of three
 // macros below it, with each target and missing count, so nothing is left out.
+//
+// Build-out item 2.9: each macro (Journal's column, Panel's tile, each macro under Night's chip)
+// is a button that opens that macro's detail (MacroDetails.tsx): its meals, how a meal with no value
+// is handled, and its target. Its accessible name gives the value and says what it opens.
 
 import { useId, useState } from 'react'
 import type { MacroKey, MacroTotal } from '../kernel/types'
@@ -17,6 +21,7 @@ import type { Profile } from '../store/log'
 import { copy } from './copy'
 import { fmtAmount, fmtInt } from './format'
 import { useLook } from './lookContext'
+import { macroOpenLabel } from './macroView'
 import { Ring } from './Ring'
 import { ringFill } from './targetRing'
 
@@ -25,43 +30,53 @@ const ORDER: readonly MacroKey[] = ['protein', 'carbs', 'fat']
 interface MacroRowProps {
   macros: Record<MacroKey, MacroTotal>
   targets?: Profile['targets']
+  /** Opens one macro's detail (build-out item 2.9). */
+  onOpenMacro: (key: MacroKey) => void
 }
 
-export function MacroRow({ macros, targets }: MacroRowProps) {
+export function MacroRow({ macros, targets, onOpenMacro }: MacroRowProps) {
   const { look } = useLook()
-  if (look === 'panel') return <PanelMacros macros={macros} targets={targets} />
-  return <MacroGrid macros={macros} targets={targets} />
+  if (look === 'panel') return <PanelMacros macros={macros} targets={targets} onOpenMacro={onOpenMacro} />
+  return <MacroGrid macros={macros} targets={targets} onOpenMacro={onOpenMacro} />
 }
 
-/** Journal's row of three macros, also shown when the Night macro chip is opened. */
-function MacroGrid({ macros, targets }: MacroRowProps) {
+/** Journal's row of three macros, also shown when the Night macro chip is opened. Each opens its detail. */
+function MacroGrid({ macros, targets, onOpenMacro }: MacroRowProps) {
   return (
     <section className="macro-row" data-testid="macro-row" aria-label={`${copy.macros.protein}, ${copy.macros.carbs}, ${copy.macros.fat}`}>
       {ORDER.map((k) => {
         const t = macros[k]
         const target = targets?.[k]
         return (
-          <div key={k} data-testid={`macro-${k}`}>
-            <p className="macro-name">{copy.macros[k]}</p>
+          <button
+            key={k}
+            type="button"
+            className="macro-open"
+            onClick={() => onOpenMacro(k)}
+            aria-label={macroOpenLabel(k, t)}
+            data-testid={`macro-${k}`}
+            data-opens="macro-details"
+          >
+            <span className="macro-name">{copy.macros[k]}</span>
             {t.allUnknown ? (
-              <p className="macro-value macro-note">{copy.macros.unknown}</p>
+              <span className="macro-value macro-note">{copy.macros.unknown}</span>
             ) : (
-              <p className="macro-value num">{copy.units.gramsValue(fmtInt(t.known))}</p>
+              <span className="macro-value num">{copy.units.gramsValue(fmtInt(t.known))}</span>
             )}
-            {!t.allUnknown && t.missing > 0 && <p className="macro-note">{copy.macros.missing(t.missing)}</p>}
+            {!t.allUnknown && t.missing > 0 && <span className="macro-note">{copy.macros.missing(t.missing)}</span>}
             {target !== undefined && (
-              <p className="macro-target num" data-testid={`macro-${k}-target`}>
+              <span className="macro-target num" data-testid={`macro-${k}-target`}>
                 {copy.targets.macro(fmtAmount(target))}
-              </p>
+              </span>
             )}
-          </div>
+          </button>
         )
       })}
     </section>
   )
 }
 
-function PanelMacros({ macros, targets }: MacroRowProps) {
+function PanelMacros({ macros, targets, onOpenMacro }: MacroRowProps) {
   return (
     <section
       className="macro-row panel-macros"
@@ -73,25 +88,34 @@ function PanelMacros({ macros, targets }: MacroRowProps) {
         const target = targets?.[k]
         const ring = !t.allUnknown && t.missing === 0 ? ringFill(t.known, target) : null
         return (
-          <div key={k} className="macro-tile" data-testid={`macro-${k}`} data-fill={ring ? String(ring.fill) : 'none'}>
+          <button
+            key={k}
+            type="button"
+            className="macro-open macro-tile"
+            onClick={() => onOpenMacro(k)}
+            aria-label={macroOpenLabel(k, t)}
+            data-testid={`macro-${k}`}
+            data-fill={ring ? String(ring.fill) : 'none'}
+            data-opens="macro-details"
+          >
             <Ring size={54} stroke={6} fill={ring ? ring.fill : null} />
             {t.allUnknown ? (
-              <p className="macro-value macro-note">{copy.macros.unknown}</p>
+              <span className="macro-value macro-note">{copy.macros.unknown}</span>
             ) : (
-              <p className="macro-value num">{copy.units.gramsValue(fmtInt(t.known))}</p>
+              <span className="macro-value num">{copy.units.gramsValue(fmtInt(t.known))}</span>
             )}
-            <p className="macro-name">{copy.macros[k]}</p>
-            {!t.allUnknown && t.missing > 0 && <p className="macro-note">{copy.macros.missing(t.missing)}</p>}
+            <span className="macro-name">{copy.macros[k]}</span>
+            {!t.allUnknown && t.missing > 0 && <span className="macro-note">{copy.macros.missing(t.missing)}</span>}
             {target !== undefined ? (
-              <p className="macro-target num" data-testid={`macro-${k}-target`}>
+              <span className="macro-target num" data-testid={`macro-${k}-target`}>
                 {copy.targets.macro(fmtAmount(target))}
-              </p>
+              </span>
             ) : (
-              <p className="macro-target" data-testid={`macro-${k}-no-target`}>
+              <span className="macro-target" data-testid={`macro-${k}-no-target`}>
                 {copy.panel.macroNoTarget}
-              </p>
+              </span>
             )}
-          </div>
+          </button>
         )
       })}
     </section>
@@ -99,7 +123,7 @@ function PanelMacros({ macros, targets }: MacroRowProps) {
 }
 
 /** The Night look's macro chip and, once opened, the row of three macros under the chips. */
-export function NightMacros({ macros, targets }: MacroRowProps) {
+export function NightMacros({ macros, targets, onOpenMacro }: MacroRowProps) {
   const [open, setOpen] = useState(false)
   const id = useId()
   const allUnknown = ORDER.every((k) => macros[k].allUnknown)
@@ -118,6 +142,7 @@ export function NightMacros({ macros, targets }: MacroRowProps) {
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
         aria-controls={id}
+        data-opens="expand"
         aria-label={copy.night.macroChipLabel(anyMissing ? `${shown}${copy.sep}${copy.night.macrosMissing}` : shown, spoken)}
         data-testid="macro-chip"
       >
@@ -133,7 +158,7 @@ export function NightMacros({ macros, targets }: MacroRowProps) {
         </span>
       </button>
       <div className="night-macros" id={id} hidden={!open} data-testid="night-macros">
-        {open && <MacroGrid macros={macros} targets={targets} />}
+        {open && <MacroGrid macros={macros} targets={targets} onOpenMacro={onOpenMacro} />}
       </div>
     </>
   )

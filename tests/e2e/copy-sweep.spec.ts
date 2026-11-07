@@ -33,6 +33,10 @@
 //
 // Build-out item 2.7: the week view and every average's breakdown, in the demo (today and an
 // earlier day) and in your own log (every kind of entry, no weigh-in in the week, and empty).
+//
+// Build-out item 2.9: each macro's detail (with a target, without one, and with a meal missing its
+// value), the sleep details (today, an earlier day, and asleep), the foods stored on a meal and its
+// lookup, the eaten detail with the target, and the meal score opened from its row.
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { expect, test, type Page } from '@playwright/test'
@@ -41,6 +45,7 @@ import { copy } from '../../src/ui/copy'
 import { wordRuleHits } from '../wordRules'
 import { LOOKS, startInLook } from './looks'
 import { E2E_KEYS } from './storage-keys'
+import { samWednesday } from './tapLog'
 import { samWeek } from './weekLog'
 
 const V1_MINE = readFileSync(fileURLToPath(new URL('../../fixtures/saved/v1-mine.json', import.meta.url)), 'utf8')
@@ -845,6 +850,67 @@ for (const { id: look, name: lookName } of LOOKS) {
       await sweep.take('an empty log: the week')
       await closeWithEsc(page, 'week-view')
       sweep.check(demoRows + mineRows + 5)
+    })
+
+    test('the details every dashboard number opens (build-out item 2.9), in the demo and in your own log', async ({ page }) => {
+      test.setTimeout(120_000)
+      const sweep = new Sweep(page)
+      await page.clock.setFixedTime(DEMO_NOW)
+      await page.goto('/')
+      await page.getByRole('button', { name: 'Try the fictional demo' }).click()
+      await expect(page.getByTestId('dashboard')).toBeVisible()
+      const macro = async (key: string) => {
+        if (look === 'night' && !(await page.getByTestId('night-macros').isVisible())) await page.getByTestId('macro-chip').click()
+        await page.getByTestId(`macro-${key}`).click()
+        await opened(page, 'macro-details')
+      }
+      await macro('protein')
+      await sweep.take('protein detail, with a target')
+      await closeWithEsc(page, 'macro-details')
+      await macro('carbs')
+      await sweep.take('carbs detail, no target')
+      await closeWithEsc(page, 'macro-details')
+      await page.getByTestId(look === 'night' ? 'tl-wake' : 'sleep-section').getByTestId('last-night').click()
+      await opened(page, 'sleep-details')
+      await sweep.take('sleep details')
+      await closeWithEsc(page, 'sleep-details')
+      await page.getByTestId('meal-row').filter({ hasText: 'Kefir with oats and blueberries' }).getByTestId('meal-open').click()
+      await expect((await opened(page, 'meal-details')).getByTestId('meal-foods')).toBeVisible()
+      await sweep.take('meal details with its foods')
+      await closeWithEsc(page, 'meal-details')
+      await page.getByTestId('meal-row').filter({ hasText: 'Pasta bake (ready meal)' }).getByTestId('meal-score').click()
+      await opened(page, 'explain-meal')
+      await sweep.take('meal score explanation, from its row')
+      await closeWithEsc(page, 'explain-meal')
+      await page.getByTestId(look === 'panel' ? 'target-ring' : 'headline-open').click()
+      await expect((await opened(page, 'eaten-sheet')).getByTestId('eaten-target-share')).toBeVisible()
+      await sweep.take('eaten detail with the target')
+      await closeWithEsc(page, 'eaten-sheet')
+      await page.getByTestId('day-prev').click()
+      await page.getByTestId('meal-row').filter({ hasText: 'Granola bar' }).getByTestId('meal-open').click()
+      await expect((await opened(page, 'meal-details')).getByTestId('meal-lookup')).toBeVisible()
+      await sweep.take('meal details with a saved lookup')
+      await closeWithEsc(page, 'meal-details')
+      await page.getByTestId(look === 'night' ? 'tl-wake' : 'sleep-section').getByTestId('last-night').click()
+      await opened(page, 'sleep-details')
+      await sweep.take('sleep details, an earlier day with a night not logged')
+      await closeWithEsc(page, 'sleep-details')
+
+      await seedAndOpen(page, new Date('2026-10-22T02:00:00-04:00'), {
+        [E2E_KEYS.mine]: JSON.stringify(samWednesday(true)),
+        [E2E_KEYS.active]: 'mine',
+      })
+      await macro('carbs')
+      await sweep.take('carbs detail, a meal missing its value')
+      await closeWithEsc(page, 'macro-details')
+      await page.getByTestId(look === 'night' ? 'tl-wake' : 'sleep-section').getByTestId('last-night').click()
+      await opened(page, 'sleep-details')
+      await sweep.take('sleep details while asleep')
+      await closeWithEsc(page, 'sleep-details')
+      await page.getByTestId('meal-row').filter({ hasText: 'Cereal bar' }).getByTestId('meal-open').click()
+      await opened(page, 'meal-details')
+      await sweep.take('meal details with a lookup that has its grams and date')
+      sweep.check(11)
     })
 
     test('the saved-log notices: newer version and unreadable', async ({ page }) => {

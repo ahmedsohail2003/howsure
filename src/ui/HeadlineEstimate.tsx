@@ -50,6 +50,13 @@
 // them instead (it opens Body details). balanceView.ts works it out once; every look draws the
 // same line (BalanceLine), Night with the range's unit left off as in its other ranges.
 
+// Build-out item 2.9: every number here opens its detail. The headline number opens the meals behind
+// it (the Eaten sheet), or once net is the headline how net is worked out; in Panel the whole ring
+// is that button, and the ring's caption under it (eaten against the target) opens the meals. Each
+// unknown count opens the entries it counts; Journal's target line opens the targets editor, as
+// Night's target chip does. Each number carries data-opens, naming what a tap on it opens
+// (tests/e2e/tap-through.spec.ts finds them by it).
+
 import type { MacroKey, MacroTotal } from '../kernel/types'
 import type { Profile } from '../store/log'
 import type { BalanceView } from './balanceView'
@@ -81,6 +88,8 @@ interface HeadlineEstimateProps {
   balance?: BalanceView
   /** Opens Body details, from the line that invites adding them. */
   onOpenBody?: () => void
+  /** Opens one macro's detail, from the macros under Night's chip (build-out item 2.9). */
+  onOpenMacro?: (key: MacroKey) => void
 }
 
 interface LookProps extends HeadlineEstimateProps {
@@ -94,42 +103,121 @@ export function HeadlineEstimate(props: HeadlineEstimateProps) {
   return look === 'panel' ? <PanelHeadline {...props} hv={hv} /> : <JournalHeadline {...props} hv={hv} />
 }
 
-/** The headline number, or "Not available yet". */
-function HeadlineNumber({ hv, long = false, unit = copy.units.kcal }: { hv: HeadlineView; long?: boolean; unit?: string }) {
+/**
+ * The headline number, or "Not available yet". Build-out item 2.9: the number is a button that
+ * opens what is behind it (the meals; once net is the headline, how net is worked out). Inside the
+ * Panel ring, which is one button as a whole, it is drawn as plain text (`plain`).
+ */
+function HeadlineNumber({
+  hv,
+  onOpen,
+  long = false,
+  unit = copy.units.kcal,
+  plain = false,
+}: {
+  hv: HeadlineView
+  onOpen: (mode: HeadlineOpen) => void
+  long?: boolean
+  unit?: string
+  plain?: boolean
+}) {
   if (hv.value === null) {
-    return (
+    return plain ? (
+      <span className="headline-na" data-testid="headline-kcal">
+        {copy.headline.notAvailable}
+      </span>
+    ) : (
       <p className="headline-na" data-testid="headline-kcal">
         {copy.headline.notAvailable}
       </p>
     )
   }
-  return (
-    <p className={long && hv.valueText.length > 5 ? 'headline-number num long' : 'headline-number num'}>
+  const isLong = long && hv.valueText.length > 5
+  const inner = (
+    <>
       <span data-testid="headline-kcal">{hv.valueText}</span>
       <span className="unit">{unit}</span>
+    </>
+  )
+  if (plain) return <span className={isLong ? 'headline-number num long' : 'headline-number num'}>{inner}</span>
+  return (
+    <p className="headline-number-line">
+      <button
+        type="button"
+        className="headline-number num headline-open"
+        onClick={() => onOpen(hv.numberOpen)}
+        aria-label={hv.numberLabel}
+        data-testid="headline-open"
+        data-opens={hv.net ? 'explain-net' : 'eaten-sheet'}
+      >
+        {inner}
+      </button>
     </p>
   )
 }
 
-/** The incomplete-day pill and the unknown counts (meals, and workouts once net is the headline). */
-function DayStatus({ hv }: { hv: HeadlineView }) {
+/**
+ * The incomplete-day pill and the unknown counts (meals, and workouts once net is the headline).
+ * Build-out item 2.9: each count is a button that opens the entries it counts.
+ */
+function DayStatus({ hv, onOpen }: { hv: HeadlineView; onOpen: (mode: HeadlineOpen) => void }) {
   if (!hv.status) return null
   return (
     <p className="day-status" data-testid="day-status">
       {hv.status.pill && <span className="status-pill">{hv.status.pill}</span>}
       {hv.status.counts.map((c) => (
-        <span key={c.kind} className="status-count" data-testid={c.kind === 'meals' ? 'unknown-count' : 'unknown-workout-count'}>
+        <button
+          key={c.kind}
+          type="button"
+          className="status-count status-open"
+          onClick={() => onOpen(c.open)}
+          aria-label={c.label}
+          data-testid={c.kind === 'meals' ? 'unknown-count' : 'unknown-workout-count'}
+          data-opens={c.kind === 'meals' ? 'eaten-sheet' : 'workouts-sheet'}
+        >
           {c.text}
-        </span>
+        </button>
       ))}
     </p>
   )
 }
 
+/**
+ * The daily calorie target beside the score (Journal): a button that opens the targets editor,
+ * as Night's target chip does (build-out item 2.9).
+ */
+function TargetLine({ hv, targetKcal, onSetTarget }: { hv: HeadlineView; targetKcal: number; onSetTarget?: () => void }) {
+  const text = hv.net ? copy.targets.headlineEaten(fmtAmount(targetKcal)) : copy.targets.headline(fmtAmount(targetKcal))
+  if (!onSetTarget) {
+    return (
+      <p className="headline-target num" data-testid="headline-target">
+        {text}
+      </p>
+    )
+  }
+  return (
+    <button
+      type="button"
+      className="headline-target target-open num"
+      onClick={onSetTarget}
+      aria-label={hv.net ? copy.night.targetChipLabelEaten(fmtAmount(targetKcal)) : copy.night.targetChipLabel(fmtAmount(targetKcal))}
+      data-testid="headline-target"
+      data-opens="targets-sheet"
+    >
+      {text}
+    </button>
+  )
+}
+
+/** The test id of the sheet the ranges open: the range explanation, or the net explanation. */
+function explainId(hv: HeadlineView): string {
+  return hv.net ? 'explain-net' : 'explain-ranges'
+}
+
 /** The score as a tappable pill that opens its explanation, or "Not available yet". */
 function DayScore({ hv, onOpen }: { hv: HeadlineView; onOpen: (mode: HeadlineOpen) => void }) {
   return hv.score !== null ? (
-    <button type="button" className="btn score-btn num" onClick={() => onOpen({ mode: 'day' })} data-testid="day-score">
+    <button type="button" className="btn score-btn num" onClick={() => onOpen({ mode: 'day' })} data-testid="day-score" data-opens="explain-day">
       {hv.scoreText}
     </button>
   ) : (
@@ -146,14 +234,14 @@ function DayScore({ hv, onOpen }: { hv: HeadlineView; onOpen: (mode: HeadlineOpe
 function NetParts({ hv, onOpen }: { hv: HeadlineView; onOpen: (mode: HeadlineOpen) => void }) {
   return (
     <div className="net-parts num" data-testid="net-parts">
-      <button type="button" className="net-part" onClick={() => onOpen({ mode: 'eaten' })} aria-label={hv.eaten.label} data-testid="headline-eaten">
+      <button type="button" className="net-part" onClick={() => onOpen({ mode: 'eaten' })} aria-label={hv.eaten.label} data-testid="headline-eaten" data-opens="eaten-sheet">
         <span className="net-part-name">{copy.net.eaten}</span>
         <span className={hv.eaten.value === null ? 'net-part-value unknown' : 'net-part-value'}>{hv.eaten.text}</span>
         <span className="net-part-arrow" aria-hidden="true">
           {copy.arrow}
         </span>
       </button>
-      <button type="button" className="net-part" onClick={() => onOpen({ mode: 'workouts' })} aria-label={hv.burned.label} data-testid="headline-burned">
+      <button type="button" className="net-part" onClick={() => onOpen({ mode: 'workouts' })} aria-label={hv.burned.label} data-testid="headline-burned" data-opens="workouts-sheet">
         <span className="net-part-name">{copy.net.burned}</span>
         <span className={hv.burned.value === null ? 'net-part-value unknown' : 'net-part-value'}>{hv.burned.text}</span>
         <span className="net-part-arrow" aria-hidden="true">
@@ -189,6 +277,7 @@ function BalanceLine({
         aria-label={balance.label}
         data-direction={balance.direction}
         data-testid="balance"
+        data-opens="explain-balance"
       >
         <span className="balance-text" data-testid="balance-text">
           {balance.text}
@@ -246,7 +335,7 @@ function RangesNotAvailable() {
   )
 }
 
-function JournalHeadline({ hv, onOpen, targetKcal, balance, onOpenBody }: LookProps) {
+function JournalHeadline({ hv, onOpen, targetKcal, onSetTarget, balance, onOpenBody }: LookProps) {
   const bar =
     hv.bar && hv.value !== null
       ? rangeBarGeometry(hv.value, hv.likely, hv.veryLikely, hv.barTarget ? targetKcal : undefined, { signed: hv.net })
@@ -256,24 +345,20 @@ function JournalHeadline({ hv, onOpen, targetKcal, balance, onOpenBody }: LookPr
     <section className="headline" aria-label={hv.label} data-mode={hv.net ? 'net' : 'eaten'} data-testid="headline">
       <p className="headline-label">{hv.label}</p>
 
-      <HeadlineNumber hv={hv} />
+      <HeadlineNumber hv={hv} onOpen={onOpen} />
       {hv.net && <NetParts hv={hv} onOpen={onOpen} />}
       <BalanceLine balance={balance} onOpen={onOpen} onOpenBody={onOpenBody} />
-      <DayStatus hv={hv} />
+      <DayStatus hv={hv} onOpen={onOpen} />
 
       <div className="headline-meta">
         <DayScore hv={hv} onOpen={onOpen} />
 
-        {targetKcal !== undefined && (
-          <p className="headline-target num" data-testid="headline-target">
-            {hv.net ? copy.targets.headlineEaten(fmtAmount(targetKcal)) : copy.targets.headline(fmtAmount(targetKcal))}
-          </p>
-        )}
+        {targetKcal !== undefined && <TargetLine hv={hv} targetKcal={targetKcal} onSetTarget={onSetTarget} />}
       </div>
 
       {hv.likelyText && hv.veryLikelyText && hv.value !== null ? (
         // One tap target for the bar and its legend: it opens the range (or net) explanation.
-        <button type="button" className="range-summary" onClick={() => onOpen(hv.explain)} data-testid="ranges">
+        <button type="button" className="range-summary" onClick={() => onOpen(hv.explain)} data-testid="ranges" data-opens={explainId(hv)}>
           {bar && (
             <span className={bar.zero !== null ? 'range-bar has-zero' : 'range-bar'} aria-hidden="true" data-testid="range-bar">
               <span className="range-track" />
@@ -365,21 +450,43 @@ function PanelHeadline({ hv, onOpen, targetKcal, onSetTarget, dayKey, balance, o
 
       <div className="hero-grid">
         <div className="ring-col">
-          <div className="target-ring" data-testid="target-ring" data-fill={share ? String(share.fill) : 'none'}>
+          {/* Build-out item 2.9: the ring is one button, with the number and (eaten as the
+              headline) its share of the target: it opens the meals behind it, or how net is
+              worked out. */}
+          <button
+            type="button"
+            className="target-ring ring-open"
+            onClick={() => onOpen(hv.numberOpen)}
+            data-testid="target-ring"
+            aria-label={ringOpenLabel(hv, share, targetKcal)}
+            data-fill={share ? String(share.fill) : 'none'}
+            data-opens={hv.net ? 'explain-net' : 'eaten-sheet'}
+          >
             <Ring key={dayKey} size={132} stroke={10} fill={share ? share.fill : null} />
-            <div className="ring-centre">
+            <span className="ring-centre">
               {/* Net in the centre is labelled so ("kcal net"); what the ring itself shows (eaten
                   against the target) is said under the ring, apart from the number. */}
-              <HeadlineNumber hv={hv} long unit={hv.net ? copy.panel.ringNetUnit : copy.units.kcal} />
+              <HeadlineNumber hv={hv} onOpen={onOpen} long plain unit={hv.net ? copy.panel.ringNetUnit : copy.units.kcal} />
               {!hv.net && <RingWords share={share} targetKcal={targetKcal} net={false} />}
-            </div>
-          </div>
-          {hv.net && <RingWords share={share} targetKcal={targetKcal} net />}
+            </span>
+          </button>
+          {hv.net && (
+            <button
+              type="button"
+              className="ring-caption-open"
+              onClick={() => onOpen({ mode: 'eaten' })}
+              data-testid="ring-caption"
+              aria-label={copy.panel.ringOpenLabel(ringWordsText(share, targetKcal, true), copy.headline.opensMeals)}
+              data-opens="eaten-sheet"
+            >
+              <RingWords share={share} targetKcal={targetKcal} net />
+            </button>
+          )}
         </div>
 
         <div className="hero-side">
           {hv.likelyText && hv.veryLikelyText ? (
-            <button type="button" className="range-summary" onClick={() => onOpen(hv.explain)} data-testid="ranges">
+            <button type="button" className="range-summary" onClick={() => onOpen(hv.explain)} data-testid="ranges" data-opens={explainId(hv)}>
               <span className="range-legend num">
                 <span className="range-row" data-testid="likely-range">
                   <span className="range-name">{copy.headline.likely}</span>
@@ -417,7 +524,7 @@ function PanelHeadline({ hv, onOpen, targetKcal, onSetTarget, dayKey, balance, o
         </>
       )}
       <BalanceLine balance={balance} onOpen={onOpen} onOpenBody={onOpenBody} />
-      <DayStatus hv={hv} />
+      <DayStatus hv={hv} onOpen={onOpen} />
 
       {share && !hv.net && (
         <p className="ring-note" data-testid="ring-note">
@@ -451,17 +558,40 @@ function PanelHeadline({ hv, onOpen, targetKcal, onSetTarget, dayKey, balance, o
 }
 
 /**
+ * The words RingWords draws, with its hidden part, as one string for a spoken name. Set as the
+ * button's aria-label, so no space is read in before the full stop (a hidden span would add one).
+ */
+function ringWordsText(share: { pct: number } | null, targetKcal: number | undefined, net: boolean): string {
+  if (share) {
+    const words = `${copy.panel.ringShare(fmtInt(share.pct), fmtAmount(targetKcal as number))}${copy.panel.ringShareHidden}`
+    return net ? `${copy.panel.ringEatenLead} ${words}` : words
+  }
+  if (targetKcal !== undefined) return net ? copy.targets.shortEaten(fmtAmount(targetKcal)) : copy.targets.short(fmtAmount(targetKcal))
+  return copy.panel.noTarget
+}
+
+/** The Panel ring's spoken name: "1,260 kcal, 63% of 2,000 kcal daily target. Opens the meals behind it." */
+function ringOpenLabel(hv: HeadlineView, share: { pct: number } | null, targetKcal: number | undefined): string {
+  if (hv.net) {
+    const value = hv.value === null ? copy.headline.notAvailable : `${hv.valueText} ${copy.panel.ringNetUnit}`
+    return copy.panel.ringOpenLabel(value, copy.headline.opensNet)
+  }
+  const value = hv.value === null ? copy.headline.notAvailable : `${hv.valueText} ${copy.units.kcal}`
+  return copy.panel.ringOpenLabel(`${value}, ${ringWordsText(share, targetKcal, false)}`, copy.headline.opensMeals)
+}
+
+/**
  * What the Panel ring shows. With calories eaten as the headline it sits in the ring under the
  * number ("95% of 2,400"). Once net is the headline it sits under the ring, apart from the net
  * number in it, and says the ring is eaten ("Ring: eaten, 95% of 2,400").
  */
 function RingWords({ share, targetKcal, net }: { share: { pct: number } | null; targetKcal?: number; net: boolean }) {
   return (
-    <p className={net ? 'ring-words ring-caption num' : 'ring-words num'} data-testid="ring-words">
+    <span className={net ? 'ring-words ring-caption num' : 'ring-words num'} data-testid="ring-words">
       {share ? (
         <>
           {net && <>{copy.panel.ringEatenLead} </>}
-          <span className={net ? 'nowrap' : undefined}>{copy.panel.ringShare(String(share.pct), fmtAmount(targetKcal as number))}</span>
+          <span className={net ? 'nowrap' : undefined}>{copy.panel.ringShare(fmtInt(share.pct), fmtAmount(targetKcal as number))}</span>
           <span className="visually-hidden">{copy.panel.ringShareHidden}</span>
         </>
       ) : targetKcal !== undefined ? (
@@ -469,20 +599,20 @@ function RingWords({ share, targetKcal, net }: { share: { pct: number } | null; 
       ) : (
         copy.panel.noTarget
       )}
-    </p>
+    </span>
   )
 }
 
-function NightHeadline({ hv, onOpen, targetKcal, onSetTarget, macros, targets, view, balance, onOpenBody }: LookProps) {
+function NightHeadline({ hv, onOpen, targetKcal, onSetTarget, macros, targets, view, balance, onOpenBody, onOpenMacro }: LookProps) {
   return (
     <section className="headline night-hero" aria-label={hv.label} data-mode={hv.net ? 'net' : 'eaten'} data-testid="headline">
       <p className="headline-label">{hv.label}</p>
 
-      <HeadlineNumber hv={hv} />
-      <DayStatus hv={hv} />
+      <HeadlineNumber hv={hv} onOpen={onOpen} />
+      <DayStatus hv={hv} onOpen={onOpen} />
 
       {hv.likelyShort && hv.veryLikelyShort ? (
-        <button type="button" className="range-summary night-ranges num" onClick={() => onOpen(hv.explain)} data-testid="ranges">
+        <button type="button" className="range-summary night-ranges num" onClick={() => onOpen(hv.explain)} data-testid="ranges" data-opens={explainId(hv)}>
           <span className="night-range" data-testid="likely-range">
             {copy.night.likely} <b>{hv.likelyShort}</b>
             <span className="visually-hidden">{copy.night.rangeUnitHidden}</span>
@@ -515,6 +645,7 @@ function NightHeadline({ hv, onOpen, targetKcal, onSetTarget, macros, targets, v
               onClick={() => onOpen({ mode: 'eaten' })}
               aria-label={hv.eaten.label}
               data-testid="headline-eaten"
+              data-opens="eaten-sheet"
             >
               {copy.night.eatenChip(hv.eaten.value === null ? hv.eaten.text : fmtInt(hv.eaten.value))}
             </button>
@@ -524,6 +655,7 @@ function NightHeadline({ hv, onOpen, targetKcal, onSetTarget, macros, targets, v
               onClick={() => onOpen({ mode: 'workouts' })}
               aria-label={hv.burned.label}
               data-testid="headline-burned"
+              data-opens="workouts-sheet"
             >
               {copy.night.burnedChip(hv.burned.value === null ? hv.burned.text : fmtInt(hv.burned.value))}
             </button>
@@ -540,6 +672,7 @@ function NightHeadline({ hv, onOpen, targetKcal, onSetTarget, macros, targets, v
                 hv.net ? copy.night.targetChipLabelEaten(fmtAmount(targetKcal)) : copy.night.targetChipLabel(fmtAmount(targetKcal))
               }
               data-testid="headline-target"
+              data-opens="targets-sheet"
             >
               {hv.net ? copy.targets.shortEaten(fmtAmount(targetKcal)) : copy.targets.short(fmtAmount(targetKcal))}
             </button>
@@ -548,7 +681,7 @@ function NightHeadline({ hv, onOpen, targetKcal, onSetTarget, macros, targets, v
               {copy.targets.setKcal}
             </button>
           ))}
-        {macros && view.day.status !== 'empty' && <NightMacros macros={macros} targets={targets} />}
+        {macros && view.day.status !== 'empty' && onOpenMacro && <NightMacros macros={macros} targets={targets} onOpenMacro={onOpenMacro} />}
       </div>
 
       {/* Under the chips, so eaten and burned stay right under the net number. */}

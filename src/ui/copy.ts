@@ -162,6 +162,16 @@ export const copy = {
     netRangesKnownOnly: 'These ranges cover the known meals and workouts only.',
     // A range that runs below 0 reads "−140 to 3,140 kcal": an en dash after a minus sign is hard to read.
     signedRangeValue: (lo: string, hi: string) => `${lo} to ${hi} kcal`,
+    // Build-out item 2.9: every number on the dashboard opens its detail. The headline number opens
+    // the meals behind it (or, once net is the headline, how net is worked out).
+    openEaten: (label: string, value: string) => `${label} ${value}. Opens the meals behind it.`,
+    openNet: (label: string, value: string) => `${label} ${value}. Opens how net is worked out.`,
+    // Read after the Panel ring's own words, which already give the number.
+    opensMeals: 'Opens the meals behind it.',
+    opensNet: 'Opens how net is worked out.',
+    openUnknownMeals: (count: string) => `${count}. Opens the meals.`,
+    openUnknownWorkouts: (count: string) => `${count}. Opens the workouts.`,
+    openShare: (share: string) => `${share}. Opens the estimate score explanation, which lists each meal’s share.`,
     minus: '−',
     plus: '+',
   },
@@ -300,6 +310,9 @@ export const copy = {
     title: 'Missing information',
     unknownKcal: 'calories unknown',
     unknownBurned: 'calories burned unknown',
+    // Build-out item 2.9: the row's button, which covers it, says what is unknown and what it opens.
+    mealLabel: (meal: string) => `${meal}, calories unknown. Opens the meal details.`,
+    workoutLabel: (workout: string) => `${workout}, calories burned unknown. Opens the workout details.`,
   },
 
   dashboard: {
@@ -319,6 +332,9 @@ export const copy = {
     rowScoreBiggest: (score: string) => `Estimate score ${score} · biggest uncertainty`,
     rowLabel: (meal: string, meta: string, kcal: string, score: string) =>
       `${meal}, ${meta}, ${kcal}, ${score}. Opens the meal details.`,
+    // Build-out item 2.9: the score on a row is its own button, one tap from the score explanation.
+    // The meal's name comes first, so the label reads "Pasta bake: Estimate score 54 · biggest uncertainty".
+    scoreLabel: (score: string, meal: string) => `${meal}: ${score}. Opens the score explanation.`,
     meta: (time: string, source: string) => `${time} · ${source}`,
     // A meal saved with blank calories may have no source picked (prd.md > Logging a Meal).
     sourceNotPicked: 'source not picked',
@@ -519,6 +535,110 @@ export const copy = {
     subKnownOnly: (kcal: string) => `${kcal} kcal from the known meals`,
     intro: 'Tap a meal for its breakdown.',
     none: 'No meals logged on this day.',
+    // Build-out item 2.9: the daily target, so the Panel ring's share ("95% of 2,400") has a detail.
+    targetLabel: 'Daily target',
+    // Read under the target's own line, so the figure is not said twice.
+    targetShare: (pct: string) => `The best estimate is ${pct}% of it.`,
+    targetShareKnownOnly: 'Not compared while a meal has no calories.',
+    changeTarget: 'Change targets',
+  },
+
+  // Build-out item 2.9: a macro's detail, opened from the macro row (each look). Blank is never 0;
+  // there is no macro range yet (prd.md > Ranges for Protein, Carbs and Fat is a later tier).
+  macroDetail: {
+    title: (macro: string) => macro,
+    sub: (n: number) => (n === 1 ? 'From 1 logged meal' : `From ${n} logged meals`),
+    subEarlierDay: (n: number) => (n === 1 ? 'That day, from 1 logged meal' : `That day, from ${n} logged meals`),
+    // A day with no meals (for example after deleting its last one from here): no total, never 0 g.
+    noMeals: 'No meals logged',
+    noMealsLine: 'No meals are logged on this day, so there is no total yet.',
+    targetNoMeals: 'Not compared while no meals are logged.',
+    knownOnly: 'Known meals only',
+    rounded: (grams: string) => `Shown on the dashboard as ${grams}, rounded to the gram.`,
+    missingLine: (n: number, macro: string, total: string) =>
+      n === 1
+        ? `1 meal has no ${macro} value, so the day’s total is at least ${total}.`
+        : `${n} meals have no ${macro} value, so the day’s total is at least ${total}.`,
+    allUnknown: (macro: string) => `No meal on this day has a ${macro} value, so the total is unknown, not 0.`,
+    rangeTitle: 'Range',
+    noRange: 'No range yet: ranges cover calories only for now. This total adds up the values entered for each meal.',
+    unknownsTitle: 'Meals with no value',
+    unknownsHow: (macro: string) =>
+      `A meal with no ${macro} value is left out of the total and counted as missing, never as 0 g.`,
+    targetTitle: 'Daily target',
+    target: (grams: string) => `${grams} g`,
+    // Read under the target's own line ("130 g"), so the figure is not said twice.
+    targetShare: (pct: string) => `The day’s total is ${pct}% of it.`,
+    targetShareKnownOnly: (pct: string) => `The day’s total is at least ${pct}% of it: the meals with no value could add more.`,
+    targetUnknown: 'Not compared while the total is unknown.',
+    noTarget: (macro: string) => `No ${macro} target set.`,
+    setTargets: 'Set targets',
+    changeTargets: 'Change targets',
+    mealsTitle: 'By meal',
+    mealsIntro: 'Each meal’s value as entered, with how you know it and its share of the known total.',
+    share: (pct: string) => `${pct}%`,
+    // The share in a meal's spoken name, where the column's heading isn't read with it.
+    shareSpoken: (pct: string) => `${pct}% of the known total`,
+    noValue: 'no value',
+    rowLabel: (meal: string, meta: string, value: string) => `${meal}, ${meta}, ${value}. Opens the meal details.`,
+    // The macro on the dashboard: a button that opens this detail.
+    openLabel: (macro: string, value: string) => `${macro} ${value}. Opens the ${macro.toLowerCase()} detail.`,
+  },
+
+  // Build-out item 2.9: the sleep detail, opened from last night and the 7-night average (each look).
+  sleepDetail: {
+    title: 'Sleep',
+    sub: (day: string) => `The nights up to the wake on ${day}`,
+    subProvisional: 'This day has no wake time yet',
+    // The current day while asleep: the list starts with the sleep going on.
+    subAsleep: (day: string) => `The sleep going on now, and the nights up to the wake on ${day}`,
+    now: 'Now',
+    wentToSleep: 'Went to sleep',
+    woke: 'Woke',
+    lastNightNone: 'No night is logged that ended at this day’s wake time.',
+    // The provisional day, before any wake time: there is no wake for a night to end at.
+    lastNightNoneYet: 'No night is logged yet.',
+    eachNight: 'Each night',
+    averageTitle: '7-night average',
+    averageHow:
+      'The mean length of the nights with both a sleep time and a wake time. A night with either time not logged is left out, never counted as 0.',
+    source: 'From the sleep and wake times in this log.',
+    openLabel: (what: string) => `${what}. Opens the sleep details.`,
+    // The sleep section's two rows as one button: what they show, then what opens.
+    rowsLabel: (lastLabel: string, last: string, avgLabel: string, avg: string, count?: string | null) =>
+      `${lastLabel} ${last}, ${avgLabel} ${avg}${count ? `, ${count}` : ''}. Opens the sleep details.`,
+  },
+
+  // Build-out item 2.9: the foods stored on a meal (spec.md > Data Model: meals.foods, meals.lookup).
+  foods: {
+    title: 'Foods in this meal',
+    servings: (n: string) => (n === '1' ? '1 serving' : `${n} servings`),
+    amount: (n: string, unit: string) => `${n} ${unit}`,
+    fiber: (grams: string) => `fiber ${grams} g per 100 g`,
+    // After the note, when a food lists fiber: it has no source of its own.
+    fiberNote: 'Fiber per 100 g is as it was saved with the food, with no source saved for it.',
+    // The list is stored with the meal and no editor changes it yet: after an edit it may no longer
+    // match the meal's name, so the details say so in every state.
+    keptNote: 'This list is kept as it was saved with the meal: “Edit” does not change it yet.',
+    note: (source: string) =>
+      `Listed as parts of the meal. The calories and macros above are the meal’s own totals, from how you know them: ${source}. No food here has its own calories or macros.`,
+    noteNoSource: 'Listed as parts of the meal. The calories and macros above are the meal’s own totals. No food here has its own calories or macros.',
+    lookupTitle: 'Lookup',
+    lookupKind: { barcode: 'Barcode lookup', foodSearch: 'Food search' },
+    lookupSaved: 'saved result',
+    lookupAmount: {
+      weighed: 'amount weighed',
+      package: 'whole package',
+      portion: 'a portion',
+    },
+    lookupGrams: (grams: string) => `${grams} g`,
+    lookupFetched: (date: string) => `fetched ${date}`,
+    lookupCredit: (credit: string) => `Credit: ${credit}`,
+    lookupUnused: (source: string) => `Not used now: this meal’s values come from ${source}, not from this lookup.`,
+    lookupUnusedNoSource: 'Not used now: no source is picked for this meal.',
+    lookupKindLower: { barcode: 'a barcode lookup', foodSearch: 'a food search' },
+    lookupMismatch: (source: string, kind: string) =>
+      `Does not match: this meal’s values are marked ${source}, which ${kind} does not give, so they may not come from this lookup.`,
   },
 
   // prd.md > Sleep and Waking Days. A missing sleep or wake time is "not logged", never 0 h.
@@ -531,7 +651,7 @@ export const copy = {
     lastNight: 'Last night',
     nightBefore: 'Night before this day',
     average: '7-night average',
-    nightCount: (complete: string, total: string) => `${complete} of ${total} nights`,
+    nightCount: (complete: string, total: string) => `${complete} of ${total} ${total === '1' ? 'night' : 'nights'}`,
     notLogged: 'not logged',
     notAvailable: 'Not available yet',
     duration: (h: string, m: string) => `${h} h ${m} min`,
@@ -840,6 +960,8 @@ export const copy = {
     ringEatenLead: 'Ring: eaten,',
     ringNoteEaten: 'The ring shows calories eaten (best estimate), not net, against your daily target for eating.',
     ringKnownOnlyEaten: 'The ring is not filled until every meal has calories.',
+    // Build-out item 2.9: the spoken names of the ring and the line under it, which open details.
+    ringOpenLabel: (what: string, opens: string) => `${what}. ${opens}`,
   },
 
   // Build-out item 1.5.2c: words only the Night look draws. The waking day is a timeline from the
@@ -869,6 +991,8 @@ export const copy = {
     burnedChip: (kcal: string) => `Burned ${kcal}`,
     timelineTitle: 'The waking day',
     wokeUp: 'Woke up',
+    // The wake point's editor button (build-out item 2.9), before "edit the wake time".
+    wokeAt: (time: string) => `Woke up ${time}`,
     slept: (duration: string) => `slept ${duration}`,
     sleepNotLogged: 'sleep not logged',
     score: (score: string) => `score ${score}`,

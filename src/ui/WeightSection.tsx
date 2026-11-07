@@ -38,7 +38,7 @@ export function WeightSection({ weight, today, onOpen, onLog }: WeightSectionPro
           {copy.weight.noWeighInsYet}
         </p>
       ) : (
-        <button type="button" className="weight-open" onClick={onOpen} data-testid="weight-open">
+        <button type="button" className="weight-open" onClick={onOpen} data-testid="weight-open" data-opens="weight-details">
           <span className="weight-day">
             {latest ? (
               <>

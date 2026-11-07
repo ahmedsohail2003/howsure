@@ -7,7 +7,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { nowIso, reanchorDemoClock, type LogKind } from '../clock'
 import { sleepStatus, wakingDayStart } from '../kernel/sleepday'
 import type { StatId } from '../kernel/statRegistry'
-import type { Meal, SleepRecord, WeighIn, WeightUnit, Workout } from '../kernel/types'
+import type { MacroKey, Meal, SleepRecord, WeighIn, WeightUnit, Workout } from '../kernel/types'
 import { demoChanges, isDemoEdited, pristineDemo, type DemoChanges } from '../store/demoReset'
 import { emptyLog, startDemo, type BodyDetails, type LogDoc } from '../store/log'
 import { DEFAULT_LOOK, saveLook, type Look } from '../store/look'
@@ -44,6 +44,7 @@ import { LogMealSheet } from './LogMealSheet'
 import { LookContext, type LookState } from './lookContext'
 import { applyLook } from './looks'
 import { LookSheet } from './LookSheet'
+import { MacroDetails } from './MacroDetails'
 import { downloadText } from './download'
 import { MealDetails } from './MealDetails'
 import { MoreMenu } from './MoreMenu'
@@ -52,6 +53,7 @@ import { ProfilePrivacy, type DeleteOutcome, type ImportOutcome } from './Profil
 import { ResetDemoSheet } from './ResetDemoSheet'
 import { SetWakeSheet } from './SetWakeSheet'
 import { missedWakeDate, latestTime, type EditTarget } from './sleepEdit'
+import { SleepDetails } from './SleepDetails'
 import { SleepEditor, type NightChange } from './SleepEditor'
 import { SleepTimeSheet } from './SleepTimeSheet'
 import { buildSleepView, type SleepAction } from './sleepView'
@@ -83,10 +85,15 @@ import { WeekBreakdownSheet, WeekSheet } from './WeekView'
 import { FOCUS_RETURN } from './Sheet'
 
 type SheetState =
-  | ExplainMode
+  // `back` (build-out item 2.9): a meal's score opened from its details, when those were opened
+  // from another sheet (a macro's detail), goes back to the details on close.
+  | (ExplainMode & { back?: SheetState })
   | { mode: 'improve'; mealId: string }
-  | { mode: 'edit'; mealId: string }
-  | { mode: 'details'; mealId: string }
+  // `back` on edit: the meal's details it was opened from, when those were opened from a sheet.
+  | { mode: 'edit'; mealId: string; back?: SheetState }
+  // `back` (build-out item 2.9): the sheet to go back to on close, when it was opened from one (a
+  // macro's detail, the sleep details) rather than from the dashboard.
+  | { mode: 'details'; mealId: string; back?: SheetState }
   // A new meal keeps its blank starting point (id and default time) while the sheet is open.
   | { mode: 'new'; meal: Meal }
   // I'm going to sleep / I woke up, with the date and time (prd.md > Sleep and Waking Days).
@@ -95,7 +102,7 @@ type SheetState =
   | { mode: 'profile' }
   // The More menu and the targets editor (build-out item 1.3).
   | { mode: 'more' }
-  | { mode: 'targets' }
+  | { mode: 'targets'; back?: SheetState }
   // The Look sheet (build-out item 1.5.2).
   | { mode: 'look' }
   // Build-out item 2.1: Set wake time (a log with no wake time yet), and Reset demo's
@@ -118,7 +125,10 @@ type SheetState =
   // or the line under the headline that invites adding them.
   | { mode: 'body'; from: 'profile' | 'more' | 'dashboard' }
   // Build-out item 2.2: the sleep and wake editor, on one night or a new (missed) one.
-  | { mode: 'sleepEdit'; target: EditTarget }
+  | { mode: 'sleepEdit'; target: EditTarget; back?: SheetState }
+  // Build-out item 2.9: one macro's detail, and the sleep details.
+  | { mode: 'macro'; macro: MacroKey }
+  | { mode: 'sleep' }
   // Build-out item 2.4: the weight details, and Log weight (id null) or a weigh-in's edit sheet.
   // Closing the sheet goes back to where it was opened from: the details or the dashboard.
   | { mode: 'weight'; focusId?: string | null }
@@ -269,13 +279,21 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
     persist(next)
   }
 
-  /** Log, Edit and Improve all save through here: a new id is added, a known id replaced. */
-  function saveMeal(meal: Meal) {
-    if (doc) commit(withMeal(doc, meal))
+  /**
+   * Log, Edit and Improve all save through here: a new id is added, a known id replaced. `back`
+   * (build-out item 2.9): an edit of a meal opened from a macro's detail goes back to it.
+   */
+  function saveMeal(meal: Meal, back?: SheetState) {
+    if (!doc) return
+    commit(withMeal(doc, meal))
+    if (back) setSheet(back)
   }
 
-  function deleteMeal(mealId: string) {
-    if (doc) commit(withoutMeal(doc, mealId))
+  /** Deleting a meal opened from a macro's detail goes back to that detail, without the meal in it. */
+  function deleteMeal(mealId: string, back?: SheetState) {
+    if (!doc) return
+    commit(withoutMeal(doc, mealId))
+    if (back) setSheet(back)
   }
 
   /**
@@ -355,7 +373,7 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
    * edited stays on screen at its new wake; when its night was deleted, the day that now holds
    * that time is shown. Every meal keeps its own date and time.
    */
-  function saveNight(sleeps: SleepRecord[], change: NightChange) {
+  function saveNight(sleeps: SleepRecord[], change: NightChange, back?: SheetState) {
     if (!doc || !at) return
     let next: LogDoc = { ...doc, sleeps }
     const last = change.after ? latestTime(change.after) : null
@@ -368,6 +386,8 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
       setViewed({ dayStart: newWake ?? wakingDayStart(sleeps, oldWake) })
     }
     commit(next)
+    // Opened from the sleep details (build-out item 2.9), it goes back there, with the change in it.
+    if (back) setSheet(back)
   }
 
   /**
@@ -451,8 +471,11 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
   }
 
   /** Targets editor Save: the open log's targets (Sam's in the demo, which stay in the demo). */
-  function saveTargets(targets: Targets) {
-    if (doc) commit(withTargets(doc, targets))
+  function saveTargets(targets: Targets, back?: SheetState) {
+    if (!doc) return
+    commit(withTargets(doc, targets))
+    // Opened from a detail (a macro's, or Eaten's: build-out item 2.9), it goes back there.
+    if (back) setSheet(back)
   }
 
   /** Body details Save (build-out item 2.5b): the open log's (Sam's in the demo stay in the demo). */
@@ -644,6 +667,7 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
     max: toLocalInput(at).slice(0, 10),
   }
   const sleepTime = sheet?.mode === 'sleepTime' ? sheet : null
+  const sleepView = buildSleepView(doc.sleeps, viewedStart)
   const explain =
     sheet?.mode === 'meal' || sheet?.mode === 'day' || sheet?.mode === 'ranges' || sheet?.mode === 'net' || sheet?.mode === 'balance'
       ? sheet
@@ -684,11 +708,14 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
         onImprove={(mealId) => setSheet({ mode: 'improve', mealId })}
         onLogMeal={openLogMeal}
         onOpenMeal={(mealId) => setSheet({ mode: 'details', mealId })}
+        onOpenScore={(mealId) => setSheet({ mode: 'meal', mealId })}
+        onOpenMacro={(macro) => setSheet({ mode: 'macro', macro })}
+        onOpenSleep={() => setSheet({ mode: 'sleep' })}
         onOpenWorkout={(workoutId) => setSheet({ mode: 'workout', workoutId })}
         onLogWorkout={openLogWorkout}
         gym={gymSummary(view.workouts, view.dayStart, gymUnit)}
         onOpenGymLog={() => openGymLog()}
-        sleep={buildSleepView(doc.sleeps, viewedStart)}
+        sleep={sleepView}
         weight={weight}
         onOpenWeight={() => setSheet({ mode: 'weight' })}
         onLogWeight={() => openLogWeight('dashboard')}
@@ -726,9 +753,40 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
       )}
       {sheet?.mode === 'look' && <LookSheet demo={demo} onClose={() => setSheet(null)} />}
       {sheet?.mode === 'targets' && (
-        <TargetsSheet targets={doc.profile.targets} demo={demo} onSave={saveTargets} onClose={() => setSheet(null)} />
+        <TargetsSheet
+          targets={doc.profile.targets}
+          demo={demo}
+          onSave={(t) => saveTargets(t, sheet.back)}
+          onClose={() => setSheet(sheet.back ?? null)}
+        />
       )}
-      {explain && <ExplainSheet mode={explain} view={view} balance={balance} demo={demo} onClose={() => setSheet(null)} />}
+      {sheet?.mode === 'macro' && (
+        <MacroDetails
+          key={sheet.macro}
+          macro={sheet.macro}
+          view={view}
+          targets={doc.profile.targets}
+          today={today}
+          demo={demo}
+          onClose={() => setSheet(null)}
+          onOpenMeal={(mealId) => setSheet({ mode: 'details', mealId, back: sheet })}
+          onOpenTargets={() => setSheet({ mode: 'targets', back: sheet })}
+        />
+      )}
+      {sheet?.mode === 'sleep' && (
+        <SleepDetails
+          sleep={sleepView}
+          today={today}
+          nowIso={at}
+          demo={demo}
+          onClose={() => setSheet(null)}
+          onEditNight={(recordId) => setSheet({ mode: 'sleepEdit', target: { kind: 'edit', recordId }, back: { mode: 'sleep' } })}
+          onAddNight={() =>
+            setSheet({ mode: 'sleepEdit', target: { kind: 'add', wakeDate: missedWakeDate(doc.sleeps, viewedStart, at) }, back: { mode: 'sleep' } })
+          }
+        />
+      )}
+      {explain && <ExplainSheet mode={explain} view={view} balance={balance} demo={demo} onClose={() => setSheet(explain.back ?? null)} />}
       {sheet?.mode === 'body' && (
         <BodySheet
           body={doc.profile.body}
@@ -748,6 +806,9 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
           onClose={() => setSheet(null)}
           onOpen={setSheet}
           onOpenMeal={(mealId) => setSheet({ mode: 'details', mealId })}
+          onOpenScore={(mealId) => setSheet({ mode: 'meal', mealId })}
+          targetKcal={doc.profile.targets?.kcal}
+          onOpenTargets={() => setSheet({ mode: 'targets', back: { mode: 'eaten' } })}
         />
       )}
       {sheet?.mode === 'workouts' && (
@@ -811,10 +872,10 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
           meal={details}
           view={view}
           demo={demo}
-          onClose={() => setSheet(null)}
-          onEdit={() => setSheet({ mode: 'edit', mealId: details.id })}
-          onDelete={() => deleteMeal(details.id)}
-          onOpenScore={() => setSheet({ mode: 'meal', mealId: details.id })}
+          onClose={() => setSheet(sheet?.mode === 'details' ? (sheet.back ?? null) : null)}
+          onEdit={() => setSheet({ mode: 'edit', mealId: details.id, back: sheet?.mode === 'details' && sheet.back ? sheet : undefined })}
+          onDelete={() => deleteMeal(details.id, sheet?.mode === 'details' ? sheet.back : undefined)}
+          onOpenScore={() => setSheet({ mode: 'meal', mealId: details.id, back: sheet?.mode === 'details' && sheet.back ? sheet : undefined })}
           saved={doc.savedMeals ?? []}
           onSaveUsual={(name, updateId) => saveUsual(details, name, updateId)}
           onManageSaved={() => setSheet({ mode: 'savedMeals', from: 'details', mealId: details.id })}
@@ -829,8 +890,8 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
           at={anchorFor(doc, view.dayStart, at)}
           viewDayStart={view.dayStart}
           demo={demo}
-          onSave={saveMeal}
-          onClose={() => setSheet(null)}
+          onSave={(m) => saveMeal(m, sheet.mode === 'edit' ? sheet.back : undefined)}
+          onClose={() => setSheet(sheet.mode === 'edit' ? (sheet.back ?? null) : null)}
           quick={
             sheet.mode === 'new'
               ? {
@@ -938,8 +999,8 @@ export function App({ initialLook = DEFAULT_LOOK }: AppProps) {
           nowIso={at}
           missedDate={missedWakeDate(doc.sleeps, viewedStart, at)}
           demo={demo}
-          onSave={saveNight}
-          onClose={() => setSheet(null)}
+          onSave={(sleeps, change) => saveNight(sleeps, change, sheet.back)}
+          onClose={() => setSheet(sheet.back ?? null)}
         />
       )}
       {sleepTime && (

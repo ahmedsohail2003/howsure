@@ -16,7 +16,7 @@ import { heightText, weightText } from './body'
 import { copy } from './copy'
 import type { DayView } from './dayView'
 import { fmtInt, fmtPct, fmtRange, fmtSharePct, fmtSigned, fmtSignedPlus, fmtSignedRange, fmtWeekdayTime } from './format'
-import { TimesTogether } from './KeepTogether'
+import { KeepTogether, TimesTogether } from './KeepTogether'
 import { mealSourceLabel, mealTimeLabel } from './MealList'
 import { Sheet } from './Sheet'
 import { BasisTag, SourceBasisItem, SourceBasisList, sourcesUsed } from './SourceBasis'
@@ -126,7 +126,7 @@ function NetExplanation({ view }: { view: DayView }) {
             {day.likely && (
               <>
                 {copy.sep}
-                {copy.explainNet.likelyOf(fmtRange(day.likely))}
+                <KeepTogether text={copy.explainNet.likelyOf(fmtRange(day.likely))} part={fmtRange(day.likely)} />
               </>
             )}
           </span>
@@ -138,7 +138,7 @@ function NetExplanation({ view }: { view: DayView }) {
             {burned.likely && (
               <>
                 {copy.sep}
-                {copy.explainNet.likelyOf(fmtRange(burned.likely))}
+                <KeepTogether text={copy.explainNet.likelyOf(fmtRange(burned.likely))} part={fmtRange(burned.likely)} />
               </>
             )}
           </span>

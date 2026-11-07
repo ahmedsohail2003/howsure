@@ -56,7 +56,14 @@ export function WorkoutRows({ workouts, dayStart, onOpenWorkout }: RowsProps) {
         const label = copy.workouts.rowLabel(w.name, meta, kcal, score)
         return (
           <li key={w.id} className="meal-row workout-row" data-testid="workout-row" data-workout-id={w.id}>
-            <button type="button" className="meal-open" onClick={() => onOpenWorkout(w.id)} aria-label={label} data-testid="workout-open">
+            <button
+              type="button"
+              className="meal-open"
+              onClick={() => onOpenWorkout(w.id)}
+              aria-label={label}
+              data-testid="workout-open"
+              data-opens="workout-details"
+            >
               {panel ? (
                 <>
                   <span className="meal-name">{w.name}</span>
